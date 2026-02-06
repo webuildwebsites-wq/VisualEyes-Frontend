@@ -23,6 +23,11 @@ body {
   min-height: 100vh;
 }
 
+.app-root {
+  background: url('/src/assets/main-bg.jpg') no-repeat center center/cover;
+
+}
+
 /* Custom ERP Theme Variables for Tailwind v4 */
 @theme {
   --color-erp-primary: #1e3c72;
