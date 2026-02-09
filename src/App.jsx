@@ -23,16 +23,11 @@ function App() {
         <Routes>
           <Route
             path="/login"
-            element={!isAuthenticated ? <Login /> : <Navigate to="/" replace />}
+            element={!isAuthenticated ? <Login /> : <Navigate to="/welcome" state={{ from: 'login' }} replace />}
           />
-          <Route
-            path="/welcome"
-            element={!isAuthenticated ? <Welcome /> : <Navigate to="/" replace />}
-          />
-
-
           {/* Protected Dashboard Routes */}
           <Route element={<AuthWrapper />}>
+            <Route path="/welcome" element={<Welcome />} />
             <Route path="/" element={<MainLayout />}>
               <Route index element={<PlaceholderPage title="Dashboard" />} />
               <Route

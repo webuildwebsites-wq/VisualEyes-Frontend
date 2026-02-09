@@ -1,47 +1,62 @@
-import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import { Icon } from '@iconify/react';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+
 import Select from '../components/ui/Select';
-import logo from '../assets/visual-eyes-logo.png';
 
 const Registration = () => {
-    const [formData, setFormData] = useState({
-        employeeType: '',
-        name: '',
-        mobile: '',
-        email: '',
-        designation: '',
-        department: '',
-        username: '',
-        expiry: ''
+    const navigate = useNavigate();
+
+    const validationSchema = Yup.object({
+        employeeType: Yup.string().required('Employee Type is required'),
+        name: Yup.string().required('Name is required'),
+        mobile: Yup.string()
+            .matches(/^[0-9]+$/, "Must be only digits")
+            .min(10, 'Must be exactly 10 digits')
+            .max(10, 'Must be exactly 10 digits')
+            .required('Mobile is required'),
+        email: Yup.string().email('Invalid email format').required('Email is required'),
+        designation: Yup.string().required('Designation is required'),
+        department: Yup.string().required('Department is required'),
+        username: Yup.string().required('Username is required'),
+        expiry: Yup.date().required('Expiry date is required').nullable()
     });
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        console.log('Registration Data:', formData);
-        // API integration
-    };
+    const formik = useFormik({
+        initialValues: {
+            employeeType: '',
+            name: '',
+            mobile: '',
+            email: '',
+            designation: '',
+            department: '',
+            username: '',
+            expiry: ''
+        },
+        validationSchema: validationSchema,
+        onSubmit: (values) => {
+            console.log('Registration Data:', values);
+            // Simulate API call success
+            navigate('/welcome', { state: { from: 'register' } });
+        },
+    });
 
     return (
         <div className="  flex  p-4 py-8">
             <div className="bg-[#ffffffad] rounded-3xl shadow-2xl p-8 md:p-12 w-full max-w-6xl border border-blue-400/30">
-                {/* Logo */}
-                {/* <div className="flex justify-center mb-10">
-                    <img src={logo} alt="VisualEyes" className="h-48 object-contain" />
-                </div> */}
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={formik.handleSubmit} className="space-y-6">
 
                     <Select
                         name="employeeType"
-                        value={formData.employeeType}
-                        onChange={handleChange}
+                        value={formik.values.employeeType}
+                        onChange={formik.handleChange}
+                        onBlur={formik.handleBlur}
                         placeholder="Employee Type"
+                        error={formik.touched.employeeType && formik.errors.employeeType ? { message: formik.errors.employeeType } : null}
                         options={[
                             { value: 'SUPERADMIN', label: 'Super Admin' },
                             { value: 'SUBADMIN', label: 'Sub Admin' },
@@ -54,35 +69,45 @@ const Registration = () => {
                         <Input
                             name="name"
                             placeholder="Name"
-                            value={formData.name}
-                            onChange={handleChange}
+                            value={formik.values.name}
+                            onChange={formik.handleChange}
+                            onBlur={formik.handleBlur}
+                            error={formik.touched.name && formik.errors.name ? { message: formik.errors.name } : null}
                         />
                         <Input
                             name="mobile"
                             placeholder="Mobile"
-                            value={formData.mobile}
-                            onChange={handleChange}
+                            value={formik.values.mobile}
+                            onChange={formik.handleChange}
+                            onBlur={formik.handleBlur}
+                            error={formik.touched.mobile && formik.errors.mobile ? { message: formik.errors.mobile } : null}
                         />
                         <Input
                             name="email"
                             placeholder="Email"
-                            value={formData.email}
-                            onChange={handleChange}
+                            value={formik.values.email}
+                            onChange={formik.handleChange}
+                            onBlur={formik.handleBlur}
+                            error={formik.touched.email && formik.errors.email ? { message: formik.errors.email } : null}
                         />
                         <Input
                             name="designation"
                             placeholder="Designation"
-                            value={formData.designation}
-                            onChange={handleChange}
+                            value={formik.values.designation}
+                            onChange={formik.handleChange}
+                            onBlur={formik.handleBlur}
+                            error={formik.touched.designation && formik.errors.designation ? { message: formik.errors.designation } : null}
                         />
                     </div>
 
                     {/* Department Select - Orange Style */}
                     <Select
                         name="department"
-                        value={formData.department}
-                        onChange={handleChange}
+                        value={formik.values.department}
+                        onChange={formik.handleChange}
+                        onBlur={formik.handleBlur}
                         placeholder="Select Department"
+                        error={formik.touched.department && formik.errors.department ? { message: formik.errors.department } : null}
                         options={[
                             { value: 'LAB', label: 'Lab' },
                             { value: 'STORE', label: 'Store' },
@@ -97,15 +122,19 @@ const Registration = () => {
                         <Input
                             name="username"
                             placeholder="Username"
-                            value={formData.username}
-                            onChange={handleChange}
+                            value={formik.values.username}
+                            onChange={formik.handleChange}
+                            onBlur={formik.handleBlur}
+                            error={formik.touched.username && formik.errors.username ? { message: formik.errors.username } : null}
                         />
                         <Input
                             name="expiry"
                             placeholder="Expiry"
                             type="date"
-                            value={formData.expiry}
-                            onChange={handleChange}
+                            value={formik.values.expiry}
+                            onChange={formik.handleChange}
+                            onBlur={formik.handleBlur}
+                            error={formik.touched.expiry && formik.errors.expiry ? { message: formik.errors.expiry } : null}
                         />
                     </div>
 

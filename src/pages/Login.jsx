@@ -41,7 +41,7 @@ const Login = () => {
                         token: response.data.token
                     }));
                     toast.success('Login Successful');
-                    navigate('/');
+                    navigate('/welcome', { state: { from: 'login' } });
                 } else {
                     toast.error(response.message || 'Login failed');
                 }
