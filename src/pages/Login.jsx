@@ -5,18 +5,51 @@ import Button from '../components/ui/Button';
 import { Icon } from '@iconify/react';
 import logo from '../assets/visual-eyes-logo.png';
 import loginImage from '../assets/login-image.png';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
+import { toast } from 'react-toastify';
+import { loginUser } from '../services/authService';
+import { setCredentials } from '../store/slices/authSlice';
 
 const Login = () => {
-    const [loginId, setLoginId] = useState('');
-    const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
 
-    const handleLogin = (e) => {
-        e.preventDefault();
-        console.log('Login attempt:', { loginId, password });
-        // API integration would go here
-    };
+    const validationSchema = Yup.object({
+        loginId: Yup.string()
+            .email('Invalid email format')
+            .required('Login ID is required'),
+        password: Yup.string()
+            .required('Password is required'),
+    });
+
+    const formik = useFormik({
+        initialValues: {
+            loginId: '',
+            password: '',
+        },
+        validationSchema: validationSchema,
+        onSubmit: async (values) => {
+            try {
+                const response = await loginUser({ username: values.loginId, password: values.password });
+                if (response.success) {
+                    dispatch(setCredentials({
+                        user: response.data.user,
+                        token: response.data.token
+                    }));
+                    toast.success('Login Successful');
+                    navigate('/');
+                } else {
+                    toast.error(response.message || 'Login failed');
+                }
+            } catch (err) {
+                toast.error(err.message || 'An error occurred during login');
+            }
+        },
+    });
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4">
@@ -31,7 +64,6 @@ const Login = () => {
                         className="absolute inset-0 w-full h-full rounded-3xl object-cover opacity-80"
                     />
                     <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent"></div>
-                    {/* Decorative elements to mimic the lens overlay could go here */}
                 </div>
 
                 {/* Right Side - Form */}
@@ -40,24 +72,27 @@ const Login = () => {
                         {/* Logo */}
                         <div className="flex items-center gap-2">
                             <img src={logo} alt="VisualEyes" className="h-48 object-contain" />
-                            {/* Fallback/Text if needed, but logo image is preferred typically */}
                         </div>
                     </div>
 
-                    <form onSubmit={handleLogin} className="space-y-6">
+                    <form onSubmit={formik.handleSubmit} className="space-y-6">
                         <Input
+                            name="loginId"
                             placeholder="Login ID"
-                            value={loginId}
-                            onChange={(e) => setLoginId(e.target.value)}
-                            className="bg-gray-200 w-full rounded-xl h-12 p-4 "
+                            value={formik.values.loginId}
+                            onChange={formik.handleChange}
+                            onBlur={formik.handleBlur}
+                            error={formik.touched.loginId && formik.errors.loginId ? { message: formik.errors.loginId } : null}
                         />
 
                         <Input
+                            name="password"
                             type={showPassword ? "text" : "password"}
                             placeholder="Password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="bg-gray-200 w-full rounded-xl h-12 p-4 "
+                            value={formik.values.password}
+                            onChange={formik.handleChange}
+                            onBlur={formik.handleBlur}
+                            error={formik.touched.password && formik.errors.password ? { message: formik.errors.password } : null}
                             icon={
                                 <Icon
                                     icon={showPassword ? "mdi:eye-off-outline" : "mdi:eye-outline"}
@@ -67,19 +102,15 @@ const Login = () => {
                             }
                         />
 
-
-
                         <Button type="submit" className="mt-4 shadow-lg max-w-[200px] mx-auto shadow-amber-500/30">
                             Login
                         </Button>
                         <br />
                         <Link to="/forgot-password" className="text-amber-500 text-left hover:underline">Forgot Password</Link>
 
-
-
-                        <p className="text-center text-gray-500 mt-4">
+                        {/* <p className="text-center text-gray-500 mt-4">
                             Don't have an account? <a href="/register" className="text-amber-500 hover:underline">Register</a>
-                        </p>
+                        </p> */}
                     </form>
                 </div>
             </div>

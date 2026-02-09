@@ -28,25 +28,25 @@ const Registration = () => {
     };
 
     return (
-        <div className="min-h-screen  flex items-center justify-center p-4 py-8">
+        <div className="  flex  p-4 py-8">
             <div className="bg-[#ffffffad] rounded-3xl shadow-2xl p-8 md:p-12 w-full max-w-6xl border border-blue-400/30">
                 {/* Logo */}
-                <div className="flex justify-center mb-10">
+                {/* <div className="flex justify-center mb-10">
                     <img src={logo} alt="VisualEyes" className="h-48 object-contain" />
-                </div>
+                </div> */}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
 
-                    {/* Employee Type Select - Orange Style */}
                     <Select
                         name="employeeType"
                         value={formData.employeeType}
                         onChange={handleChange}
                         placeholder="Employee Type"
                         options={[
-                            { value: 'fulltime', label: 'Full Time' },
-                            { value: 'contract', label: 'Contract' },
-                            { value: 'intern', label: 'Intern' }
+                            { value: 'SUPERADMIN', label: 'Super Admin' },
+                            { value: 'SUBADMIN', label: 'Sub Admin' },
+                            { value: 'SUPERVISOR', label: 'Supervisor' },
+                            { value: 'USER', label: 'User' }
                         ]}
                     />
 
@@ -84,9 +84,12 @@ const Registration = () => {
                         onChange={handleChange}
                         placeholder="Select Department"
                         options={[
-                            { value: 'it', label: 'IT' },
-                            { value: 'hr', label: 'HR' },
-                            { value: 'sales', label: 'Sales' }
+                            { value: 'LAB', label: 'Lab' },
+                            { value: 'STORE', label: 'Store' },
+                            { value: 'DISPATCH', label: 'Dispatch' },
+                            { value: 'SALES', label: 'Sales' },
+                            { value: 'FINANCE', label: 'Finance' },
+                            { value: 'CUSTOMER_SUPPORT', label: 'Customer Support' }
                         ]}
                     />
 

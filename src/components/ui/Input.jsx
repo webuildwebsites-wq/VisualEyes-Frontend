@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 
-const Input = ({ label, type = 'text', placeholder, value, onChange, icon, ...props }) => {
+const Input = forwardRef(({ label, type = 'text', placeholder, value, onChange, icon, error, containerClassName = "mb-4", ...props }, ref) => {
     return (
-        <div className="mb-4 w-full">
+        <div className={`w-full ${containerClassName}`}>
             {label && <label className="block text-gray-700 text-sm font-medium mb-1">{label}</label>}
-            <div className="relative">
+            <div className="relative h-12">
                 <input
+                    ref={ref}
                     type={type}
-                    className="w-full bg-gray-200 text-gray-800 placeholder-gray-500 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-colors"
+                    className={`w-full h-full bg-gray-200/80 text-gray-800 placeholder-gray-500 rounded-full px-6 focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all text-sm ${error ? 'border border-red-500 focus:ring-red-500' : ''}`}
                     placeholder={placeholder}
-                    value={value}
+                    defaultValue={value}
                     onChange={onChange}
                     {...props}
                 />
@@ -19,8 +20,11 @@ const Input = ({ label, type = 'text', placeholder, value, onChange, icon, ...pr
                     </div>
                 )}
             </div>
+            {error && <p className="text-red-500 text-xs mt-1 ml-4">{error.message}</p>}
         </div>
     );
-};
+});
+
+Input.displayName = 'Input';
 
 export default Input;
