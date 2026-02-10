@@ -45,7 +45,7 @@ const Registration = () => {
     });
 
     return (
-        <div className="  flex  p-4 py-8">
+        <div className="  flex justify-center  p-4 py-8">
             <div className="bg-[#ffffffad] rounded-3xl shadow-2xl p-8 md:p-12 w-full max-w-6xl border border-blue-400/30">
 
                 <form onSubmit={formik.handleSubmit} className="space-y-6">

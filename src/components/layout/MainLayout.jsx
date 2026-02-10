@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { Outlet } from 'react-router-dom';
-import mainBg from '../../assets/main-bg.jpg';
+import mainBg from '../../assets/main-bg.svg';
 
 const MainLayout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Default closed on mobile

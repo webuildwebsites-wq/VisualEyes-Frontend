@@ -49,7 +49,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 </div>
 
                 {/* Menu */}
-                <nav className="mt-4 px-3 space-y-1">
+                <nav className="mt-4 px-3 space-y-1 flex-1 overflow-y-auto custom-scrollbar">
                     {navItems.map((item) => (
                         <NavLink
                             key={item.path}
