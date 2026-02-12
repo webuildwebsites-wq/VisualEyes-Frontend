@@ -1,9 +1,9 @@
 import React, { forwardRef } from 'react';
 
-const Input = forwardRef(({ label, type = 'text', placeholder, value, onChange, icon, error, containerClassName = "mb-4", ...props }, ref) => {
+const Input = forwardRef(({ label, type = 'text', placeholder, value, onChange, icon, error, containerClassName = "", ...props }, ref) => {
     return (
         <div className={`w-full ${containerClassName}`}>
-            {label && <label className="block text-gray-700 text-sm font-medium mb-1">{label}</label>}
+            {label && <label className="block text-left ml-3 text-gray-700 text-sm font-medium mb-2 ">{label}</label>}
             <div className="relative h-12">
                 <input
                     ref={ref}

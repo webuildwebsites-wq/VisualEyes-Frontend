@@ -51,11 +51,12 @@ const Registration = () => {
                 <form onSubmit={formik.handleSubmit} className="space-y-6">
 
                     <Select
+                        label="Employee Type"
                         name="employeeType"
                         value={formik.values.employeeType}
                         onChange={formik.handleChange}
                         onBlur={formik.handleBlur}
-                        placeholder="Employee Type"
+                        placeholder="Select Employee Type"
                         error={formik.touched.employeeType && formik.errors.employeeType ? { message: formik.errors.employeeType } : null}
                         options={[
                             { value: 'SUPERADMIN', label: 'Super Admin' },
@@ -67,32 +68,36 @@ const Registration = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Input
+                            label="Full Name"
                             name="name"
-                            placeholder="Name"
+                            placeholder="Enter Full Name"
                             value={formik.values.name}
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}
                             error={formik.touched.name && formik.errors.name ? { message: formik.errors.name } : null}
                         />
                         <Input
+                            label="Mobile Number"
                             name="mobile"
-                            placeholder="Mobile"
+                            placeholder="Enter Mobile Number"
                             value={formik.values.mobile}
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}
                             error={formik.touched.mobile && formik.errors.mobile ? { message: formik.errors.mobile } : null}
                         />
                         <Input
+                            label="Email Address"
                             name="email"
-                            placeholder="Email"
+                            placeholder="Enter Email Address"
                             value={formik.values.email}
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}
                             error={formik.touched.email && formik.errors.email ? { message: formik.errors.email } : null}
                         />
                         <Input
+                            label="Designation"
                             name="designation"
-                            placeholder="Designation"
+                            placeholder="Enter Designation"
                             value={formik.values.designation}
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}
@@ -102,6 +107,7 @@ const Registration = () => {
 
                     {/* Department Select - Orange Style */}
                     <Select
+                        label="Department"
                         name="department"
                         value={formik.values.department}
                         onChange={formik.handleChange}
@@ -120,16 +126,18 @@ const Registration = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Input
+                            label="Username"
                             name="username"
-                            placeholder="Username"
+                            placeholder="Enter Username"
                             value={formik.values.username}
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}
                             error={formik.touched.username && formik.errors.username ? { message: formik.errors.username } : null}
                         />
                         <Input
+                            label="Expiry Date"
                             name="expiry"
-                            placeholder="Expiry"
+                            placeholder="Select Expiry Date"
                             type="date"
                             value={formik.values.expiry}
                             onChange={formik.handleChange}

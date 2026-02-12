@@ -1,10 +1,10 @@
 import { Icon } from '@iconify/react';
 import React from 'react';
 
-const Select = ({ label, options = [], value, onChange, placeholder = 'Select option', error, containerClassName = "mb-4", ...props }) => {
+const Select = ({ label, options = [], value, onChange, placeholder = 'Select option', error, containerClassName = "", ...props }) => {
     return (
         <div className={`w-full ${containerClassName}`}>
-            {label && <label className="block text-gray-700 text-sm font-medium mb-1">{label}</label>}
+            {label && <label className="block text-left text-gray-700 text-sm font-medium mb-2 ml-3">{label}</label>}
             <div className="relative h-12">
                 <select
                     className={`w-full h-full bg-gray-200/80 text-gray-700 rounded-full px-6 focus:outline-none focus:ring-2 focus:ring-amber-500/50 appearance-none cursor-pointer text-sm ${error ? 'border border-red-500 focus:ring-red-500' : ''}`}

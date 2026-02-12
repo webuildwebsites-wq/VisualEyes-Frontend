@@ -77,8 +77,9 @@ const Login = () => {
 
                     <form onSubmit={formik.handleSubmit} className="space-y-6">
                         <Input
+                            label="Login ID"
                             name="loginId"
-                            placeholder="Login ID"
+                            placeholder="Enter your Login ID"
                             value={formik.values.loginId}
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}
@@ -86,9 +87,10 @@ const Login = () => {
                         />
 
                         <Input
+                            label="Password"
                             name="password"
                             type={showPassword ? "text" : "password"}
-                            placeholder="Password"
+                            placeholder="Enter your Password"
                             value={formik.values.password}
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}
