@@ -1,35 +1,59 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Login';
+import Welcome from './pages/Welcome';
+import Registration from './pages/Registration';
+import MainLayout from './components/layout/MainLayout';
+import DashboardWizard from './pages/AddStore';
+import OrderWizard from './pages/OrderWizard';
+import PlaceholderPage from './pages/PlaceholderPage';
+import { useSelector } from 'react-redux';
+import { selectIsAuthenticated } from './store/slices/authSlice';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import './App.css';
+import AuthWrapper from './components/AuthWrapper';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const isAuthenticated = useSelector(selectIsAuthenticated);
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <BrowserRouter>
+      <div className="app-root min-h-screen bg-gray-50 text-gray-900 font-sans">
+        <Routes>
+          <Route
+            path="/login"
+            element={!isAuthenticated ? <Login /> : <Navigate to="/welcome" state={{ from: 'login' }} replace />}
+          />
+          {/* Protected Dashboard Routes */}
+          <Route element={<AuthWrapper />}>
+            <Route path="/welcome" element={<Welcome />} />
+            <Route path="/" element={<MainLayout />}>
+              <Route index element={<PlaceholderPage title="Dashboard" />} />
+              <Route
+                path="/register"
+                element={<Registration title="Register User" />}
+              />
+              <Route path="stores" element={<DashboardWizard />} />
+              <Route path="new-order" element={<OrderWizard />} />
+              <Route path="customer-care" element={<PlaceholderPage title="Customer Care" />} />
+              <Route path="surfacing" element={<PlaceholderPage title="Surfacing" />} />
+              <Route path="tint" element={<PlaceholderPage title="Tint" />} />
+              <Route path="hard-coat" element={<PlaceholderPage title="Hard Coat" />} />
+              <Route path="arc" element={<PlaceholderPage title="ARC" />} />
+              <Route path="qc" element={<PlaceholderPage title="QC" />} />
+              <Route path="fitting" element={<PlaceholderPage title="Fitting" />} />
+              <Route path="dispatch" element={<PlaceholderPage title="Dispatch" />} />
+              <Route path="dms" element={<PlaceholderPage title="DMS" />} />
+              <Route path="finance" element={<PlaceholderPage title="F&A" />} />
+              <Route path="reports" element={<PlaceholderPage title="Reports" />} />
+            </Route>
+          </Route>
+        </Routes>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+      <ToastContainer position="top-right" autoClose={3000} />
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
