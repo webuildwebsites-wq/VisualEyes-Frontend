@@ -36,7 +36,7 @@ function App() {
               />
               <Route path="stores" element={<DashboardWizard />} />
               <Route path="new-order" element={<OrderWizard />} />
-              <Route path="customer-care" element={<PlaceholderPage title="Customer Care" />} />
+              <Route path="/customer-care/register" element={<DashboardWizard title="Register Customer" />} />
               <Route path="surfacing" element={<PlaceholderPage title="Surfacing" />} />
               <Route path="tint" element={<PlaceholderPage title="Tint" />} />
               <Route path="hard-coat" element={<PlaceholderPage title="Hard Coat" />} />

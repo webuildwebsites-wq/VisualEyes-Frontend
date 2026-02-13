@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
+import Button from '../components/ui/Button';
 import { Icon } from '@iconify/react';
 
 const OrderWizard = () => {
@@ -27,20 +28,20 @@ const OrderWizard = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                <Select placeholder="Brand" options={[{ label: 'Brand A', value: 'a' }]} />
-                <Select placeholder="Category" options={[{ label: 'Cat A', value: 'a' }]} />
+                <Select label="Brand" placeholder="Brand" options={[{ label: 'Brand A', value: 'a' }]} />
+                <Select label="Category" placeholder="Category" options={[{ label: 'Cat A', value: 'a' }]} />
 
-                <Select placeholder="Treatment" options={[{ label: 'Hard', value: 'hard' }]} />
-                <Select placeholder="Lens Type" options={[{ label: 'Single Vision', value: 'sv' }]} />
+                <Select label="Treatment" placeholder="Treatment" options={[{ label: 'Hard', value: 'hard' }]} />
+                <Select label="Lens Type" placeholder="Lens Type" options={[{ label: 'Single Vision', value: 'sv' }]} />
 
-                <Select placeholder="Coating" options={[{ label: 'Anti-Glare', value: 'ag' }]} />
-                <Input placeholder="Price" />
+                <Select label="Coating" placeholder="Coating" options={[{ label: 'Anti-Glare', value: 'ag' }]} />
+                <Input label="Price" placeholder="Price" />
 
-                <Select placeholder="Tinting" options={[{ label: 'Grey', value: 'grey' }]} />
-                <Input placeholder="Additional Info On Tints" />
+                <Select label="Tinting" placeholder="Tinting" options={[{ label: 'Grey', value: 'grey' }]} />
+                <Input label="Additional Info On Tints" placeholder="Additional Info On Tints" />
 
-                <Select placeholder="Left Diameter" options={[{ label: '65', value: '65' }]} />
-                <Select placeholder="Right Diameter" options={[{ label: '65', value: '65' }]} />
+                <Select label="Left Diameter" placeholder="Left Diameter" options={[{ label: '65', value: '65' }]} />
+                <Select label="Right Diameter" placeholder="Right Diameter" options={[{ label: '65', value: '65' }]} />
             </div>
 
             {/* Additional Comments (Full Width) */}
@@ -93,34 +94,34 @@ const OrderWizard = () => {
                 {/* Right Eye Row */}
                 <div className="grid grid-cols-6 border-b border-gray-100 text-center items-center h-16">
                     <div className="font-semibold text-gray-700 border-r border-gray-100 h-full flex items-center justify-center">R</div>
-                    <div className="border-r border-gray-100 h-full p-2"><Input containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Sphere" /></div>
-                    <div className="border-r border-gray-100 h-full p-2"><Input containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Cylinder" /></div>
-                    <div className="border-r border-gray-100 h-full p-2"><Input containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Axis" /></div>
-                    <div className="border-r border-gray-100 h-full p-2"><Input containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Addition" /></div>
-                    <div className="h-full p-2"><Input containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="XX" /></div>
+                    <div className="border-r border-gray-100 h-full p-2"><Input label="SPH" containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Sphere" /></div>
+                    <div className="border-r border-gray-100 h-full p-2"><Input label="Cyld" containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Cylinder" /></div>
+                    <div className="border-r border-gray-100 h-full p-2"><Input label="Axis" containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Axis" /></div>
+                    <div className="border-r border-gray-100 h-full p-2"><Input label="Add" containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Addition" /></div>
+                    <div className="h-full p-2"><Input label="Qty" containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="XX" /></div>
                 </div>
 
                 {/* Left Eye Row (only if Both) */}
                 {powerMode === 'both' && (
                     <div className="grid grid-cols-6 text-center items-center h-16">
                         <div className="font-semibold text-gray-700 border-r border-gray-100 h-full flex items-center justify-center">L</div>
-                        <div className="border-r border-gray-100 h-full p-2"><Input containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Sphere" /></div>
-                        <div className="border-r border-gray-100 h-full p-2"><Input containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Cylinder" /></div>
-                        <div className="border-r border-gray-100 h-full p-2"><Input containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Axis" /></div>
-                        <div className="border-r border-gray-100 h-full p-2"><Input containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Addition" /></div>
+                        <div className="border-r border-gray-100 h-full p-2"><Input label="SPH" containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Sphere" /></div>
+                        <div className="border-r border-gray-100 h-full p-2"><Input label="Cyld" containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Cylinder" /></div>
+                        <div className="border-r border-gray-100 h-full p-2"><Input label="Axis" containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Axis" /></div>
+                        <div className="border-r border-gray-100 h-full p-2"><Input label="Add" containerClassName="mb-0 h-full" className="h-full w-full text-center bg-transparent focus:bg-gray-50 rounded-lg" placeholder="Addition" /></div>
                         <div className="h-full p-2 bg-gray-50"></div>
                     </div>
                 )}
             </div>
 
-            <div className="flex justify-center gap-6 mt-12">
+            {/* <div className="flex justify-center gap-6 mt-12">
                 <button onClick={() => console.log('Draft')} className="px-8 py-3 rounded-full border-2 border-amber-500 text-amber-500 font-semibold hover:bg-amber-50 transition-colors min-w-[160px]">
                     Create Draft
                 </button>
                 <button onClick={() => console.log('Submit')} className="px-8 py-3 rounded-full bg-amber-500 text-white font-semibold hover:bg-amber-600 shadow-lg shadow-amber-500/30 transition-all min-w-[160px]">
                     Place Order
                 </button>
-            </div>
+            </div> */}
         </>
     );
 
@@ -133,30 +134,51 @@ const OrderWizard = () => {
                 </form>
 
                 {/* Wizard Navigation */}
-                <div className="flex items-center justify-center gap-4 mt-16">
-                    {/* Previous Button styled as simple yellow arrow for now, matching first wizard style if needed */}
-                    {currentStep > 1 && (
-                        <button onClick={handlePrev} className="text-amber-500 hover:text-amber-600 transition-colors">
-                            <Icon icon="mdi:chevron-left" className="w-8 h-8" />
-                        </button>
-                    )}
+                <div className="flex flex-col items-center gap-8 mt-12 pb-8">
 
-                    {/* Dots - specific style in screenshot: Grey small dots, Active is Yellow Arrow? No, screenshot shows Yellow Arrow on the right, and GREY DOTS for progress. */}
-                    <div className="flex gap-2">
+                    {/* Dots */}
+                    <div className="flex gap-3">
                         {[1, 2].map(step => (
                             <div
                                 key={step}
-                                className={`h-3 w-3 rounded-full transition-all duration-300 ${step === currentStep ? 'bg-amber-500 scale-125' : 'bg-gray-300'}`}
+                                className={`h-3 w-3 rounded-full transition-all duration-300 ${step === currentStep ? 'bg-amber-500 w-8' : 'bg-gray-300'}`}
                             ></div>
                         ))}
                     </div>
 
-                    {/* Next Button - Yellow Arrow */}
-                    {currentStep < totalSteps && (
-                        <button onClick={handleNext} className="text-amber-500 hover:text-amber-600 transition-colors">
-                            <Icon icon="mdi:chevron-right" className="w-8 h-8" />
-                        </button>
-                    )}
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-4 w-full max-w-md">
+                        {/* Prev Button */}
+                        <div className="flex-1">
+                            {currentStep > 1 ? (
+                                <Button variant="outlined" onClick={handlePrev}>
+                                    Previous
+                                </Button>
+                            ) : (
+                                <div className="w-full"></div> /* Spacer */
+                            )}
+                        </div>
+
+                        {/* Refresh Button */}
+                        <div className="flex-1">
+                            <Button variant="outlined" onClick={() => window.location.reload()}>
+                                Refresh
+                            </Button>
+                        </div>
+
+                        {/* Next/Submit Button */}
+                        <div className="flex-1">
+                            {currentStep < totalSteps ? (
+                                <Button variant="primary" onClick={handleNext}>
+                                    Next
+                                </Button>
+                            ) : (
+                                <Button variant="primary" onClick={() => console.log('Place Order')}>
+                                    Place Order
+                                </Button>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

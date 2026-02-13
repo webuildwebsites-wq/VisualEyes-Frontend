@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
-import logo from '../assets/visual-eyes-logo.png';
+import logo from '../assets/logo.svg';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const Welcome = () => {

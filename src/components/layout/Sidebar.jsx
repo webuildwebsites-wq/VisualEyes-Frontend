@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Icon } from '@iconify/react';
-import logo from '../../assets/visual-eyes-logo.png';
+import logo from '../../assets/logo.svg';
 import { useDispatch } from 'react-redux';
 import { logOut } from '../../store/slices/authSlice';
 import { logoutUser } from '../../services/authService';
@@ -61,7 +61,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             >
                 {/* Logo */}
                 <div className="py-6 flex justify-center ">
-                    <img src={logo} alt="Visual Eyes" className="w-full h-[75px] object-cover" />
+                    <img src={logo} alt="Visual Eyes" className="w-full h-[85px] object-cover" />
                 </div>
 
                 {/* Menu */}

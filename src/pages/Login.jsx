@@ -3,7 +3,7 @@ import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { Icon } from '@iconify/react';
-import logo from '../assets/visual-eyes-logo.png';
+import logo from '../assets/logo.svg';
 import loginImage from '../assets/login-image.png';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';

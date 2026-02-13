@@ -167,14 +167,14 @@ const AddStore = () => {
                 <Input label="Specific Lab" placeholder="Enter Specific Lab" />
             </div>
 
-            <div className="flex justify-center gap-6 mt-12">
+            {/* <div className="flex justify-center gap-6 mt-12">
                 <button onClick={() => console.log('Draft')} className="px-8 py-3 rounded-full border-2 border-amber-500 text-amber-500 font-semibold hover:bg-amber-50 transition-colors min-w-[160px]">
                     Create Draft
                 </button>
                 <button onClick={() => console.log('Submit')} className="px-8 py-3 rounded-full bg-amber-500 text-white font-semibold hover:bg-amber-600 shadow-lg shadow-amber-500/30 transition-all min-w-[160px]">
                     Submit
                 </button>
-            </div>
+            </div> */}
         </>
     );
 
@@ -209,28 +209,52 @@ const AddStore = () => {
                 </form>
 
                 {/* Wizard Navigation */}
-                <div className="flex items-center justify-center gap-4 mt-16">
-                    {currentStep > 1 && (
-                        <button onClick={handlePrev} className="text-amber-500 hover:text-amber-600 transition-colors">
-                            <Icon icon="mdi:chevron-left" className="w-8 h-8" />
-                        </button>
-                    )}
+                {/* Wizard Navigation */}
+                <div className="flex flex-col items-center gap-8 mt-12 pb-8">
 
                     {/* Dots */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-3">
                         {[1, 2, 3, 4].map(step => (
                             <div
                                 key={step}
-                                className={`h-3 w-3 rounded-full transition-all duration-300 ${step === currentStep ? 'bg-amber-500 scale-125' : 'bg-gray-300'}`}
+                                className={`h-3 w-3 rounded-full transition-all duration-300 ${step === currentStep ? 'bg-amber-500 w-8' : 'bg-gray-300'}`}
                             ></div>
                         ))}
                     </div>
 
-                    {currentStep < totalSteps && (
-                        <button onClick={handleNext} className="text-amber-500 hover:text-amber-600 transition-colors">
-                            <Icon icon="mdi:chevron-right" className="w-8 h-8" />
-                        </button>
-                    )}
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-4 w-full max-w-md">
+                        {/* Prev Button */}
+                        <div className="flex-1">
+                            {currentStep > 1 ? (
+                                <Button variant="outlined" onClick={handlePrev}>
+                                    Previous
+                                </Button>
+                            ) : (
+                                <div className="w-full"></div> /* Spacer */
+                            )}
+                        </div>
+
+                        {/* Refresh Button */}
+                        <div className="flex-1">
+                            <Button variant="outlined" onClick={() => window.location.reload()}>
+                                Refresh
+                            </Button>
+                        </div>
+
+                        {/* Next/Submit Button */}
+                        <div className="flex-1">
+                            {currentStep < totalSteps ? (
+                                <Button variant="primary" onClick={handleNext}>
+                                    Next
+                                </Button>
+                            ) : (
+                                <Button variant="primary" onClick={() => console.log('Submit')}>
+                                    Submit
+                                </Button>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
