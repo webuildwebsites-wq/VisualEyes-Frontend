@@ -8,7 +8,14 @@ import { logoutUser } from '../../services/authService';
 
 const navItems = [
     { label: 'Dashboard', icon: 'mdi:view-dashboard-outline', path: '/' },
-    { label: 'Register User', icon: 'mdi:person-add', path: '/register' },
+    {
+        label: 'Register User',
+        icon: 'mdi:person-add',
+        subItems: [
+            { label: 'Register Employee ', path: '/register' },
+            { label: 'All Employees', path: '/register/list' }
+        ]
+    },
     {
         label: 'Customer Care',
         icon: 'mdi:face-agent',

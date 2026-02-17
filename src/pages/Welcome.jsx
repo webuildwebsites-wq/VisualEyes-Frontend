@@ -17,7 +17,8 @@ const Welcome = () => {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            navigate('/');
+            const redirectPath = location.state?.from === 'register' ? '/register/list' : '/';
+            navigate(redirectPath);
         }, 5000);
 
         return () => clearTimeout(timer);
@@ -44,7 +45,10 @@ const Welcome = () => {
                 </h2>
 
                 <button
-                    onClick={() => navigate('/')}
+                    onClick={() => {
+                        const redirectPath = location.state?.from === 'register' ? '/register/list' : '/';
+                        navigate(redirectPath);
+                    }}
                     className="mt-12 text-gray-400 hover:text-amber-500 transition-colors text-sm font-medium flex items-center gap-1 relative z-10"
                 >
                     Skip <Icon icon="mdi:chevron-double-right" />

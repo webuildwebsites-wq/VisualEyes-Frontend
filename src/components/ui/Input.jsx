@@ -1,7 +1,9 @@
 import React, { forwardRef } from 'react';
 import { TextField, InputAdornment } from '@mui/material';
 
-const Input = forwardRef(({ label, type = 'text', placeholder, value, onChange, icon, error, containerClassName = "", ...props }, ref) => {
+const Input = forwardRef(({ label, type = 'text', placeholder, value, onChange, icon, error, containerClassName = "", variant = "default", ...props }, ref) => {
+    const isOrange = variant === "orange";
+
     return (
         <div className={`w-full ${containerClassName}`}>
             <TextField
@@ -16,7 +18,7 @@ const Input = forwardRef(({ label, type = 'text', placeholder, value, onChange, 
                 helperText={error ? error.message : null}
                 InputProps={{
                     endAdornment: icon ? (
-                        <InputAdornment position="end" className="cursor-pointer">
+                        <InputAdornment position="end" className="cursor-pointer" sx={{ color: isOrange ? '#000' : 'inherit' }}>
                             {icon}
                         </InputAdornment>
                     ) : null,
@@ -24,7 +26,8 @@ const Input = forwardRef(({ label, type = 'text', placeholder, value, onChange, 
                 sx={{
                     '& .MuiOutlinedInput-root': {
                         borderRadius: '12px',
-                        backgroundColor: 'rgba(229, 231, 235, 0.5)',
+                        backgroundColor: isOrange ? '#F59E0B' : 'rgba(229, 231, 235, 0.5)',
+                        color: isOrange ? '#000' : 'inherit',
                         '& fieldset': {
                             borderColor: '#F59E0B',
                             borderWidth: '1px',
@@ -39,12 +42,16 @@ const Input = forwardRef(({ label, type = 'text', placeholder, value, onChange, 
                         },
                         '& input': {
                             paddingLeft: '1rem',
+                            '&::placeholder': {
+                                color: isOrange ? 'rgba(0,0,0,0.6)' : 'inherit',
+                                opacity: 1,
+                            }
                         }
                     },
                     '& .MuiInputLabel-root': {
-                        color: '#4B5563',
+                        color: isOrange ? '#000' : '#4B5563',
                         '&.Mui-focused': {
-                            color: '#F59E0B',
+                            color: isOrange ? '#000' : '#F59E0B',
                         },
                     },
                     '& .MuiFormHelperText-root': {

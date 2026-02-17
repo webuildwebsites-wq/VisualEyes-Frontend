@@ -3,7 +3,7 @@ import { Icon } from '@iconify/react';
 
 const Topbar = () => {
     return (
-        <div className="w-full bg-amber-500 text-white shadow-md p-4 px-8 rounded-b-lg md:rounded-lg flex justify-between items-center mb-6">
+        <div className="w-full bg-amber-500 text-white shadow-md p-4 px-8 rounded-b-lg md:rounded-lg flex justify-between items-center">
             <div className="font-semibold text-lg flex items-center gap-2">
                 <span className="underline decoration-2 underline-offset-4">John Doe | Super Admin</span>
             </div>

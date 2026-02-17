@@ -1,5 +1,5 @@
 import React from 'react';
-import { TextField, MenuItem } from '@mui/material';
+import { TextField, MenuItem, InputAdornment } from '@mui/material';
 
 const Select = ({
     label,
@@ -10,6 +10,8 @@ const Select = ({
     error,
     containerClassName = "",
     variant = "default", // default, orange
+    multiple = false,
+    icon,
     ...props
 }) => {
     const isOrange = variant === "orange";
@@ -24,11 +26,29 @@ const Select = ({
                 onChange={onChange}
                 error={!!error}
                 helperText={error ? error.message : null}
+                SelectProps={{
+                    multiple: multiple,
+                    displayEmpty: true,
+                    renderValue: (selected) => {
+                        if (multiple) {
+                            if (!selected || selected.length === 0) return <span className={isOrange ? 'text-white' : 'text-gray-400'}>{placeholder}</span>;
+                            return (Array.isArray(selected) ? selected : [selected]).join(', ');
+                        }
+                        return options.find(opt => opt.value === selected)?.label || <span className={isOrange ? 'text-white' : 'text-gray-400'}>{placeholder}</span>;
+                    }
+                }}
+                InputProps={{
+                    endAdornment: icon ? (
+                        <InputAdornment position="end" sx={{ mr: 2, color: isOrange ? 'white' : 'inherit' }}>
+                            {icon}
+                        </InputAdornment>
+                    ) : null,
+                }}
                 sx={{
                     '& .MuiOutlinedInput-root': {
                         borderRadius: '12px',
                         backgroundColor: isOrange ? '#F59E0B' : 'rgba(229, 231, 235, 0.5)',
-                        color: isOrange ? '#fff' : '#000',
+                        color: isOrange ? '#000' : '#000000ff',
                         '& fieldset': {
                             borderColor: '#F59E0B',
                             borderWidth: '1px',
@@ -45,13 +65,14 @@ const Select = ({
                             paddingLeft: '1rem',
                         },
                         '& .MuiSvgIcon-root': {
-                            color: isOrange ? '#fff' : 'inherit'
+                            color: isOrange ? '#000' : 'inherit',
+                            display: icon ? 'none' : 'block' // Hide default arrow if custom icon is provided
                         }
                     },
                     '& .MuiInputLabel-root': {
-                        color: isOrange ? '#fff' : '#4B5563',
+                        color: isOrange ? '#000' : '#1b1c1dff',
                         '&.Mui-focused': {
-                            color: isOrange ? '#fff' : '#F59E0B',
+                            color: isOrange ? '#000' : '#F59E0B',
                         },
                     },
                     '& .MuiFormHelperText-root': {
@@ -61,11 +82,6 @@ const Select = ({
                 }}
                 {...props}
             >
-                {placeholder && (
-                    <MenuItem value="" disabled>
-                        {placeholder}
-                    </MenuItem>
-                )}
                 {options.map((opt) => (
                     <MenuItem key={opt.value} value={opt.value}>
                         {opt.label}

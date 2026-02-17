@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Welcome from './pages/Welcome';
 import Registration from './pages/Registration';
+import RegisterCustomer from './pages/RegisterCustomer';
+import EmployeeList from './pages/EmployeeList';
 import MainLayout from './components/layout/MainLayout';
 import DashboardWizard from './pages/AddStore';
 import OrderWizard from './pages/OrderWizard';
@@ -32,11 +34,13 @@ function App() {
               <Route index element={<PlaceholderPage title="Dashboard" />} />
               <Route
                 path="/register"
-                element={<Registration title="Register User" />}
+                element={<Registration title="Register Employee" />}
               />
+              <Route path="/register/list" element={<EmployeeList />} />
               <Route path="stores" element={<DashboardWizard />} />
               <Route path="new-order" element={<OrderWizard />} />
-              <Route path="/customer-care/register" element={<DashboardWizard title="Register Customer" />} />
+              <Route path="/customer-care/register" element={<RegisterCustomer />} />
+              <Route path="/customer-care/list" element={<PlaceholderPage title="All Customers" />} />
               <Route path="surfacing" element={<PlaceholderPage title="Surfacing" />} />
               <Route path="tint" element={<PlaceholderPage title="Tint" />} />
               <Route path="hard-coat" element={<PlaceholderPage title="Hard Coat" />} />
