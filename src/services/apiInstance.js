@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { store } from '../store/store';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -9,8 +10,22 @@ const api = axios.create({
 
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
+        let token = null;
+        try {
+            // Try to get token from Redux store first
+            token = store.getState().auth.token;
+            console.log("token", token);
+        } catch (error) {
+            console.warn('Could not get token from Redux store', error);
+        }
+
+        // Fallback to localStorage
+        if (!token) {
+            token = localStorage.getItem('token');
+        }
+
         if (token) {
+            config.headers = config.headers || {};
             config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
@@ -28,7 +43,7 @@ api.interceptors.response.use(
         if (error.response && error.response.status === 401) {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            window.location.href = '/login';
+            // window.location.href = '/login';
         }
         return Promise.reject(error);
     }

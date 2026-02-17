@@ -23,32 +23,33 @@ const Input = forwardRef(({ label, type = 'text', placeholder, value, onChange, 
                 }}
                 sx={{
                     '& .MuiOutlinedInput-root': {
-                        borderRadius: '9999px', // rounded-full
-                        backgroundColor: 'rgba(229, 231, 235, 0.8)', // bg-gray-200/80
+                        borderRadius: '12px',
+                        backgroundColor: 'rgba(229, 231, 235, 0.5)',
                         '& fieldset': {
-                            borderColor: 'transparent',
+                            borderColor: '#F59E0B',
+                            borderWidth: '1px',
                         },
                         '&:hover fieldset': {
-                            borderColor: 'rgba(245, 158, 11, 0.5)', // hover amber
+                            borderColor: '#F59E0B',
+                            borderWidth: '2px',
                         },
                         '&.Mui-focused fieldset': {
-                            borderColor: '#F59E0B', // focus amber-500
+                            borderColor: '#F59E0B',
+                            borderWidth: '2px',
                         },
                         '& input': {
-                            paddingLeft: '1.5rem', // px-6
+                            paddingLeft: '1rem',
                         }
                     },
                     '& .MuiInputLabel-root': {
-                        color: '#374151', // text-gray-700
-                        marginLeft: '0.5rem',
+                        color: '#4B5563',
                         '&.Mui-focused': {
-                            color: '#F59E0B', // focus amber-500
+                            color: '#F59E0B',
                         },
                     },
-                    // Specific fix for helper text to align with error prop style
                     '& .MuiFormHelperText-root': {
                         marginLeft: '1rem',
-                        color: '#EF4444', // text-red-500
+                        color: '#EF4444',
                     }
                 }}
                 {...props}

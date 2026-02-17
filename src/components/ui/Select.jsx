@@ -1,7 +1,19 @@
 import React from 'react';
 import { TextField, MenuItem } from '@mui/material';
 
-const Select = ({ label, options = [], value, onChange, placeholder = 'Select option', error, containerClassName = "", ...props }) => {
+const Select = ({
+    label,
+    options = [],
+    value,
+    onChange,
+    placeholder = 'Select option',
+    error,
+    containerClassName = "",
+    variant = "default", // default, orange
+    ...props
+}) => {
+    const isOrange = variant === "orange";
+
     return (
         <div className={`w-full ${containerClassName}`}>
             <TextField
@@ -14,26 +26,32 @@ const Select = ({ label, options = [], value, onChange, placeholder = 'Select op
                 helperText={error ? error.message : null}
                 sx={{
                     '& .MuiOutlinedInput-root': {
-                        borderRadius: '9999px', // rounded-full
-                        backgroundColor: 'rgba(229, 231, 235, 0.8)', // bg-gray-200/80
+                        borderRadius: '12px',
+                        backgroundColor: isOrange ? '#F59E0B' : 'rgba(229, 231, 235, 0.5)',
+                        color: isOrange ? '#fff' : '#000',
                         '& fieldset': {
-                            borderColor: 'transparent',
+                            borderColor: '#F59E0B',
+                            borderWidth: '1px',
                         },
                         '&:hover fieldset': {
-                            borderColor: 'rgba(245, 158, 11, 0.5)', // hover amber
+                            borderColor: '#F59E0B',
+                            borderWidth: '2px',
                         },
                         '&.Mui-focused fieldset': {
-                            borderColor: '#F59E0B', // focus amber-500
+                            borderColor: '#F59E0B',
+                            borderWidth: '2px',
                         },
                         '& .MuiSelect-select': {
-                            paddingLeft: '1.5rem', // px-6
+                            paddingLeft: '1rem',
+                        },
+                        '& .MuiSvgIcon-root': {
+                            color: isOrange ? '#fff' : 'inherit'
                         }
                     },
                     '& .MuiInputLabel-root': {
-                        color: '#374151', // text-gray-700
-                        marginLeft: '0.5rem',
+                        color: isOrange ? '#fff' : '#4B5563',
                         '&.Mui-focused': {
-                            color: '#F59E0B',
+                            color: isOrange ? '#fff' : '#F59E0B',
                         },
                     },
                     '& .MuiFormHelperText-root': {
