@@ -6,26 +6,56 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
 import { createSupervisorUser } from '../services/employeeService';
+import { uploadImage } from '../services/bucketService';
+import { getSystemConfigs } from '../services/configService';
 import { toast } from 'react-toastify';
+import { useState, useRef, useEffect } from 'react';
 
-const ROLES = [
-    "ADMIN", "BRANCH USER", "PRIORITY ORDER", "CUSTOMER", "ACCOUNTING MODULE",
-    "SALES EXECUTIVE", "OTHER ADMIN", "STOCK POINT USER", "CUSTOMER CARE",
-    "STORES", "PRODUCTION", "SUPERVISOR", "FITTING CENTER", "F&A",
-    "DISTRIBUTOR", "DISPATCH", "STORES ADMIN", "BELOW ADMIN", "INVESTOR PROFILE",
-    "AUDITOR", "CUSTOMER CARE (DB)", "BELOW ADMIN (FITTING CENTER)",
-    "FITTING CENTER-V2", "DISPATCH-KOLKATTA", "SALES HEAD", "CUSTOM PROFILE", "F&A CFO"
-];
-
-const LABS = [
-    "KOLKATA STOCK", "STOCK ORDER", "VISUAL EYES LAB", "VE AHMEDABAD LAB",
-    "VE CHENNAI LAB", "VE KOCHI LAB", "VE GURGAON LAB", "VE MUMBAI LAB",
-    "VE TRIVANDRUM LAB", "SERVICE", "VE GLASS ORDER", "VE PUNE LAB",
-    "VE NAGPUR LAB", "VE BENGALURU LAB", "VE HYDERBAD LAB", "VE KOLKATTA LAB"
-];
 
 const Registration = () => {
     const navigate = useNavigate();
+    const aadharInputRef = useRef(null);
+    const panInputRef = useRef(null);
+
+    const [images, setImages] = useState({
+        aadhar: { file: null, preview: null, url: '', uploading: false },
+        pan: { file: null, preview: null, url: '', uploading: false }
+    });
+
+    const [configs, setConfigs] = useState({
+        userTypes: [],
+        roles: [],
+        departments: [],
+        labs: [],
+        regions: []
+    });
+
+    const [loadingConfigs, setLoadingConfigs] = useState(true);
+
+    useEffect(() => {
+        const fetchConfigs = async () => {
+            try {
+                const response = await getSystemConfigs();
+                if (response.success) {
+                    const mappedConfigs = {
+                        userTypes: response.data.find(c => c.configType === 'UserType')?.values || [],
+                        roles: response.data.find(c => c.configType === 'Role')?.values || [],
+                        departments: response.data.find(c => c.configType === 'Department')?.values || [],
+                        labs: response.data.find(c => c.configType === 'Lab')?.values || [],
+                        regions: response.data.find(c => c.configType === 'Region')?.values || []
+                    };
+                    setConfigs(mappedConfigs);
+                }
+            } catch (error) {
+                console.error('Failed to fetch configs:', error);
+                toast.error("Failed to load form options");
+            } finally {
+                setLoadingConfigs(false);
+            }
+        };
+
+        fetchConfigs();
+    }, []);
 
     const validationSchema = Yup.object({
         employeeType: Yup.string().required('Employee Type is required'),
@@ -41,6 +71,8 @@ const Registration = () => {
         role: Yup.string().required('Role is required'),
         region: Yup.string().required('Region is required'),
         lab: Yup.string().required('Lab is required'),
+        aadharCard: Yup.string().url().required('Aadhar Card upload is required'),
+        panCard: Yup.string().url().required('PAN Card upload is required'),
     });
 
     const formik = useFormik({
@@ -58,8 +90,8 @@ const Registration = () => {
             pincode: '',
             expiry: '',
             lab: '',
-            aadharCard: 'https://example.com/aadhar.jpg',
-            panCard: 'https://example.com/pan.jpg'
+            aadharCard: '',
+            panCard: ''
         },
         validationSchema: validationSchema,
         onSubmit: async (values, { setSubmitting }) => {
@@ -78,6 +110,48 @@ const Registration = () => {
         },
     });
 
+    const handleFileSelect = (e, type) => {
+        const file = e.target.files[0];
+        if (file) {
+            const previewUrl = URL.createObjectURL(file);
+            setImages(prev => ({
+                ...prev,
+                [type]: { ...prev[type], file, preview: previewUrl, url: '' }
+            }));
+            formik.setFieldValue(type === 'aadhar' ? 'aadharCard' : 'panCard', '');
+        }
+    };
+
+    const handleUpload = async (type) => {
+        const imageData = images[type];
+        if (!imageData.file) return;
+
+        setImages(prev => ({
+            ...prev,
+            [type]: { ...prev[type], uploading: true }
+        }));
+
+        try {
+            const response = await uploadImage(imageData.file);
+            const imageUrl = response.data?.url || response.url || response;
+
+            setImages(prev => ({
+                ...prev,
+                [type]: { ...prev[type], url: imageUrl, uploading: false }
+            }));
+
+            formik.setFieldValue(type === 'aadhar' ? 'aadharCard' : 'panCard', imageUrl);
+            toast.success(`${type.toUpperCase()} Card uploaded successfully!`);
+        } catch (error) {
+            console.error('Upload Error:', error);
+            setImages(prev => ({
+                ...prev,
+                [type]: { ...prev[type], uploading: false }
+            }));
+            toast.error(`Failed to upload ${type.toUpperCase()} Card`);
+        }
+    };
+
     return (
         <div className="flex justify-center p-4 py-8 bg-gray-50 min-h-screen">
             <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12 w-full max-w-5xl border border-gray-200">
@@ -93,11 +167,8 @@ const Registration = () => {
                             onBlur={formik.handleBlur}
                             placeholder="Select Employee Type"
                             error={formik.touched.employeeType && formik.errors.employeeType ? { message: formik.errors.employeeType } : null}
-                            options={[
-                                { value: 'SUBADMIN', label: 'Sub Admin' },
-                                { value: 'SUPERVISOR', label: 'Supervisor' },
-                                { value: 'EMPLOYEE', label: 'Employee' }
-                            ]}
+                            options={configs.userTypes.map(type => ({ value: type, label: type }))}
+                            disabled={loadingConfigs}
                         />
                         <Input
                             label="Username"
@@ -163,15 +234,8 @@ const Registration = () => {
                             onBlur={formik.handleBlur}
                             placeholder="Select Department"
                             error={formik.touched.department && formik.errors.department ? { message: formik.errors.department } : null}
-                            options={[
-                                { value: 'LAB', label: 'Lab' },
-                                { value: 'STORE', label: 'Store' },
-                                { value: 'DISPATCH', label: 'Dispatch' },
-                                { value: 'SALES', label: 'Sales' },
-                                { value: 'FINANCE', label: 'Finance' },
-                                { value: 'CUSTOMER_SUPPORT', label: 'Customer Support' },
-                                { value: 'SALES EXECUTIVE', label: 'Sales Executive' }
-                            ]}
+                            options={configs.departments.map(dept => ({ value: dept, label: dept }))}
+                            disabled={loadingConfigs}
                         />
                         <Select
                             label="Role"
@@ -182,7 +246,8 @@ const Registration = () => {
                             onBlur={formik.handleBlur}
                             placeholder="Select Role"
                             error={formik.touched.role && formik.errors.role ? { message: formik.errors.role } : null}
-                            options={ROLES.map(role => ({ value: role, label: role }))}
+                            options={configs.roles.map(role => ({ value: role, label: role }))}
+                            disabled={loadingConfigs}
                         />
                     </div>
 
@@ -227,11 +292,12 @@ const Registration = () => {
                             onBlur={formik.handleBlur}
                             placeholder="Select Lab"
                             error={formik.touched.lab && formik.errors.lab ? { message: formik.errors.lab } : null}
-                            options={LABS.map(lab => ({ value: lab, label: lab }))}
+                            options={configs.labs.map(lab => ({ value: lab, label: lab }))}
+                            disabled={loadingConfigs}
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <Select
                             label="Region"
                             name="region"
@@ -240,33 +306,109 @@ const Registration = () => {
                             onBlur={formik.handleBlur}
                             placeholder="Select Region"
                             error={formik.touched.region && formik.errors.region ? { message: formik.errors.region } : null}
-                            options={[
-                                { value: 'EAST', label: 'East' },
-                                { value: 'WEST', label: 'West' },
-                                { value: 'NORTH', label: 'North' },
-                                { value: 'SOUTH', label: 'South' },
-                                { value: 'North Region', label: 'North Region' }
-                            ]}
+                            options={configs.regions.map(region => ({ value: region, label: region }))}
+                            disabled={loadingConfigs}
                         />
-                        <div className="text-center">
-                            <button type="button" className="text-orange-500 font-bold hover:text-orange-600 transition-colors uppercase text-sm md:text-base">
-                                Upload Aadhar Card & PAN Card
-                            </button>
+                        <div className="flex flex-col gap-4">
+                            <label className="text-orange-500 font-bold uppercase text-sm">Document Uploads</label>
+                            <div className="flex gap-6">
+                                <div className="flex-1 flex flex-col items-center gap-2">
+                                    <input
+                                        type="file"
+                                        hidden
+                                        ref={aadharInputRef}
+                                        onChange={(e) => handleFileSelect(e, 'aadhar')}
+                                        accept="image/*"
+                                    />
+                                    <div
+                                        onClick={() => aadharInputRef.current.click()}
+                                        className="w-full h-24 border-2 border-dashed border-orange-300 rounded-xl flex items-center justify-center overflow-hidden cursor-pointer hover:bg-orange-50 transition-colors"
+                                    >
+                                        {images.aadhar.preview ? (
+                                            <img src={images.aadhar.preview} alt="Aadhar Preview" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="text-center text-xs text-orange-400">
+                                                <Icon icon="ph:identification-card-bold" className="text-2xl mb-1 mx-auto" />
+                                                Aadhar Card
+                                            </div>
+                                        )}
+                                    </div>
+                                    {images.aadhar.file && !images.aadhar.url && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleUpload('aadhar')}
+                                            disabled={images.aadhar.uploading}
+                                            className="text-xs bg-orange-500 text-white px-3 py-1 rounded-full uppercase font-bold"
+                                        >
+                                            {images.aadhar.uploading ? '...' : 'Upload'}
+                                        </button>
+                                    )}
+                                    {images.aadhar.url && (
+                                        <Icon icon="mdi:check-circle" className="text-green-500 text-xl" />
+                                    )}
+                                </div>
+
+                                <div className="flex-1 flex flex-col items-center gap-2">
+                                    <input
+                                        type="file"
+                                        hidden
+                                        ref={panInputRef}
+                                        onChange={(e) => handleFileSelect(e, 'pan')}
+                                        accept="image/*"
+                                    />
+                                    <div
+                                        onClick={() => panInputRef.current.click()}
+                                        className="w-full h-24 border-2 border-dashed border-orange-300 rounded-xl flex items-center justify-center overflow-hidden cursor-pointer hover:bg-orange-50 transition-colors"
+                                    >
+                                        {images.pan.preview ? (
+                                            <img src={images.pan.preview} alt="PAN Preview" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="text-center text-xs text-orange-400">
+                                                <Icon icon="ph:credit-card-bold" className="text-2xl mb-1 mx-auto" />
+                                                PAN Card
+                                            </div>
+                                        )}
+                                    </div>
+                                    {images.pan.file && !images.pan.url && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleUpload('pan')}
+                                            disabled={images.pan.uploading}
+                                            className="text-xs bg-orange-500 text-white px-3 py-1 rounded-full uppercase font-bold"
+                                        >
+                                            {images.pan.uploading ? '...' : 'Upload'}
+                                        </button>
+                                    )}
+                                    {images.pan.url && (
+                                        <Icon icon="mdi:check-circle" className="text-green-500 text-xl" />
+                                    )}
+                                </div>
+                            </div>
+                            {((formik.touched.aadharCard && formik.errors.aadharCard) || (formik.touched.panCard && formik.errors.panCard)) && (
+                                <p className="text-xs text-red-500 text-center">Aadhar and PAN card uploads are required</p>
+                            )}
                         </div>
                     </div>
 
-                    <div className="flex justify-center items-center gap-6 mt-12 flex-wrap">
+                    <div className="flex justify-center items-center max-w-[50%] mx-auto gap-6 mt-12">
                         <Button
                             type="submit"
-                            className="min-w-[180px] bg-orange-500 hover:bg-orange-600 text-white shadow-xl shadow-orange-500/30 py-3 rounded-full text-lg uppercase tracking-wider"
+                            className="  bg-orange-400 hover:bg-orange-600 text-white shadow-xl shadow-orange-500/30 py-3 rounded-full text-lg uppercase tracking-wider"
                             disabled={formik.isSubmitting}
                         >
                             {formik.isSubmitting ? 'Submitting...' : 'Submit'}
                         </Button>
                         <Button
                             type="button"
-                            onClick={() => formik.resetForm()}
-                            className="min-w-[180px] bg-white hover:bg-gray-50 text-orange-500 border-2 border-orange-500/50 py-3 rounded-full text-lg uppercase tracking-wider h-auto"
+                            style={{ color: 'orange' }}
+                            onClick={() => {
+                                formik.resetForm();
+                                setImages({
+                                    aadhar: { file: null, preview: null, url: '', uploading: false },
+                                    pan: { file: null, preview: null, url: '', uploading: false }
+                                });
+                            }}
+                            className=" bg-white hover:bg-gray-50  border-2 border-orange-500/50 py-3 rounded-full text-lg uppercase tracking-wider h-auto text-orange-700"
                         >
                             Refresh
                         </Button>
