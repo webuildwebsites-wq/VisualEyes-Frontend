@@ -3,7 +3,7 @@ import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { Icon } from '@iconify/react';
-import logo from '../assets/visual-eyes-logo.png';
+import logo from '../assets/logo.svg';
 import loginImage from '../assets/login-image.png';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
@@ -20,8 +20,7 @@ const Login = () => {
 
     const validationSchema = Yup.object({
         loginId: Yup.string()
-            .email('Invalid email format')
-            .required('Login ID is required'),
+            .required('Email or Username is required'),
         password: Yup.string()
             .required('Password is required'),
     });
@@ -35,10 +34,11 @@ const Login = () => {
         onSubmit: async (values) => {
             try {
                 const response = await loginUser({ username: values.loginId, password: values.password });
+                console.log('response', response)
                 if (response.success) {
                     dispatch(setCredentials({
                         user: response.data.user,
-                        token: response.data.token
+                        token: response.data.tokens.accessToken
                     }));
                     toast.success('Login Successful');
                     navigate('/welcome', { state: { from: 'login' } });
@@ -77,8 +77,9 @@ const Login = () => {
 
                     <form onSubmit={formik.handleSubmit} className="space-y-6">
                         <Input
+                            label="Email or Username"
                             name="loginId"
-                            placeholder="Login ID"
+                            placeholder="Enter Email or Username"
                             value={formik.values.loginId}
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}
@@ -86,9 +87,10 @@ const Login = () => {
                         />
 
                         <Input
+                            label="Password"
                             name="password"
                             type={showPassword ? "text" : "password"}
-                            placeholder="Password"
+                            placeholder="Enter your Password"
                             value={formik.values.password}
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}

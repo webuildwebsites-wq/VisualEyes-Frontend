@@ -24,9 +24,18 @@ body {
 }
 
 .app-root {
-  background: url('/src/assets/main-bg.svg') no-repeat right center/cover;
+  background: url('/src/assets/main-bg.svg') no-repeat right;
   background-size: 200% 200%;
 
+
+}
+
+@media (max-width: 768px) {
+  .app-root {
+    background: url('/src/assets/main-bg.svg') no-repeat right center;
+    background-size: cover;
+    background-position: center;
+  }
 }
 
 /* Custom ERP Theme Variables for Tailwind v4 */

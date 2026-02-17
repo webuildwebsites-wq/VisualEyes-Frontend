@@ -28,59 +28,69 @@ const AddStore = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                <Input placeholder="Shop Name" />
-                <Input placeholder="Owner Name" />
+                <Input label="Shop Name" placeholder="Enter Shop Name" />
+                <Input label="Owner Name" placeholder="Enter Owner Name" />
 
                 <Select
-                    placeholder="Customer Type"
+                    label="Customer Type"
+                    placeholder="Select Customer Type"
                     options={[{ label: 'Retail', value: 'retail' }, { label: 'Wholesale', value: 'wholesale' }]}
                 />
                 <Select
+                    label="Order Mode"
                     placeholder="Select Order Mode"
                     options={[{ label: 'Online', value: 'online' }, { label: 'Offline', value: 'offline' }]}
                 />
 
                 <Select
-                    placeholder="Billing Mode"
+                    label="Billing Mode"
+                    placeholder="Select Billing Mode"
                     options={[{ label: 'Prepaid', value: 'prepaid' }, { label: 'Postpaid', value: 'postpaid' }]}
                 />
-                <Input placeholder="Email ID" />
+                <Input label="Email ID" placeholder="Enter Email ID" />
 
-                <Input placeholder="Mobile No. 1" />
-                <Input placeholder="Mobile No. 2" />
+                <Input label="Mobile No. 1" placeholder="Enter Mobile No. 1" />
+                <Input label="Mobile No. 2" placeholder="Enter Mobile No. 2" />
 
-                <Input placeholder="Landline No." />
+                <Input label="Landline No." placeholder="Enter Landline No." />
                 <Select
-                    placeholder="GST Type"
+                    label="GST Type"
+                    placeholder="Select GST Type"
                     options={[{ label: 'Registered', value: 'registered' }, { label: 'Unregistered', value: 'unregistered' }]}
                 />
 
                 <Select
+                    label="Plant"
                     placeholder="Select Plant"
                     options={[{ label: 'Plant A', value: 'A' }]}
                 />
                 <Select
+                    label="Lab"
                     placeholder="Select Lab"
                     options={[{ label: 'Lab 1', value: '1' }]}
                 />
                 <Select
+                    label="Fitting Centre"
                     placeholder="Select Fitting Centre"
                     options={[{ label: 'Centre 1', value: '1' }]}
                 />
                 <Select
+                    label="Credit Day"
                     placeholder="Select Credit Day"
                     options={[{ label: '30 Days', value: '30' }]}
                 />
 
-                <Input placeholder="Credit Limit" />
+                <Input label="Credit Limit" placeholder="Enter Credit Limit" />
                 <Select
-                    placeholder="DC Without Value"
+                    label="DC Without Value"
+                    placeholder="Select Option"
                     options={[{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }]}
                 />
 
-                <Input placeholder="Select Courier" />
+                <Input label="Courier" placeholder="Select Courier" />
                 <Select
-                    placeholder="Courier Time"
+                    label="Courier Time"
+                    placeholder="Select Courier Time"
                     options={[{ label: 'Morning', value: 'morning' }]}
                 />
 
@@ -95,23 +105,26 @@ const AddStore = () => {
                 Address Details
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                <Input placeholder="Address 1" />
-                <Input placeholder="Address 2" />
+                <Input label="Address Line 1" placeholder="Enter Address 1" />
+                <Input label="Address Line 2" placeholder="Enter Address 2" />
 
-                <Input placeholder="City" />
+                <Input label="City" placeholder="Enter City" />
                 <Select
+                    label="State"
                     placeholder="Select State"
                     options={[{ label: 'State 1', value: 's1' }]}
                 />
                 <Select
+                    label="Country"
                     placeholder="Select Country"
                     options={[{ label: 'Country 1', value: 'c1' }]}
                 />
                 <Select
+                    label="Currency"
                     placeholder="Select Currency"
                     options={[{ label: 'USD', value: 'usd' }]}
                 />
-                <Input placeholder="Zip Code" />
+                <Input label="Zip Code" placeholder="Enter Zip Code" />
             </div>
         </>
     );
@@ -123,40 +136,45 @@ const AddStore = () => {
                 Login Details
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                <Input placeholder="Username" />
+                <Input label="Username" placeholder="Enter Username" />
                 <Select
-                    placeholder="User Type"
+                    label="User Type"
+                    placeholder="Select User Type"
                     options={[{ label: 'Admin', value: 'admin' }]}
                 />
                 <Select
-                    placeholder="Designation"
+                    label="Designation"
+                    placeholder="Select Designation"
                     options={[{ label: 'Manager', value: 'manager' }]}
                 />
                 <Select
-                    placeholder="Sales Person"
+                    label="Sales Person"
+                    placeholder="Select Sales Person"
                     options={[{ label: 'John', value: 'john' }]}
                 />
                 <Select
-                    placeholder="Zone"
+                    label="Zone"
+                    placeholder="Select Zone"
                     options={[{ label: 'North', value: 'north' }]}
                 />
                 <Select
-                    placeholder="Has Flat Fitting"
+                    label="Has Flat Fitting"
+                    placeholder="Select Option"
                     options={[{ label: 'Yes', value: 'yes' }]}
                 />
-                <Input placeholder="Specific Brand" />
-                <Input placeholder="Specific Category" />
-                <Input placeholder="Specific Lab" />
+                <Input label="Specific Brand" placeholder="Enter Specific Brand" />
+                <Input label="Specific Category" placeholder="Enter Specific Category" />
+                <Input label="Specific Lab" placeholder="Enter Specific Lab" />
             </div>
 
-            <div className="flex justify-center gap-6 mt-12">
+            {/* <div className="flex justify-center gap-6 mt-12">
                 <button onClick={() => console.log('Draft')} className="px-8 py-3 rounded-full border-2 border-amber-500 text-amber-500 font-semibold hover:bg-amber-50 transition-colors min-w-[160px]">
                     Create Draft
                 </button>
                 <button onClick={() => console.log('Submit')} className="px-8 py-3 rounded-full bg-amber-500 text-white font-semibold hover:bg-amber-600 shadow-lg shadow-amber-500/30 transition-all min-w-[160px]">
                     Submit
                 </button>
-            </div>
+            </div> */}
         </>
     );
 
@@ -167,12 +185,13 @@ const AddStore = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
                 <Select
-                    placeholder="Customer"
+                    label="Customer"
+                    placeholder="Select Customer"
                     options={[{ label: 'Existing Customer', value: 'existing' }]}
                 />
-                <Input placeholder="Customer Name" />
-                <Input placeholder="Email Id" />
-                <Input placeholder="Mobile No." />
+                <Input label="Customer Name" placeholder="Enter Customer Name" />
+                <Input label="Email ID" placeholder="Enter Email ID" />
+                <Input label="Mobile No." placeholder="Enter Mobile No." />
             </div>
         </>
     );
@@ -190,28 +209,52 @@ const AddStore = () => {
                 </form>
 
                 {/* Wizard Navigation */}
-                <div className="flex items-center justify-center gap-4 mt-16">
-                    {currentStep > 1 && (
-                        <button onClick={handlePrev} className="text-amber-500 hover:text-amber-600 transition-colors">
-                            <Icon icon="mdi:chevron-left" className="w-8 h-8" />
-                        </button>
-                    )}
+                {/* Wizard Navigation */}
+                <div className="flex flex-col items-center gap-8 mt-12 pb-8">
 
                     {/* Dots */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-3">
                         {[1, 2, 3, 4].map(step => (
                             <div
                                 key={step}
-                                className={`h-3 w-3 rounded-full transition-all duration-300 ${step === currentStep ? 'bg-amber-500 scale-125' : 'bg-gray-300'}`}
+                                className={`h-3 w-3 rounded-full transition-all duration-300 ${step === currentStep ? 'bg-amber-500 w-8' : 'bg-gray-300'}`}
                             ></div>
                         ))}
                     </div>
 
-                    {currentStep < totalSteps && (
-                        <button onClick={handleNext} className="text-amber-500 hover:text-amber-600 transition-colors">
-                            <Icon icon="mdi:chevron-right" className="w-8 h-8" />
-                        </button>
-                    )}
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-4 w-full max-w-md">
+                        {/* Prev Button */}
+                        <div className="flex-1">
+                            {currentStep > 1 ? (
+                                <Button variant="outlined" onClick={handlePrev}>
+                                    Previous
+                                </Button>
+                            ) : (
+                                <div className="w-full"></div> /* Spacer */
+                            )}
+                        </div>
+
+                        {/* Refresh Button */}
+                        <div className="flex-1">
+                            <Button variant="outlined" onClick={() => window.location.reload()}>
+                                Refresh
+                            </Button>
+                        </div>
+
+                        {/* Next/Submit Button */}
+                        <div className="flex-1">
+                            {currentStep < totalSteps ? (
+                                <Button variant="primary" onClick={handleNext}>
+                                    Next
+                                </Button>
+                            ) : (
+                                <Button variant="primary" onClick={() => console.log('Submit')}>
+                                    Submit
+                                </Button>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
