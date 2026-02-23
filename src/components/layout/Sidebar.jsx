@@ -22,7 +22,8 @@ const navItems = [
         // path: '/customer-care', // Removed path for parent
         subItems: [
             { label: 'Register Customer', path: '/customer-care/register' },
-            { label: 'All Customers', path: '/customer-care/list' }
+            { label: 'All Customers', path: '/customer-care/list' },
+            { label: 'Ship To', path: '/customer-care/ship-to' }
         ]
     },
     { label: 'Stores', icon: 'mdi:store', path: '/stores' },

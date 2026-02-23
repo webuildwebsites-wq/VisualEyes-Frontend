@@ -32,7 +32,12 @@ const Select = ({
                     renderValue: (selected) => {
                         if (multiple) {
                             if (!selected || selected.length === 0) return <span className={isOrange ? 'text-white' : 'text-gray-400'}>{placeholder}</span>;
-                            return (Array.isArray(selected) ? selected : [selected]).join(', ');
+                            // Map selected values to labels
+                            const selectedLabels = (Array.isArray(selected) ? selected : [selected]).map(val => {
+                                const option = options.find(opt => opt.value === val);
+                                return option ? option.label : val;
+                            });
+                            return selectedLabels.join(', ');
                         }
                         return options.find(opt => opt.value === selected)?.label || <span className={isOrange ? 'text-white' : 'text-gray-400'}>{placeholder}</span>;
                     }

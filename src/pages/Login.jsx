@@ -33,7 +33,7 @@ const Login = () => {
         validationSchema: validationSchema,
         onSubmit: async (values) => {
             try {
-                const response = await loginUser({ username: values.loginId, password: values.password });
+                const response = await loginUser({ employeeName: values.loginId, password: values.password });
                 console.log('response', response)
                 if (response.success) {
                     dispatch(setCredentials({
@@ -77,9 +77,9 @@ const Login = () => {
 
                     <form onSubmit={formik.handleSubmit} className="space-y-6">
                         <Input
-                            label="Email or Username"
+                            label="Email or Employee Name"
                             name="loginId"
-                            placeholder="Enter Email or Username"
+                            placeholder="Enter Email or Employee Name"
                             value={formik.values.loginId}
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}

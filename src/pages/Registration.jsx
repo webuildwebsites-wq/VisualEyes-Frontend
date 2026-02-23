@@ -23,7 +23,7 @@ const Registration = () => {
     });
 
     const [configs, setConfigs] = useState({
-        userTypes: [],
+        EmployeeType: [],
         roles: [],
         departments: [],
         labs: [],
@@ -38,7 +38,7 @@ const Registration = () => {
                 const response = await getSystemConfigs();
                 if (response.success) {
                     const mappedConfigs = {
-                        userTypes: response.data.find(c => c.configType === 'UserType')?.values || [],
+                        EmployeeType: response.data.find(c => c.configType === 'EmployeeType')?.values || [],
                         roles: response.data.find(c => c.configType === 'Role')?.values || [],
                         departments: response.data.find(c => c.configType === 'Department')?.values || [],
                         labs: response.data.find(c => c.configType === 'Lab')?.values || [],
@@ -59,7 +59,7 @@ const Registration = () => {
 
     const validationSchema = Yup.object({
         employeeType: Yup.string().required('Employee Type is required'),
-        username: Yup.string().required('Username is required'),
+        employeeName: Yup.string().required('employeeName is required'),
         email: Yup.string().email('Invalid email format').required('Email is required'),
         password: Yup.string().required('Password is required'),
         phone: Yup.string()
@@ -82,7 +82,7 @@ const Registration = () => {
     const formik = useFormik({
         initialValues: {
             employeeType: '',
-            username: '',
+            employeeName: '',
             email: '',
             password: '',
             phone: '',
@@ -171,17 +171,17 @@ const Registration = () => {
                             onBlur={formik.handleBlur}
                             placeholder="Select Employee Type"
                             error={formik.touched.employeeType && formik.errors.employeeType ? { message: formik.errors.employeeType } : null}
-                            options={configs.userTypes.map(type => ({ value: type, label: type }))}
+                            options={configs.EmployeeType.map(type => ({ value: type, label: type }))}
                             disabled={loadingConfigs}
                         />
                         <Input
-                            label="Username"
-                            name="username"
-                            placeholder="Enter Username"
-                            value={formik.values.username}
+                            label="employeeName"
+                            name="employeeName"
+                            placeholder="Enter employeeName"
+                            value={formik.values.employeeName}
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}
-                            error={formik.touched.username && formik.errors.username ? { message: formik.errors.username } : null}
+                            error={formik.touched.employeeName && formik.errors.employeeName ? { message: formik.errors.employeeName } : null}
                         />
                     </div>
 
@@ -273,6 +273,7 @@ const Registration = () => {
                         <Input
                             label="Pincode"
                             name="pincode"
+                            type="number"
                             placeholder="Enter Pincode"
                             value={formik.values.pincode}
                             onChange={formik.handleChange}

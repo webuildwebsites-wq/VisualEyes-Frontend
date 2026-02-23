@@ -4,6 +4,8 @@ import Login from './pages/Login';
 import Welcome from './pages/Welcome';
 import Registration from './pages/Registration';
 import RegisterCustomer from './pages/RegisterCustomer';
+import CustomerList from './pages/CustomerList';
+import ShipTo from './pages/ShipTo';
 import EmployeeList from './pages/EmployeeList';
 import MainLayout from './components/layout/MainLayout';
 import DashboardWizard from './pages/AddStore';
@@ -40,7 +42,8 @@ function App() {
               <Route path="stores" element={<DashboardWizard />} />
               <Route path="new-order" element={<OrderWizard />} />
               <Route path="/customer-care/register" element={<RegisterCustomer />} />
-              <Route path="/customer-care/list" element={<PlaceholderPage title="All Customers" />} />
+              <Route path="/customer-care/list" element={<CustomerList />} />
+              <Route path="/customer-care/ship-to" element={<ShipTo />} />
               <Route path="surfacing" element={<PlaceholderPage title="Surfacing" />} />
               <Route path="tint" element={<PlaceholderPage title="Tint" />} />
               <Route path="hard-coat" element={<PlaceholderPage title="Hard Coat" />} />

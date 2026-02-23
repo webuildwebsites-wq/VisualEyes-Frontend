@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 
 const EmployeeList = () => {
     const [employees, setEmployees] = useState([]);
+    console.log(employees, 'employees')
     const [loading, setLoading] = useState(true);
     const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
     const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -59,7 +60,7 @@ const EmployeeList = () => {
                         <table className="w-full border-collapse min-w-[1000px]">
                             <thead>
                                 <tr className="bg-amber-500 text-white">
-                                    <th className="py-4 px-4 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Username</th>
+                                    <th className="py-4 px-4 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Employee Name</th>
                                     <th className="py-4 px-4 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Department</th>
                                     <th className="py-4 px-4 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Type</th>
                                     <th className="py-4 px-6 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Email</th>
@@ -71,18 +72,18 @@ const EmployeeList = () => {
                             </thead>
                             <tbody className="text-gray-600">
                                 {employees.map((emp) => (
-                                    <tr key={emp.id} className="border-b border-gray-100 last:border-b-0 hover:bg-amber-50/30 transition-colors h-14">
-                                        <td className="px-4 py-2 text-center text-xs font-medium border-r border-gray-100">{emp.username || '---'}</td>
-                                        <td className="px-4 py-2 text-center text-xs border-r border-gray-100">{emp.Department || '---'}</td>
-                                        <td className="px-4 py-2 text-center text-xs border-r border-gray-100">{emp.UserType || '---'}</td>
+                                    <tr className="border-b border-gray-100 last:border-b-0 hover:bg-amber-50/30 transition-colors h-14">
+                                        <td className="px-4 py-2 text-center text-xs font-medium border-r border-gray-100">{emp?.employeeName || '---'}</td>
+                                        <td className="px-4 py-2 text-center text-xs border-r border-gray-100">{emp?.Department?.name || '---'}</td>
+                                        <td className="px-4 py-2 text-center text-xs border-r border-gray-100">{emp.EmployeeType?.name || '---'}</td>
                                         <td className="px-6 py-2 text-center text-xs border-r border-gray-100">{emp.email || '---'}</td>
                                         <td className="px-6 py-2 text-center text-xs border-r border-gray-100">{emp.phone || '---'}</td>
                                         <td className="px-4 py-2 text-center text-xs border-r border-gray-100">
                                             <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${emp.isActive ? 'text-green-600 bg-green-100' : 'text-red-500 bg-red-100'}`}>
-                                                {emp.isActive ? (emp.lab || 'ACTIVE') : 'INACTIVE'}
+                                                {emp.isActive ? (emp.lab?.name || 'ACTIVE') : 'INACTIVE'}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-2 text-center text-xs border-r border-gray-100">{emp.region || '---'}</td>
+                                        <td className="px-4 py-2 text-center text-xs border-r border-gray-100">{emp?.region?.name || '---'}</td>
                                         <td className="px-4 py-2 text-center">
                                             <div className="flex justify-center gap-3">
                                                 <button className="text-gray-400 hover:text-amber-500 transition-colors">
@@ -90,7 +91,7 @@ const EmployeeList = () => {
                                                 </button>
                                                 <button
                                                     className="text-gray-400 hover:text-amber-500 transition-colors"
-                                                    onClick={() => handleViewDetails(emp.id)}
+                                                    onClick={() => handleViewDetails(emp._id)}
                                                 >
                                                     <Icon icon="mdi:eye-outline" className="w-5 h-5" />
                                                 </button>
@@ -152,10 +153,10 @@ const EmployeeList = () => {
                         {/* Modal Body */}
                         <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <DetailItem label="Username" value={selectedEmployee.username} />
+                                <DetailItem label="Employee Name" value={selectedEmployee.employeeName} />
                                 <DetailItem label="Email" value={selectedEmployee.email} />
                                 <DetailItem label="Phone" value={selectedEmployee.phone} />
-                                <DetailItem label="User Type" value={selectedEmployee.UserType} />
+                                <DetailItem label="User Type" value={selectedEmployee.EmployeeType} />
                                 <DetailItem label="Role" value={selectedEmployee.Role} />
                                 <DetailItem label="Department" value={selectedEmployee.Department || '---'} />
                                 <DetailItem label="Lab" value={selectedEmployee.lab || '---'} />
