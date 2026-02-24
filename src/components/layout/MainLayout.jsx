@@ -29,9 +29,12 @@ const MainLayout = () => {
 
             {/* Main Content Area */}
             <div
-                className={`flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300 relative z-10     ${isSidebarOpen ? 'ml-0 md:ml-64' : 'ml-0'}        `}            >
-                <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 relative">
+                className={`flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300 relative z-10     ${isSidebarOpen ? 'ml-0 md:ml-64' : 'ml-0'}        `}
+            >
+                <div className="p-4 md:p-8 pb-0">
                     <Topbar />
+                </div>
+                <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 pt-4 relative">
                     <Outlet />
 
                     {/* Floating Action Button (New Order) */}

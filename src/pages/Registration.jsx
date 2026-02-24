@@ -23,7 +23,7 @@ const Registration = () => {
     });
 
     const [configs, setConfigs] = useState({
-        userTypes: [],
+        EmployeeType: [],
         roles: [],
         departments: [],
         labs: [],
@@ -38,7 +38,7 @@ const Registration = () => {
                 const response = await getSystemConfigs();
                 if (response.success) {
                     const mappedConfigs = {
-                        userTypes: response.data.find(c => c.configType === 'UserType')?.values || [],
+                        EmployeeType: response.data.find(c => c.configType === 'EmployeeType')?.values || [],
                         roles: response.data.find(c => c.configType === 'Role')?.values || [],
                         departments: response.data.find(c => c.configType === 'Department')?.values || [],
                         labs: response.data.find(c => c.configType === 'Lab')?.values || [],
@@ -59,7 +59,7 @@ const Registration = () => {
 
     const validationSchema = Yup.object({
         employeeType: Yup.string().required('Employee Type is required'),
-        username: Yup.string().required('Username is required'),
+        employeeName: Yup.string().required('employeeName is required'),
         email: Yup.string().email('Invalid email format').required('Email is required'),
         password: Yup.string().required('Password is required'),
         phone: Yup.string()
@@ -69,7 +69,11 @@ const Registration = () => {
             .required('Phone is required'),
         department: Yup.string().required('Department is required'),
         role: Yup.string().required('Role is required'),
-        region: Yup.string().required('Region is required'),
+        region: Yup.string().when('department', {
+            is: (val) => val?.toUpperCase() === 'SALES',
+            then: (schema) => schema.required('Region is required for Sales department'),
+            otherwise: (schema) => schema.notRequired()
+        }),
         lab: Yup.string().required('Lab is required'),
         aadharCard: Yup.string().url().required('Aadhar Card upload is required'),
         panCard: Yup.string().url().required('PAN Card upload is required'),
@@ -78,7 +82,7 @@ const Registration = () => {
     const formik = useFormik({
         initialValues: {
             employeeType: '',
-            username: '',
+            employeeName: '',
             email: '',
             password: '',
             phone: '',
@@ -98,7 +102,7 @@ const Registration = () => {
             try {
                 const response = await createSupervisorUser(values);
                 if (response.success) {
-                    toast.success("User created successfully!");
+                    toast.success("User Registered Successfully!");
                     navigate('/welcome', { state: { from: 'register' } });
                 }
             } catch (error) {
@@ -167,17 +171,17 @@ const Registration = () => {
                             onBlur={formik.handleBlur}
                             placeholder="Select Employee Type"
                             error={formik.touched.employeeType && formik.errors.employeeType ? { message: formik.errors.employeeType } : null}
-                            options={configs.userTypes.map(type => ({ value: type, label: type }))}
+                            options={configs.EmployeeType.map(type => ({ value: type, label: type }))}
                             disabled={loadingConfigs}
                         />
                         <Input
-                            label="Username"
-                            name="username"
-                            placeholder="Enter Username"
-                            value={formik.values.username}
+                            label="employeeName"
+                            name="employeeName"
+                            placeholder="Enter employeeName"
+                            value={formik.values.employeeName}
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}
-                            error={formik.touched.username && formik.errors.username ? { message: formik.errors.username } : null}
+                            error={formik.touched.employeeName && formik.errors.employeeName ? { message: formik.errors.employeeName } : null}
                         />
                     </div>
 
@@ -230,7 +234,12 @@ const Registration = () => {
                             name="department"
                             variant="orange"
                             value={formik.values.department}
-                            onChange={formik.handleChange}
+                            onChange={(e) => {
+                                formik.handleChange(e);
+                                if (e.target.value?.toUpperCase() !== 'SALES') {
+                                    formik.setFieldValue('region', '');
+                                }
+                            }}
                             onBlur={formik.handleBlur}
                             placeholder="Select Department"
                             error={formik.touched.department && formik.errors.department ? { message: formik.errors.department } : null}
@@ -264,6 +273,7 @@ const Registration = () => {
                         <Input
                             label="Pincode"
                             name="pincode"
+                            type="number"
                             placeholder="Enter Pincode"
                             value={formik.values.pincode}
                             onChange={formik.handleChange}
@@ -298,17 +308,21 @@ const Registration = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Select
-                            label="Region"
-                            name="region"
-                            value={formik.values.region}
-                            onChange={formik.handleChange}
-                            onBlur={formik.handleBlur}
-                            placeholder="Select Region"
-                            error={formik.touched.region && formik.errors.region ? { message: formik.errors.region } : null}
-                            options={configs.regions.map(region => ({ value: region, label: region }))}
-                            disabled={loadingConfigs}
-                        />
+                        {formik.values.department?.toUpperCase() === 'SALES' ? (
+                            <Select
+                                label="Region"
+                                name="region"
+                                value={formik.values.region}
+                                onChange={formik.handleChange}
+                                onBlur={formik.handleBlur}
+                                placeholder="Select Region"
+                                error={formik.touched.region && formik.errors.region ? { message: formik.errors.region } : null}
+                                options={['East', 'West', 'North', 'South'].map(r => ({ value: r, label: r }))}
+                                disabled={loadingConfigs}
+                            />
+                        ) : (
+                            <div className="hidden md:block" /> // Empty space to maintain grid alignment
+                        )}
                         <div className="flex flex-col gap-4">
                             <label className="text-orange-500 font-bold uppercase text-sm">Document Uploads</label>
                             <div className="flex gap-6">
