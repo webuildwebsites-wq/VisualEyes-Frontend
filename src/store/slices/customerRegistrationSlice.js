@@ -2,62 +2,45 @@ import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
     activeStep: 0,
+    isVerificationMode: false,
+    rejectedFields: {},
     formValues: {
-        // Step 1: Basic Details
         shopName: '',
         ownerName: '',
-        CustomerType: '',
         CustomerTypeRefId: '',
         orderMode: '',
         mobileNo1: '',
         mobileNo2: '',
         landlineNo: '',
-        emailId: '',
-        // Step 2: Address
+        loginEmail: '',
+        businessEmail: '',
+        // GST Logic
+        gstType: 'Unregistered', // 'Registered' (Number) or 'Unregistered'
+        gstNo: '',
+        gstDoc: '',
+        AadharCard: '',
+        PANCard: '',
         address: [
-            { address1: '', contactPerson: '', contactNumber: '', city: '', state: '', zipCode: '', country: '', billingCurrency: '', billingMode: '' }
+            { address1: '', contactPerson: '', contactNumber: '', city: '', state: '', country: 'India', billingCurrency: 'INR', billingMode: 'CREDIT' }
         ],
-        // Step 3: Login Details
         username: '',
         password: '',
-        zone: '',
         zoneRefId: '',
-        hasFlatFitting: 'no',
-        selectType: [],
-        selectTypeIndex: [],
-        Price: '',
-        specificBrand: '',
+        hasFlatFitting: 'No',
+        // Flat Fitting Logic: Multi-row array of objects
+        flatFittingEntries: [
+            { type: '', index: '', price: '' }
+        ],
         specificBrandRefId: '',
-        specificCategory: '',
         specificCategoryRefId: '',
-        specificLab: '',
         specificLabRefId: '',
-        salesPerson: '',
         salesPersonRefId: '',
-        // Step 4: Documentation
-        IsGSTRegistered: 'no',
-        gstType: '',
-        gstTypeRefId: '',
-        GSTNumber: '',
-        GSTCertificateImg: '',
-        AadharCard: '',
-        AadharCardImg: '',
-        PANCard: '',
-        PANCardImg: '',
-        plant: '',
         plantRefId: '',
-        lab: '',
-        labRefId: '',
-        fittingCenter: '',
         fittingCenterRefId: '',
-        creditDays: '',
-        creditDaysRefId: '',
         creditLimit: '',
-        creditLimitRefId: '',
-        courierTime: '',
-        courierTimeRefId: '',
-        courierName: '',
-        courierNameRefId: ''
+        creditDaysRefId: '',
+        courierNameRefId: '',
+        courierTimeRefId: ''
     }
 };
 
@@ -74,11 +57,27 @@ const customerRegistrationSlice = createSlice({
                 ...action.payload
             };
         },
+        toggleVerificationMode: (state) => {
+            state.isVerificationMode = !state.isVerificationMode;
+            if (!state.isVerificationMode) {
+                state.rejectedFields = {};
+            }
+        },
+        toggleFieldRejection: (state, action) => {
+            const { fieldName } = action.payload;
+            state.rejectedFields[fieldName] = !state.rejectedFields[fieldName];
+        },
         resetRegistration: () => {
             return initialState;
         }
     }
 });
 
-export const { setStep, updateFormValues, resetRegistration } = customerRegistrationSlice.actions;
+export const {
+    setStep,
+    updateFormValues,
+    toggleVerificationMode,
+    toggleFieldRejection,
+    resetRegistration
+} = customerRegistrationSlice.actions;
 export default customerRegistrationSlice.reducer;
