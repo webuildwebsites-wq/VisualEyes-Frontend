@@ -1,39 +1,44 @@
 import { PATHS } from '../../routes/paths';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Icon } from '@iconify/react';
 import { NavLink } from 'react-router-dom';
 import { logoutUser } from '../../services/authService';
 import { logOut } from '../../store/slices/authSlice';
+import { selectCurrentUser } from '../../store/slices/authSlice';
+import { hasAccess } from '../../routes/permissions';
 import logo from '../../assets/logo.svg';
+
 const navItems = [
     { label: 'Dashboard', icon: 'mdi:view-dashboard-outline', path: PATHS.ROOT },
     {
         label: 'Registration',
         icon: 'mdi:person-add-outline',
         subItems: [
-            { label: 'Register Customer', path: PATHS.CUSTOMER.REGISTER },
-            { label: 'Register Staff', path: PATHS.STAFF.REGISTER }
+            { label: 'Register Customer', path: PATHS.CUSTOMER.REGISTER, requiredPermission: 'CanCreateCustomers' },
+            { label: 'Register Staff', path: PATHS.STAFF.REGISTER, requiredPermission: 'CanCreateEmployee' }
         ]
     },
     {
         label: 'Staff',
         icon: 'mdi:account-group-outline',
         subItems: [
-            { label: 'Staff List', path: PATHS.STAFF.LIST }
+            { label: 'Staff List', path: PATHS.STAFF.LIST, requiredPermission: 'CanManageEmployee' }
         ]
     },
     {
         label: 'Customer Care',
         icon: 'mdi:face-agent',
         subItems: [
-            { label: 'Customer List', path: PATHS.CUSTOMER.LIST },
-            { label: 'Ship To', path: PATHS.CUSTOMER.SHIP_TO }
+            { label: 'Customer List', path: PATHS.CUSTOMER.LIST, requiredPermission: 'CanManageCustomers' },
+            { label: 'Ship To', path: PATHS.CUSTOMER.SHIP_TO, requiredPermission: 'CanManageCustomers' }
         ]
     },
-    { label: 'F&A', icon: 'mdi:finance', path: PATHS.OPERATIONS.FINANCE },
-    { label: 'Stores', icon: 'mdi:store', path: PATHS.STORES },
+    { label: 'F&A', icon: 'mdi:finance', path: PATHS.OPERATIONS.FINANCE, requiredPermission: 'CanViewFinancials' },
+    { label: 'Stores', icon: 'mdi:store', path: PATHS.STORES, requiredPermission: 'CanManageProducts' },
+    { label: 'Reports', icon: 'mdi:chart-bar', path: PATHS.OPERATIONS.REPORTS, requiredPermission: 'CanViewReports' },
+    // Some items might not have specific permissions yet or are always visible to authenticated users
     { label: 'Lab', icon: 'mdi:flask-outline', path: PATHS.OPERATIONS.LAB },
     { label: 'Tint', icon: 'mdi:water-outline', path: PATHS.OPERATIONS.TINT },
     { label: 'Hard Coat', icon: 'mdi:shield-outline', path: PATHS.OPERATIONS.HARD_COAT },
@@ -42,24 +47,44 @@ const navItems = [
     { label: 'Fitting', icon: 'mdi:ruler-square', path: PATHS.OPERATIONS.FITTING },
     { label: 'Dispatch', icon: 'mdi:truck-delivery-outline', path: PATHS.OPERATIONS.DISPATCH },
     { label: 'DMS', icon: 'mdi:file-document-outline', path: PATHS.OPERATIONS.DMS },
-    { label: 'Reports', icon: 'mdi:chart-bar', path: PATHS.OPERATIONS.REPORTS },
 ];
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
     const dispatch = useDispatch();
     const location = useLocation();
+    const user = useSelector(selectCurrentUser);
     const [openSubmenus, setOpenSubmenus] = useState({});
+
+    // Filtered nav items based on permissions
+    const filteredNavItems = useMemo(() => {
+        const checkAccess = (item) => {
+            if (user?.EmployeeType === 'SUPERADMIN') return true;
+            if (!item.requiredPermission) return true;
+            return !!user?.permissions?.[item.requiredPermission];
+        };
+
+        return navItems
+            .map(item => {
+                if (item.subItems) {
+                    const filteredSubItems = item.subItems.filter(checkAccess);
+                    if (filteredSubItems.length === 0) return null;
+                    return { ...item, subItems: filteredSubItems };
+                }
+                return checkAccess(item) ? item : null;
+            })
+            .filter(Boolean);
+    }, [user]);
 
     // Auto-open submenus on route change
     useEffect(() => {
         const newOpenSubmenus = {};
-        navItems.forEach(item => {
+        filteredNavItems.forEach(item => {
             if (item.subItems?.some(sub => sub.path === location.pathname)) {
                 newOpenSubmenus[item.label] = true;
             }
         });
         setOpenSubmenus(prev => ({ ...prev, ...newOpenSubmenus }));
-    }, [location.pathname]);
+    }, [location.pathname, filteredNavItems]);
 
     const toggleSubmenu = (label) => {
         setOpenSubmenus(prev => ({
@@ -96,7 +121,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 
                 {/* Menu */}
                 <nav className="mt-4 px-3 space-y-1 flex-1 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
-                    {navItems.map((item) => (
+                    {filteredNavItems.map((item) => (
                         <div key={item.label}>
                             {item.subItems ? (
                                 <>

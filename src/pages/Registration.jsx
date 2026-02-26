@@ -103,7 +103,8 @@ const Registration = () => {
             panCard: '',
             state: '',
             city: '',
-            username: ''
+            username: '',
+            zoneRefId: ''
         },
         validationSchema: Yup.object({
             employeeType: Yup.string().required('Staff Category is required'),
@@ -118,12 +119,12 @@ const Registration = () => {
             address: Yup.string().required('Address is required'),
             pincode: Yup.string().required('Pincode is required'),
             lab: Yup.string().required('Lab is required'),
-            region: Yup.string().when('department', {
+            zoneRefId: Yup.string().when('department', {
                 is: (val) => {
                     const dept = configs.departments.find(d => d._id === val);
                     return dept?.name?.toUpperCase() === 'SALES';
                 },
-                then: (schema) => schema.required('Region is required for Sales department'),
+                then: (schema) => schema.required('Zone is required for Sales department'),
                 otherwise: (schema) => schema.notRequired()
             }),
             department: Yup.string().when('employeeType', {
@@ -197,9 +198,9 @@ const Registration = () => {
 
                     // Specific handling for SALES zone hierarchy
                     if (isSales) {
-                        const selectedZone = locationData.zones.find(z => z._id === values.region);
-                        payload.zone = selectedZone?.zone || '';
-                        payload.zoneRefId = values.region;
+                        const selectedZone = (locationData.zones || []).find(z => z._id === values.zoneRefId);
+                        payload.zone = selectedZone?.name || selectedZone?.zone || '';
+                        payload.zoneRefId = values.zoneRefId;
                     }
                 }
 
@@ -248,9 +249,15 @@ const Registration = () => {
             setLoadingLocation(true);
             try {
                 const response = await locationService.getAllZones();
-                if (response.success) {
-                    setLocationData(prev => ({ ...prev, zones: response.data.locations || [] }));
+                let zones = response?.data || response || [];
+                if (!Array.isArray(zones) && zones && typeof zones === 'object') {
+                    zones = zones.locations || zones.data || Object.values(zones).find(Array.isArray) || [];
                 }
+
+                // Get other configs if any (though usually for staff it's selected differently)
+                // For staff registration we mainly need departments/roles which are often separate
+
+                setLocationData(prev => ({ ...prev, zones: Array.isArray(zones) ? zones : [] }));
             } catch (error) {
                 console.error('Failed to fetch zones:', error);
                 toast.error("Failed to load zones");
@@ -275,9 +282,11 @@ const Registration = () => {
             setLoadingLocation(true);
             try {
                 const response = await locationService.getStatesByZone(zoneId);
-                if (response.success) {
-                    setLocationData(prev => ({ ...prev, states: response.data.states || [] }));
+                let states = response?.data || response || [];
+                if (!Array.isArray(states) && states && typeof states === 'object') {
+                    states = states.states || states.data || Object.values(states).find(Array.isArray) || [];
                 }
+                setLocationData(prev => ({ ...prev, states: Array.isArray(states) ? states : [] }));
             } catch (error) {
                 console.error('Failed to fetch states:', error);
             } finally {
@@ -297,10 +306,12 @@ const Registration = () => {
         if (stateId) {
             setLoadingLocation(true);
             try {
-                const response = await locationService.getCitiesByState(formik.values.region, stateId);
-                if (response.success) {
-                    setLocationData(prev => ({ ...prev, cities: response.data.cities || [] }));
+                const response = await locationService.getCitiesByState(formik.values.zoneRefId, stateId);
+                let cities = response?.data || response || [];
+                if (!Array.isArray(cities) && cities && typeof cities === 'object') {
+                    cities = cities.cities || cities.data || Object.values(cities).find(Array.isArray) || [];
                 }
+                setLocationData(prev => ({ ...prev, cities: Array.isArray(cities) ? cities : [] }));
             } catch (error) {
                 console.error('Failed to fetch cities:', error);
             } finally {
@@ -319,10 +330,12 @@ const Registration = () => {
         if (cityId) {
             setLoadingLocation(true);
             try {
-                const response = await locationService.getZipCodesByCity(formik.values.region, formik.values.state, cityId);
-                if (response.success) {
-                    setLocationData(prev => ({ ...prev, zipcodes: response.data.zipCodes || [] }));
+                const response = await locationService.getZipCodesByCity(formik.values.zoneRefId, formik.values.state, cityId);
+                let zipcodes = response?.data || response || [];
+                if (!Array.isArray(zipcodes) && zipcodes && typeof zipcodes === 'object') {
+                    zipcodes = zipcodes.zipCodes || zipcodes.data || Object.values(zipcodes).find(Array.isArray) || [];
                 }
+                setLocationData(prev => ({ ...prev, zipcodes: Array.isArray(zipcodes) ? zipcodes : [] }));
             } catch (error) {
                 console.error('Failed to fetch zipcodes:', error);
             } finally {
@@ -478,7 +491,7 @@ const Registration = () => {
                                 onBlur={formik.handleBlur}
                                 placeholder="Select Department"
                                 error={formik.touched.department && formik.errors.department ? { message: formik.errors.department } : null}
-                                options={configs.departments.map(dept => ({ value: dept._id, label: dept.name }))}
+                                options={(configs.departments || []).map(dept => ({ value: dept._id, label: dept.name }))}
                             />
                         )}
 
@@ -492,7 +505,7 @@ const Registration = () => {
                                 onBlur={formik.handleBlur}
                                 placeholder="Select Role"
                                 error={formik.touched.role && formik.errors.role ? { message: formik.errors.role } : null}
-                                options={subRoles.map(role => ({ value: role.code, label: role.name }))}
+                                options={(subRoles || []).map(role => ({ value: role.code, label: role.name }))}
                                 disabled={!formik.values.department || loadingSubRoles}
                             />
                         )}
@@ -510,13 +523,13 @@ const Registration = () => {
                             <>
                                 <Select
                                     label="Zone *"
-                                    name="region"
-                                    value={formik.values.region}
+                                    name="zoneRefId"
+                                    value={formik.values.zoneRefId}
                                     onChange={handleZoneChange}
                                     onBlur={formik.handleBlur}
                                     placeholder="Select Zone"
-                                    error={formik.touched.region && formik.errors.region ? { message: formik.errors.region } : null}
-                                    options={locationData.zones.map(z => ({ value: z._id, label: z.zone }))}
+                                    error={formik.touched.zoneRefId && formik.errors.zoneRefId ? { message: formik.errors.zoneRefId } : null}
+                                    options={(Array.isArray(locationData.zones) ? locationData.zones : []).map(z => ({ value: z._id, label: z.name || z.zone }))}
                                     disabled={loadingLocation}
                                 />
                                 <Select
@@ -526,8 +539,8 @@ const Registration = () => {
                                     onChange={handleStateChange}
                                     onBlur={formik.handleBlur}
                                     placeholder="Select State"
-                                    options={locationData.states.map(s => ({ value: s._id, label: s.name }))}
-                                    disabled={!formik.values.region || loadingLocation}
+                                    options={(Array.isArray(locationData.states) ? locationData.states : []).map(s => ({ value: s._id, label: s.name }))}
+                                    disabled={!formik.values.zoneRefId || loadingLocation}
                                 />
                                 <Select
                                     label="City *"
@@ -536,7 +549,7 @@ const Registration = () => {
                                     onChange={handleCityChange}
                                     onBlur={formik.handleBlur}
                                     placeholder="Select City"
-                                    options={locationData.cities.map(c => ({ value: c._id, label: c.name }))}
+                                    options={(Array.isArray(locationData.cities) ? locationData.cities : []).map(c => ({ value: c._id, label: c.name }))}
                                     disabled={!formik.values.state || loadingLocation}
                                 />
                                 <Select
@@ -549,7 +562,7 @@ const Registration = () => {
                                     onBlur={formik.handleBlur}
                                     placeholder="Select Pincode"
                                     error={formik.touched.pincode && formik.errors.pincode ? { message: formik.errors.pincode } : null}
-                                    options={locationData.zipcodes.map(z => ({ value: z.code, label: `${z.code} - ${z.area}` }))}
+                                    options={(Array.isArray(locationData.zipcodes) ? locationData.zipcodes : []).map(z => ({ value: z.code, label: `${z.code} - ${z.area}` }))}
                                     disabled={!formik.values.city || loadingLocation}
                                 />
                             </>
@@ -584,7 +597,7 @@ const Registration = () => {
                             onBlur={formik.handleBlur}
                             placeholder="Select Lab"
                             error={formik.touched.lab && formik.errors.lab ? { message: formik.errors.lab } : null}
-                            options={configs.labs.map(lab => ({ value: lab, label: lab }))}
+                            options={(configs.labs || []).map(lab => ({ value: lab, label: lab }))}
                         />
 
                         {showDocumentFields && (

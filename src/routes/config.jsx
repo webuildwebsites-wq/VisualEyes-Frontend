@@ -23,26 +23,31 @@ const STAFF_MODULE = [
     {
         path: 'staff/register',
         element: Registration,
-        props: { title: 'Register Employee' }
+        props: { title: 'Register Employee' },
+        requiredPermission: 'CanCreateEmployee'
     },
     {
         path: 'staff/list',
-        element: EmployeeList
+        element: EmployeeList,
+        requiredPermission: 'CanManageEmployee'
     }
 ];
 
 const CUSTOMER_MODULE = [
     {
         path: 'customer/register',
-        element: RegisterCustomer
+        element: RegisterCustomer,
+        requiredPermission: 'CanCreateCustomers'
     },
     {
         path: 'customer/list',
-        element: CustomerList
+        element: CustomerList,
+        requiredPermission: 'CanManageCustomers'
     },
     {
         path: 'customer/ship-to',
-        element: ShipTo
+        element: ShipTo,
+        requiredPermission: 'CanManageCustomers'
     }
 ];
 
@@ -56,9 +61,9 @@ const OPERATIONS_MODULE = [
     { path: 'fitting', element: PlaceholderPage, props: { title: 'Fitting' } },
     { path: 'dispatch', element: PlaceholderPage, props: { title: 'Dispatch' } },
     { path: 'dms', element: PlaceholderPage, props: { title: 'DMS' } },
-    { path: 'finance', element: PlaceholderPage, props: { title: 'F&A' } },
-    { path: 'reports', element: PlaceholderPage, props: { title: 'Reports' } },
-    { path: 'stores', element: DashboardWizard },
+    { path: 'finance', element: PlaceholderPage, props: { title: 'F&A' }, requiredPermission: 'CanViewFinancials' },
+    { path: 'reports', element: PlaceholderPage, props: { title: 'Reports' }, requiredPermission: 'CanViewReports' },
+    { path: 'stores', element: DashboardWizard, requiredPermission: 'CanManageProducts' },
     { path: 'new-order', element: OrderWizard },
 ];
 

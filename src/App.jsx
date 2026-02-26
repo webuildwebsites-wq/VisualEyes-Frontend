@@ -9,6 +9,8 @@ import './App.css';
 
 import { PATHS, routesConfig } from './routes/config';
 
+import PermissionGuard from './components/PermissionGuard';
+
 function App() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
 
@@ -21,7 +23,8 @@ function App() {
         children,
         isPublic,
         index: isIndexRoute,
-        path
+        path,
+        requiredPermission
       } = route;
 
       let element = <Component {...props} />;
@@ -32,6 +35,13 @@ function App() {
           <Component />
         ) : (
           <Navigate to={PATHS.WELCOME} state={{ from: 'login' }} replace />
+        );
+      } else if (requiredPermission) {
+        // Enforce permission checks for protected routes
+        element = (
+          <PermissionGuard requiredPermission={requiredPermission}>
+            <Component {...props} />
+          </PermissionGuard>
         );
       }
 

@@ -57,7 +57,7 @@ export const getBrandCategories = async (brandId) => {
 
 export const registerCustomer = async (customerData) => {
     try {
-        const response = await api.post('/api/customer/auth/register', customerData);
+        const response = await api.post('/api/customer/management/register', customerData);
         return response.data;
     } catch (error) {
         throw error.response ? error.response.data : new Error('Registration failed');
@@ -66,7 +66,7 @@ export const registerCustomer = async (customerData) => {
 
 export const addShipTo = async (shipToData) => {
     try {
-        const response = await api.post('/api/customer/auth/add-ship-to', shipToData);
+        const response = await api.post('/api/customer/management/add-ship-to', shipToData);
         return response.data;
     } catch (error) {
         throw error.response ? error.response.data : new Error('Failed to add ship-to details');
@@ -75,7 +75,7 @@ export const addShipTo = async (shipToData) => {
 
 export const getAllCustomers = async (page = 1, limit = 10) => {
     try {
-        const response = await api.get(`/api/customer/auth/get-all-customers?page=${page}&limit=${limit}`);
+        const response = await api.get(`/api/customer/management/get-all-customers?page=${page}&limit=${limit}`);
         return response.data;
     } catch (error) {
         throw error.response ? error.response.data : new Error('Failed to fetch customers');
@@ -84,7 +84,7 @@ export const getAllCustomers = async (page = 1, limit = 10) => {
 
 export const getCustomerById = async (id) => {
     try {
-        const response = await api.get(`/api/customer/auth/get-customer/${id}`);
+        const response = await api.get(`/api/customer/management/get-customer/${id}`);
         return response.data;
     } catch (error) {
         throw error.response ? error.response.data : new Error('Failed to fetch customer details');
@@ -93,8 +93,8 @@ export const getCustomerById = async (id) => {
 
 export const getAllRegions = async () => {
     try {
-        const response = await api.get('/api/location/get-all-region');
-        return response.data?.data || [];
+        const response = await api.get('/api/location/all-zone');
+        return response.data?.data || response.data || [];
     } catch (error) {
         console.error('Error fetching regions:', error);
         return [];
@@ -123,8 +123,8 @@ export const getCitiesByRegion = async (regionId) => {
 
 export const getAllZones = async () => {
     try {
-        const response = await api.get('/api/location/get-all-zones');
-        return response.data?.data || [];
+        const response = await api.get('/api/location/all-zone');
+        return response.data?.data || response.data || [];
     } catch (error) {
         console.error('Error fetching zones:', error);
         return [];

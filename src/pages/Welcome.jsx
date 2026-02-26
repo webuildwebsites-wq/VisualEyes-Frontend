@@ -10,6 +10,8 @@ const Welcome = () => {
     const [message] = useState(() => {
         if (location.state?.from === 'register') {
             return 'User Registered Successfully!';
+        } else if (location.state?.from === 'customer-register') {
+            return 'Registration Complete!';
         } else if (location.state?.from === 'login') {
             return 'Login Successful!';
         }
@@ -18,7 +20,11 @@ const Welcome = () => {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            const redirectPath = location.state?.from === 'register' ? PATHS.STAFF.LIST : PATHS.ROOT;
+            const redirectPath = location.state?.from === 'register'
+                ? PATHS.STAFF.LIST
+                : location.state?.from === 'customer-register'
+                    ? PATHS.CUSTOMER.LIST
+                    : PATHS.ROOT;
             navigate(redirectPath);
         }, 5000);
 
@@ -45,15 +51,32 @@ const Welcome = () => {
                     Wishing You A <span className="text-amber-500 font-semibold">Productive</span> Day!
                 </h2>
 
-                <button
-                    onClick={() => {
-                        const redirectPath = location.state?.from === 'register' ? PATHS.STAFF.LIST : PATHS.ROOT;
-                        navigate(redirectPath);
-                    }}
-                    className="mt-12 text-gray-400 hover:text-amber-500 transition-colors text-sm font-medium flex items-center gap-1 relative z-10"
-                >
-                    Skip <Icon icon="mdi:chevron-double-right" />
-                </button>
+                {location.state?.from === 'customer-register' ? (
+                    <div className="mt-10 flex flex-col sm:flex-row gap-4 relative z-10">
+                        <button
+                            onClick={() => navigate(PATHS.CUSTOMER.LIST)}
+                            className="px-8 py-3 rounded-full bg-amber-500 text-white font-semibold hover:bg-amber-600 transition-colors shadow-md"
+                        >
+                            View Entire Customer List
+                        </button>
+                        <button
+                            onClick={() => navigate(PATHS.ROOT)}
+                            className="px-8 py-3 rounded-full border-2 border-amber-500 text-amber-500 font-semibold hover:bg-amber-50 transition-colors"
+                        >
+                            Go Back To Home Page
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        onClick={() => {
+                            const redirectPath = location.state?.from === 'register' ? PATHS.STAFF.LIST : PATHS.ROOT;
+                            navigate(redirectPath);
+                        }}
+                        className="mt-12 text-gray-400 hover:text-amber-500 transition-colors text-sm font-medium flex items-center gap-1 relative z-10"
+                    >
+                        Skip <Icon icon="mdi:chevron-double-right" />
+                    </button>
+                )}
 
             </div>
         </div>
