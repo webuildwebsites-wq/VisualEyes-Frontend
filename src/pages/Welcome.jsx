@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
 import logo from '../assets/logo.svg';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { PATHS } from '../routes/paths';
 
 const Welcome = () => {
     const navigate = useNavigate();
@@ -17,7 +18,7 @@ const Welcome = () => {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            const redirectPath = location.state?.from === 'register' ? '/register/list' : '/';
+            const redirectPath = location.state?.from === 'register' ? PATHS.STAFF.LIST : PATHS.ROOT;
             navigate(redirectPath);
         }, 5000);
 
@@ -46,7 +47,7 @@ const Welcome = () => {
 
                 <button
                     onClick={() => {
-                        const redirectPath = location.state?.from === 'register' ? '/register/list' : '/';
+                        const redirectPath = location.state?.from === 'register' ? PATHS.STAFF.LIST : PATHS.ROOT;
                         navigate(redirectPath);
                     }}
                     className="mt-12 text-gray-400 hover:text-amber-500 transition-colors text-sm font-medium flex items-center gap-1 relative z-10"

@@ -12,6 +12,7 @@ import * as Yup from 'yup';
 import { toast } from 'react-toastify';
 import { loginUser } from '../services/authService';
 import { setCredentials } from '../store/slices/authSlice';
+import { PATHS } from '../routes/paths';
 
 const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
@@ -33,7 +34,7 @@ const Login = () => {
         validationSchema: validationSchema,
         onSubmit: async (values) => {
             try {
-                const response = await loginUser({ employeeName: values.loginId, password: values.password });
+                const response = await loginUser({ username: values.loginId, password: values.password });
                 console.log('response', response)
                 if (response.success) {
                     dispatch(setCredentials({
@@ -41,7 +42,7 @@ const Login = () => {
                         token: response.data.tokens.accessToken
                     }));
                     toast.success('Login Successful');
-                    navigate('/welcome', { state: { from: 'login' } });
+                    navigate(PATHS.WELCOME, { state: { from: 'login' } });
                 } else {
                     toast.error(response.message || 'Login failed');
                 }

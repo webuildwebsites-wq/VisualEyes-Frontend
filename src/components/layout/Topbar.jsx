@@ -1,11 +1,15 @@
 import React from 'react';
 import { Icon } from '@iconify/react';
+import { useDispatch, useSelector } from 'react-redux';
 
 const Topbar = () => {
+    const dispatch = useDispatch()
+    const user = useSelector((state) => state.auth.user)
+    console.log('user', user)
     return (
         <div className="w-full bg-amber-500 text-white shadow-md p-4 px-8 rounded-b-lg md:rounded-lg flex justify-between items-center">
             <div className="font-semibold text-lg flex items-center gap-2">
-                <span className="underline decoration-2 underline-offset-4">John Doe | Super Admin</span>
+                <span className=" decoration-2 underline-offset-4">{user?.employeeName} | {user?.Department?.name}</span>
             </div>
             <div className="relative cursor-pointer">
                 <Icon icon="mdi:bell" className="w-6 h-6" />

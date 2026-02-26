@@ -1,34 +1,48 @@
-import React, { useState, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { Icon } from '@iconify/react';
-import logo from '../../assets/logo.svg';
+import { PATHS } from '../../routes/paths';
 import { useDispatch } from 'react-redux';
-import { logOut } from '../../store/slices/authSlice';
+import { useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Icon } from '@iconify/react';
+import { NavLink } from 'react-router-dom';
 import { logoutUser } from '../../services/authService';
-
+import { logOut } from '../../store/slices/authSlice';
+import logo from '../../assets/logo.svg';
 const navItems = [
-    { label: 'Dashboard', icon: 'mdi:view-dashboard-outline', path: '/' },
+    { label: 'Dashboard', icon: 'mdi:view-dashboard-outline', path: PATHS.ROOT },
     {
         label: 'Registration',
         icon: 'mdi:person-add-outline',
         subItems: [
-            { label: 'Register Customer', path: '/customer-care/register' },
-            { label: 'Register Staff', path: '/register' }
+            { label: 'Register Customer', path: PATHS.CUSTOMER.REGISTER },
+            { label: 'Register Staff', path: PATHS.STAFF.REGISTER }
         ]
     },
-    { label: 'F&A', icon: 'mdi:finance', path: '/finance' },
-    { label: 'Customer Care', icon: 'mdi:face-agent', path: '/customer-care-' },
-    { label: 'Stores', icon: 'mdi:store', path: '/stores' },
-    { label: 'Lab', icon: 'mdi:flask-outline', path: '/lab' },
-    { label: 'Tint', icon: 'mdi:water-outline', path: '/tint' },
-    { label: 'Hard Coat', icon: 'mdi:shield-outline', path: '/hard-coat' },
-    { label: 'ARC', icon: 'mdi:layers-outline', path: '/arc' },
-    { label: 'QC', icon: 'mdi:clipboard-check-outline', path: '/qc' },
-    { label: 'Fitting', icon: 'mdi:ruler-square', path: '/fitting' },
-    { label: 'Dispatch', icon: 'mdi:truck-delivery-outline', path: '/dispatch' },
-    { label: 'DMS', icon: 'mdi:file-document-outline', path: '/dms' },
-    // { label: 'F&A', icon: 'mdi:finance', path: '/finance' },
-    { label: 'Reports', icon: 'mdi:chart-bar', path: '/reports' },
+    {
+        label: 'Staff',
+        icon: 'mdi:account-group-outline',
+        subItems: [
+            { label: 'Staff List', path: PATHS.STAFF.LIST }
+        ]
+    },
+    {
+        label: 'Customer Care',
+        icon: 'mdi:face-agent',
+        subItems: [
+            { label: 'Customer List', path: PATHS.CUSTOMER.LIST },
+            { label: 'Ship To', path: PATHS.CUSTOMER.SHIP_TO }
+        ]
+    },
+    { label: 'F&A', icon: 'mdi:finance', path: PATHS.OPERATIONS.FINANCE },
+    { label: 'Stores', icon: 'mdi:store', path: PATHS.STORES },
+    { label: 'Lab', icon: 'mdi:flask-outline', path: PATHS.OPERATIONS.LAB },
+    { label: 'Tint', icon: 'mdi:water-outline', path: PATHS.OPERATIONS.TINT },
+    { label: 'Hard Coat', icon: 'mdi:shield-outline', path: PATHS.OPERATIONS.HARD_COAT },
+    { label: 'ARC', icon: 'mdi:layers-outline', path: PATHS.OPERATIONS.ARC },
+    { label: 'QC', icon: 'mdi:clipboard-check-outline', path: PATHS.OPERATIONS.QC },
+    { label: 'Fitting', icon: 'mdi:ruler-square', path: PATHS.OPERATIONS.FITTING },
+    { label: 'Dispatch', icon: 'mdi:truck-delivery-outline', path: PATHS.OPERATIONS.DISPATCH },
+    { label: 'DMS', icon: 'mdi:file-document-outline', path: PATHS.OPERATIONS.DMS },
+    { label: 'Reports', icon: 'mdi:chart-bar', path: PATHS.OPERATIONS.REPORTS },
 ];
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
@@ -148,13 +162,13 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 </nav>
 
                 {/* Bottom Actions */}
-                <div className="flex flex-col gap-2 w-full mt-auto p-4 border-t border-gray-100">
-                    <button onClick={handleLogout} className="flex items-center gap-3 text-gray-700 font-semibold hover:text-amber-500 w-full transition px-4 py-2 hover:bg-gray-50 rounded-full">
-                        <Icon icon="mdi:logout" className="w-5 h-5" />
+                <div className="flex items-start justify-between w-full mt-auto px-4 space-y-2">
+                    <button onClick={handleLogout} className="flex items-center gap-3 text-amber-500 font-semibold hover:text-amber-600 w-full">
+                        <Icon icon="mdi:logout" className="w-5 text-black h-5" />
                         LogOut
                     </button>
-                    <button className="flex items-center gap-3 text-gray-700 font-semibold hover:text-amber-500 w-full transition px-4 py-2 hover:bg-gray-50 rounded-full">
-                        <Icon icon="mdi:help-circle-outline" className="w-5 h-5" />
+                    <button className="flex items-center gap-3 text-amber-500 font-semibold hover:text-amber-600 w-full">
+                        <Icon icon="mdi:help-circle-outline" className="w-5 text-black h-5" />
                         Help
                     </button>
                 </div>

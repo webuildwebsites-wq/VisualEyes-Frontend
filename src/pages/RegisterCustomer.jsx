@@ -1,54 +1,132 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
 import { useFormik, FormikProvider, FieldArray } from 'formik';
 import * as Yup from 'yup';
+import { toast } from 'react-toastify';
 import { Icon } from '@iconify/react';
-import { useSearchParams } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import {
-    setStep,
-    updateFormValues,
-    toggleVerificationMode,
-    toggleFieldRejection
-} from '../store/slices/customerRegistrationSlice';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
-import { toast } from 'react-toastify';
+import {
+    toggleVerificationMode,
+    toggleFieldRejection
+} from '../store/slices/customerRegistrationSlice';
 import {
     getCustomerConfigs,
     getAllRegions,
-    getCitiesByRegion,
     getAllZones,
     getBrandCategories,
     registerCustomer
 } from '../services/customerService';
 import { uploadImage } from '../services/bucketService';
 
-const steps = ['Customer Info.', 'Address', 'Customer Regn.', 'Overview'];
-const stepKeys = ['info', 'address', 'regn', 'overview'];
+const steps = ['Customer Info', 'Address Details', 'Customer Regn', 'Overview'];
+
+const INITIAL_FORM_VALUES = {
+    shopName: '',
+    ownerName: '',
+    CustomerTypeRefId: '',
+    orderMode: '',
+    mobileNo1: '',
+    mobileNo2: '',
+    landlineNo: '',
+    loginEmail: '',
+    businessEmail: '',
+    gstType: 'Unregistered',
+    gstNo: '',
+    gstDoc: '',
+    AadharCard: '',
+    PANCard: '',
+    address: [
+        { address1: '', contactPerson: '', contactNumber: '', city: '', state: '', country: 'India', billingCurrency: 'INR', billingMode: 'CREDIT' }
+    ],
+    username: '',
+    password: '',
+    zoneRefId: '',
+    hasFlatFitting: 'No',
+    flatFittingEntries: [
+        { type: '', index: '', price: '' }
+    ],
+    specificBrandRefId: '',
+    specificCategoryRefId: '',
+    specificLabRefId: '',
+    salesPersonRefId: '',
+    plantRefId: '',
+    fittingCenterRefId: '',
+    creditLimit: '',
+    creditDaysRefId: '',
+    courierNameRefId: '',
+    courierTimeRefId: ''
+};
+
+// Defined OUTSIDE the component so it's never recreated on render
+const validationSchema = Yup.object().shape({
+    shopName: Yup.string().required('Shop Name is required'),
+    ownerName: Yup.string().required('Owner Name is required'),
+    CustomerTypeRefId: Yup.string().required('Customer Type is required'),
+    mobileNo1: Yup.string().required('Mobile No. 1 is required'),
+    loginEmail: Yup.string().email('Invalid email').required('Login Email is required'),
+    gstType: Yup.string().required('GST Type is required'),
+    gstNo: Yup.string().when('gstType', {
+        is: 'Number',
+        then: (schema) => schema.required('GST Number is required'),
+        otherwise: (schema) => schema.notRequired()
+    }),
+    address: Yup.array().of(
+        Yup.object().shape({
+            address1: Yup.string().required('Address is required'),
+            city: Yup.string().required('City is required'),
+            state: Yup.string().required('State is required'),
+            contactNumber: Yup.string().required('Contact Number is required'),
+        })
+    ),
+    username: Yup.string().required('Username is required'),
+    password: Yup.string().required('Password is required'),
+    AadharCard: Yup.string().when('gstType', {
+        is: 'Unregistered',
+        then: (schema) => schema.required('Aadhar Card is required'),
+        otherwise: (schema) => schema.notRequired()
+    }),
+    PANCard: Yup.string().when('gstType', {
+        is: 'Unregistered',
+        then: (schema) => schema.required('PAN Card is required'),
+        otherwise: (schema) => schema.notRequired()
+    }),
+});
 
 export default function RegisterCustomer() {
     const dispatch = useDispatch();
     const [searchParams, setSearchParams] = useSearchParams();
-    const aadharInputRef = React.useRef(null);
-    const panInputRef = React.useRef(null);
-    const gstInputRef = React.useRef(null);
 
-    const {
-        activeStep,
-        formValues,
-        isVerificationMode,
-        rejectedFields
-    } = useSelector(state => state.customerRegistration);
+    // Get active step from URL, default to 0
+    const activeStep = useMemo(() => {
+        const step = parseInt(searchParams.get('step'));
+        return isNaN(step) ? 0 : Math.min(Math.max(0, step), steps.length - 1);
+    }, [searchParams]);
+
+    const setStep = (step) => {
+        setSearchParams({ step: step.toString() });
+    };
+
+    const isVerificationMode = useSelector((state) => state.customerRegistration.isVerificationMode);
+    const rejectedFields = useSelector((state) => state.customerRegistration.rejectedFields);
+
+    const aadharInputRef = useRef(null);
+    const panInputRef = useRef(null);
+    const gstInputRef = useRef(null);
 
     const [configs, setConfigs] = useState({
         customerTypes: [],
+        creditDays: [],
+        courierNames: [],
+        courierTimes: [],
+        regions: [],
+        cities: {},
         zones: [],
         brands: [],
         specificLabs: [],
         salesPersons: [],
-        regions: [],
-        cities: {},
     });
 
     const [uploading, setUploading] = useState({
@@ -73,46 +151,14 @@ export default function RegisterCustomer() {
         fetchConfigs();
     }, []);
 
-    const validationSchema = Yup.object().shape({
-        shopName: Yup.string().required('Shop Name is required'),
-        ownerName: Yup.string().required('Owner Name is required'),
-        CustomerTypeRefId: Yup.string().required('Customer Type is required'),
-        mobileNo1: Yup.string().required('Mobile No. 1 is required'),
-        loginEmail: Yup.string().email('Invalid email').required('Login Email is required'),
-        gstType: Yup.string().required('GST Type is required'),
-        gstNo: Yup.string().when('gstType', {
-            is: 'Registered',
-            then: (schema) => schema.required('GST Number is required'),
-            otherwise: (schema) => schema.notRequired()
-        }),
-        address: Yup.array().of(
-            Yup.object().shape({
-                address1: Yup.string().required('Address is required'),
-                city: Yup.string().required('City is required'),
-                state: Yup.string().required('State is required'),
-                contactNumber: Yup.string().required('Contact Number is required'),
-            })
-        ),
-        username: Yup.string().required('Username is required'),
-        password: Yup.string().required('Password is required'),
-        AadharCard: Yup.string().when('gstType', {
-            is: 'Unregistered',
-            then: (schema) => schema.required('Aadhar Card is required'),
-            otherwise: (schema) => schema.notRequired()
-        }),
-        PANCard: Yup.string().when('gstType', {
-            is: 'Unregistered',
-            then: (schema) => schema.required('PAN Card is required'),
-            otherwise: (schema) => schema.notRequired()
-        }),
-    });
 
     const [brandCategories, setBrandCategories] = useState([]);
 
     const formik = useFormik({
-        initialValues: formValues,
+        initialValues: INITIAL_FORM_VALUES,
         validationSchema,
-        enableReinitialize: true,
+        validateOnChange: false, // Validate only on blur/submit, not every keystroke
+        validateOnBlur: true,
         onSubmit: async (values) => {
             try {
                 await toast.promise(
@@ -123,7 +169,6 @@ export default function RegisterCustomer() {
                         error: 'Registration failed. Please try again. 🤯'
                     }
                 );
-                // Optionally redirect or reset
             } catch (error) {
                 console.error('Registration error:', error);
             }
@@ -159,10 +204,6 @@ export default function RegisterCustomer() {
         fetchCategories();
     }, [formik.values.specificBrandRefId]);
 
-    useEffect(() => {
-        dispatch(updateFormValues(formik.values));
-    }, [formik.values, dispatch]);
-
     const wrapInput = (Component, props) => (
         <Component
             {...props}
@@ -172,7 +213,7 @@ export default function RegisterCustomer() {
             error={formik.touched[props.name] && formik.errors[props.name] ? { message: formik.errors[props.name] } : null}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            value={formik.values[props.name]}
+            value={formik.values[props.name] ?? ''}
         />
     );
 
@@ -207,11 +248,12 @@ export default function RegisterCustomer() {
                 {steps.map((label, idx) => (
                     <button
                         key={idx}
-                        onClick={() => dispatch(setStep(idx))}
+                        onClick={() => setStep(idx)}
                         className={`px-8 py-2 rounded-full border-2 transition-all min-w-[160px] font-semibold whitespace-nowrap
                             ${activeStep === idx
                                 ? 'bg-[#F59E0B] text-white border-[#F59E0B] shadow-md'
-                                : 'bg-white text-gray-400 border-gray-200 hover:border-[#F59E0B]/50'}
+                                : 'bg-white text-gray-400 border-gray-200 hover:border-[#F59E0B]/50'
+                            }
                         `}
                     >
                         {label}
@@ -267,7 +309,7 @@ export default function RegisterCustomer() {
                         <Button
                             onClick={async () => {
                                 if (activeStep < 3) {
-                                    dispatch(setStep(activeStep + 1));
+                                    setStep(activeStep + 1);
                                 } else {
                                     formik.handleSubmit();
                                 }
@@ -464,7 +506,7 @@ const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, d
                 <div className="flex justify-center mt-4">
                     <Button
                         variant="outlined"
-                        onClick={() => push({ address1: '', city: '', state: '', country: 'India', billingCurrency: 'INR', billingMode: 'CREDIT' })}
+                        onClick={() => push({ address1: '', contactPerson: '', contactNumber: '', city: '', state: '', country: 'India', billingCurrency: 'INR', billingMode: 'CREDIT' })}
                         className="bg-[#F59E0B] text-white rounded-full px-10 py-3 flex items-center gap-2 w-fit hover:text-black hover:bg-[#D97706]"
                     >
                         <Icon icon="mdi:plus" /> Add Address
@@ -517,13 +559,13 @@ const CustomerRegn = ({ wrapInput, configs, brandCategories, formValues, formik,
                                         onChange={formik.handleChange}
                                         options={[{ value: '1.5', label: '1.5' }, { value: '1.56', label: '1.56' }, { value: '1.6', label: '1.6' }]}
                                     />
-                                    <Input
+                                    <input
                                         name={`flatFittingEntries.${index}.price`}
                                         placeholder="Price"
                                         value={entry.price}
                                         onChange={formik.handleChange}
                                         containerClassName="flex-[0.5]"
-                                        className="bg-white/10 text-white italic placeholder:text-white/50 border-none h-[40px] px-4 rounded-full"
+                                        className="bg-transparent text-white italic placeholder:text-white/50 border-none h-[40px] px-4 rounded-full"
                                     />
                                 </div>
                                 {index === formik.values.flatFittingEntries.length - 1 ? (
@@ -690,7 +732,7 @@ const Overview = ({ formik }) => {
 
             <div className="space-y-6">
                 {values.address.map((addr, idx) => (
-                    <SummaryCard key={idx} title={`Address ${idx + 1}`} icon="mdi:map-marker" color="#6366F1">
+                    <SummaryCard key={idx} title={`Address ${idx + 1} `} icon="mdi:map-marker">
                         <DetailItem label="Branch Address" value={addr.address1} />
                         <DetailItem label="Contact Person" value={addr.contactPerson} />
                         <DetailItem label="Contact No." value={addr.contactNumber} />
@@ -701,7 +743,7 @@ const Overview = ({ formik }) => {
                 ))}
             </div>
 
-            <SummaryCard title="Configuration" icon="mdi:cog" color="#10B981">
+            <SummaryCard title="Configuration" icon="mdi:cog">
                 <DetailItem label="Username" value={values.username} />
                 <DetailItem label="Has Flat Fitting" value={values.hasFlatFitting} />
                 {values.hasFlatFitting === 'Yes' && values.flatFittingEntries.map((entry, idx) => (

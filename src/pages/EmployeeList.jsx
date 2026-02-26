@@ -61,12 +61,14 @@ const EmployeeList = () => {
                             <thead>
                                 <tr className="bg-amber-500 text-white">
                                     <th className="py-4 px-4 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Employee Name</th>
+                                    <th className="py-4 px-4 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Username</th>
+                                    <th className="py-4 px-4 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Role</th>
                                     <th className="py-4 px-4 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Department</th>
                                     <th className="py-4 px-4 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Type</th>
                                     <th className="py-4 px-6 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Email</th>
                                     <th className="py-4 px-6 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Phone</th>
                                     <th className="py-4 px-4 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Lab</th>
-                                    <th className="py-4 px-4 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Region</th>
+                                    <th className="py-4 px-4 font-semibold text-sm border-r border-amber-600/20 last:border-r-0">Zone</th>
                                     <th className="py-4 px-4 font-semibold text-sm">Action</th>
                                 </tr>
                             </thead>
@@ -74,8 +76,10 @@ const EmployeeList = () => {
                                 {employees.map((emp) => (
                                     <tr className="border-b border-gray-100 last:border-b-0 hover:bg-amber-50/30 transition-colors h-14">
                                         <td className="px-4 py-2 text-center text-xs font-medium border-r border-gray-100">{emp?.employeeName || '---'}</td>
+                                        <td className="px-4 py-2 text-center text-xs font-medium border-r border-gray-100">{emp?.username || '---'}</td>
+                                        <td className="px-4 py-2 text-center text-xs font-medium border-r border-gray-100">{emp?.subRoles?.map((item) => item.name).join(', ') || '---'}</td>
                                         <td className="px-4 py-2 text-center text-xs border-r border-gray-100">{emp?.Department?.name || '---'}</td>
-                                        <td className="px-4 py-2 text-center text-xs border-r border-gray-100">{emp.EmployeeType?.name || '---'}</td>
+                                        <td className="px-4 py-2 text-center text-xs border-r border-gray-100">{emp.EmployeeType?.name ? emp.EmployeeType?.name : emp.EmployeeType || '---'}</td>
                                         <td className="px-6 py-2 text-center text-xs border-r border-gray-100">{emp.email || '---'}</td>
                                         <td className="px-6 py-2 text-center text-xs border-r border-gray-100">{emp.phone || '---'}</td>
                                         <td className="px-4 py-2 text-center text-xs border-r border-gray-100">
@@ -83,7 +87,7 @@ const EmployeeList = () => {
                                                 {emp.isActive ? (emp.lab?.name || 'ACTIVE') : 'INACTIVE'}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-2 text-center text-xs border-r border-gray-100">{emp?.region?.name || '---'}</td>
+                                        <td className="px-4 py-2 text-center text-xs border-r border-gray-100">{emp?.zone?.name || '---'}</td>
                                         <td className="px-4 py-2 text-center">
                                             <div className="flex justify-center gap-3">
                                                 <button className="text-gray-400 hover:text-amber-500 transition-colors">
