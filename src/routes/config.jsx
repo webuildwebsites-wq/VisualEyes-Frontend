@@ -7,6 +7,7 @@ import ShipTo from '../pages/ShipTo';
 import EmployeeList from '../pages/EmployeeList';
 import DashboardWizard from '../pages/AddStore';
 import OrderWizard from '../pages/OrderWizard';
+import DraftsList from '../pages/DraftsList';
 import PlaceholderPage from '../pages/PlaceholderPage';
 import AuthWrapper from '../components/AuthWrapper';
 import MainLayout from '../components/layout/MainLayout';
@@ -92,6 +93,10 @@ export const routesConfig = [
                         index: true,
                         element: PlaceholderPage,
                         props: { title: 'Dashboard' }
+                    },
+                    {
+                        path: PATHS.DRAFTS,
+                        element: DraftsList
                     },
                     ...STAFF_MODULE,
                     ...CUSTOMER_MODULE,

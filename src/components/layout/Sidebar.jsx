@@ -28,13 +28,14 @@ const navItems = [
         ]
     },
     {
-        label: 'Customer Care',
+        label: 'Customer ',
         icon: 'mdi:face-agent',
         subItems: [
             { label: 'Customer List', path: PATHS.CUSTOMER.LIST, requiredPermission: 'CanManageCustomers' },
             { label: 'Ship To', path: PATHS.CUSTOMER.SHIP_TO, requiredPermission: 'CanManageCustomers' }
         ]
     },
+    { label: 'Drafts', icon: 'mdi:file-edit-outline', path: PATHS.DRAFTS },
     { label: 'F&A', icon: 'mdi:finance', path: PATHS.OPERATIONS.FINANCE, requiredPermission: 'CanViewFinancials' },
     { label: 'Stores', icon: 'mdi:store', path: PATHS.STORES, requiredPermission: 'CanManageProducts' },
     { label: 'Reports', icon: 'mdi:chart-bar', path: PATHS.OPERATIONS.REPORTS, requiredPermission: 'CanViewReports' },

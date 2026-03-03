@@ -73,9 +73,10 @@ export const addShipTo = async (shipToData) => {
     }
 };
 
-export const getAllCustomers = async (page = 1, limit = 10) => {
+export const getAllCustomers = async (page = 1, limit = 10, filters = {}) => {
     try {
-        const response = await api.get(`/api/customer/management/get-all-customers?page=${page}&limit=${limit}`);
+        const queryParams = new URLSearchParams({ page, limit, ...filters });
+        const response = await api.get(`/api/customer/management/get-all-customers?${queryParams.toString()}`);
         return response.data;
     } catch (error) {
         throw error.response ? error.response.data : new Error('Failed to fetch customers');
@@ -88,6 +89,15 @@ export const getCustomerById = async (id) => {
         return response.data;
     } catch (error) {
         throw error.response ? error.response.data : new Error('Failed to fetch customer details');
+    }
+};
+
+export const getDraftCustomerById = async (id) => {
+    try {
+        const response = await api.get(`/api/customer/management/get-draft-customer/${id}`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to fetch draft customer details');
     }
 };
 
@@ -128,5 +138,31 @@ export const getAllZones = async () => {
     } catch (error) {
         console.error('Error fetching zones:', error);
         return [];
+    }
+};
+export const draftRegisterCustomer = async (customerData) => {
+    try {
+        const response = await api.post('/api/customer/management/draft-register', customerData);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Draft saving failed');
+    }
+};
+
+export const getMyDraftCustomers = async (page = 1, limit = 10) => {
+    try {
+        const response = await api.get(`/api/customer/management/get-my-draft-customers?page=${page}&limit=${limit}`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to fetch my draft customers');
+    }
+};
+
+export const getAllDraftCustomers = async (page = 1, limit = 10) => {
+    try {
+        const response = await api.get(`/api/customer/management/get-all-draft-customers?page=${page}&limit=${limit}`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to fetch all draft customers');
     }
 };

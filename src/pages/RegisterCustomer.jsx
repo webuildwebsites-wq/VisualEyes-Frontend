@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useFormik, FormikProvider, FieldArray } from 'formik';
@@ -16,7 +16,9 @@ import * as locationService from '../services/locationService';
 import {
     getCustomerConfigs,
     getBrandCategories,
-    registerCustomer
+    registerCustomer,
+    draftRegisterCustomer,
+    getDraftCustomerById
 } from '../services/customerService';
 import { uploadImage } from '../services/bucketService';
 import { PATHS } from '../routes/paths';
@@ -143,6 +145,9 @@ export default function RegisterCustomer() {
         gst: false
     });
 
+    const [savingDraft, setSavingDraft] = useState(false);
+    const [loadingDraftData, setLoadingDraftData] = useState(false);
+
     useEffect(() => {
         const fetchConfigs = async () => {
             try {
@@ -181,13 +186,6 @@ export default function RegisterCustomer() {
         };
         fetchConfigs();
     }, []);
-
-
-    const [brandCategories, setBrandCategories] = useState([]); // This state is actually unused now but keeping for props compatibility if needed, or remove completely if prop is removed.
-    // Actually, looking at the renderStep, brandCategories is passed to CustomerRegn.
-    // But CustomerRegn doesn't use it anymore as BrandRow fetches its own.
-    // Let's remove it from both.
-
     const formik = useFormik({
         initialValues: INITIAL_FORM_VALUES,
         validationSchema,
@@ -239,6 +237,95 @@ export default function RegisterCustomer() {
             }
         }
     });
+
+    const loadDraftDataById = useCallback(async (draftId) => {
+        setLoadingDraftData(true);
+        try {
+            const response = await getDraftCustomerById(draftId);
+            const draft = response.data || response;
+
+            const draftData = draft.data || draft;
+            const formValues = {
+                ...INITIAL_FORM_VALUES,
+                ...draftData,
+                address: draftData.address?.length ? draftData.address : INITIAL_FORM_VALUES.address,
+                brandCategories: draftData.brandCategories?.length ? draftData.brandCategories : INITIAL_FORM_VALUES.brandCategories,
+            };
+
+            formik.setValues(formValues, false);
+            toast.success('Draft loaded successfully');
+        } catch (error) {
+            console.error('Error loading draft data:', error);
+            toast.error('Failed to load draft data');
+        } finally {
+            setLoadingDraftData(false);
+        }
+    }, [formik.setValues]);
+
+    useEffect(() => {
+        const draftId = searchParams.get('draftId');
+        if (draftId) {
+            loadDraftDataById(draftId);
+        }
+    }, [searchParams, loadDraftDataById]);
+
+    const handleSaveDraft = useCallback(async () => {
+        setSavingDraft(true);
+        try {
+            const values = formik.values;
+            const getLabel = (list, id, labelKey = 'name') => {
+                if (!list || !id) return '';
+                const item = list.find(item => item._id === id);
+                if (!item) return '';
+                return item[labelKey] || item;
+            };
+
+            const draftPayload = {
+                ...values,
+                CustomerType: getLabel(configs.customerTypes, values.CustomerTypeRefId),
+                salesPerson: getLabel(configs.salesPersons, values.salesPersonRefId, 'employeeName'),
+                gstType: getLabel(configs.gstTypes, values.gstTypeRefId),
+                zone: getLabel(configs.zones, values.zoneRefId, 'zone'),
+                specificLab: getLabel(configs.specificLabs, values.specificLabRefId),
+                plant: getLabel(configs.plants, values.plantRefId),
+                fittingCenter: getLabel(configs.fittingCenters, values.fittingCenterRefId),
+                creditDays: getLabel(configs.creditDays, values.creditDaysRefId, 'days'),
+                courierName: getLabel(configs.courierNames, values.courierNameRefId),
+                courierTime: getLabel(configs.courierTimes, values.courierTimeRefId, 'time'),
+                creditLimit: Number(values.creditLimit) || 0,
+                IsGSTRegistered: values.gstType !== 'Unregistered',
+                brandCategories: values.brandCategories.map(bc => ({
+                    brandId: bc.brandId,
+                    brandName: getLabel(configs.brands, bc.brandId),
+                    categories: bc.categories.map(cat => ({
+                        categoryId: cat.categoryId,
+                        categoryName: cat.categoryName
+                    }))
+                }))
+            };
+
+            await toast.promise(
+                draftRegisterCustomer(draftPayload),
+                {
+                    pending: 'Saving draft...',
+                    success: 'Draft saved successfully! 👌',
+                }
+            );
+        } catch (error) {
+            console.error('Draft save error:', error);
+            toast.error(error.error?.message || error.message || "Failed to save draft.");
+        } finally {
+            setSavingDraft(false);
+        }
+    }, [formik.values, configs]);
+
+
+    const [brandCategories, setBrandCategories] = useState([]); // This state is actually unused now but keeping for props compatibility if needed, or remove completely if prop is removed.
+    // Actually, looking at the renderStep, brandCategories is passed to CustomerRegn.
+    // But CustomerRegn doesn't use it anymore as BrandRow fetches its own.
+    // Let's remove it from both.
+
+
 
     const handleFileUpload = async (e, fieldName, type) => {
         const file = e.target.files[0];
@@ -380,10 +467,15 @@ export default function RegisterCustomer() {
                     <div className="flex justify-center  gap-6 mt-16">
                         <Button
                             variant="outlined"
+                            onClick={handleSaveDraft}
+                            disabled={savingDraft || loadingDraftData}
                             className="  "
                         >
-                            Save As Draft
+                            {savingDraft ? 'Saving...' : 'Save As Draft'}
                         </Button>
+                        {loadingDraftData && (
+                            <span className="text-orange-500 text-sm animate-pulse">Loading draft...</span>
+                        )}
 
                         {!isVerificationMode ? (
                             <Button
