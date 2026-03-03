@@ -5,13 +5,14 @@ import { Icon } from '@iconify/react';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
-import { createSupervisorUser } from '../services/employeeService';
+import { createSupervisorUser, createDraftEmployee, getDraftEmployeeById } from '../services/employeeService';
 import { uploadImage } from '../services/bucketService';
 import { getSystemConfigs } from '../services/configService';
 import { getAllDepartments, getSubRoles } from '../services/departmentService';
 import { getAllRegions } from '../services/customerService';
 import { toast } from 'react-toastify';
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import * as locationService from '../services/locationService';
 import { PATHS } from '../routes/paths';
 
@@ -44,6 +45,9 @@ const Registration = () => {
         zipcodes: []
     });
     const [loadingLocation, setLoadingLocation] = useState(false);
+    const [searchParams] = useSearchParams();
+    const [loadingDraft, setLoadingDraft] = useState(false);
+    const [savingDraft, setSavingDraft] = useState(false);
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -83,6 +87,89 @@ const Registration = () => {
 
         fetchInitialData();
     }, []);
+
+    const loadDraftData = useCallback(async (draftId) => {
+        setLoadingDraft(true);
+        try {
+            const response = await getDraftEmployeeById(draftId);
+            console.log(response);
+            const draft = response.data.user || response;
+
+            // Map draft data to form values
+            const formValues = {
+                employeeType: draft.EmployeeType || draft.employeeType || '',
+                employeeName: draft.employeeName || '',
+                email: draft.email || '',
+                password: draft.password || '',
+                phone: draft.phone || '',
+                address: draft.address || '',
+                country: draft.country || 'India',
+                region: draft.region || '',
+                department: draft.Department?.refId || draft.departmentRefId || '',
+                role: draft.subRoles?.[0]?.refId || '',
+                pincode: draft.pincode || '',
+                expiry: draft.expiry || '',
+                lab: draft.lab || '',
+                aadharCard: draft.aadharCard || '',
+                panCard: draft.panCard || '',
+                state: draft.state || '',
+                city: draft.city || '',
+                username: draft.username || '',
+                zoneRefId: draft.zone?.refId || draft.zoneRefId || ''
+            };
+
+            formik.setValues(formValues);
+
+            // Set image previews if URLs exist
+            const aadharUrl = draft.aadharCardImg || (typeof draft.aadharCard === 'string' && draft.aadharCard.includes('http') ? draft.aadharCard : '');
+            const panUrl = draft.panCardImg || (typeof draft.panCard === 'string' && draft.panCard.includes('http') ? draft.panCard : '');
+
+            if (aadharUrl) setImages(prev => ({ ...prev, aadhar: { ...prev.aadhar, url: aadharUrl, preview: aadharUrl } }));
+            if (panUrl) setImages(prev => ({ ...prev, pan: { ...prev.pan, url: panUrl, preview: panUrl } }));
+
+            toast.success("Draft loaded successfully");
+        } catch (error) {
+            console.error("Error loading draft:", error);
+            toast.error("Failed to load draft data");
+        } finally {
+            setLoadingDraft(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        const draftId = searchParams.get('draftId');
+        if (draftId) {
+            loadDraftData(draftId);
+        }
+    }, [searchParams, loadDraftData]);
+
+    const handleSaveDraft = async () => {
+        setSavingDraft(true);
+        try {
+            const values = formik.values;
+            const selectedDept = configs.departments.find(d => d._id === values.department);
+
+            const payload = {
+                ...values,
+                department: selectedDept?.name,
+                departmentRefId: values.department,
+                draft: true // Mark as draft for backend if needed
+            };
+
+            await toast.promise(
+                createDraftEmployee(payload),
+                {
+                    pending: 'Saving draft...',
+                    success: 'Draft saved successfully! 👌',
+                    error: 'Failed to save draft'
+                }
+            );
+        } catch (error) {
+            console.error('Draft error:', error);
+        } finally {
+            setSavingDraft(false);
+        }
+    };
 
     const formik = useFormik({
         initialValues: {
@@ -684,16 +771,11 @@ const Registration = () => {
                         </Button>
                         <button
                             type="button"
-                            onClick={() => {
-                                formik.resetForm();
-                                setImages({
-                                    aadhar: { file: null, preview: null, url: '', uploading: false },
-                                    pan: { file: null, preview: null, url: '', uploading: false }
-                                });
-                            }}
-                            className="px-16 py-4 rounded-full border-2 border-orange-500 text-orange-500 font-bold hover:bg-orange-50 transition-all uppercase tracking-widest min-w-[240px]"
+                            onClick={handleSaveDraft}
+                            disabled={savingDraft}
+                            className="px-16 py-4 rounded-full border-2 border-orange-500 text-orange-500 font-bold hover:bg-orange-50 transition-all uppercase tracking-widest min-w-[240px] disabled:opacity-50"
                         >
-                            Save as Draft
+                            {savingDraft ? 'Saving...' : 'Save as Draft'}
                         </button>
                     </div>
                 </form>
