@@ -57,6 +57,9 @@ const Select = ({
                         return options.find(opt => opt.value === selected)?.label || <span className={isOrange ? 'text-white' : 'text-gray-400'}>{placeholder}</span>;
                     }
                 }}
+                InputLabelProps={{
+                    shrink: true,
+                }}
                 InputProps={{
                     endAdornment: icon ? (
                         <InputAdornment position="end" sx={{ mr: 2, color: isOrange ? 'white' : 'inherit' }}>

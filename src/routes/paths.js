@@ -1,7 +1,4 @@
-/**
- * PATHS constant for easy access and single source of truth
- * Separated into its own file to prevent circular dependencies
- */
+
 export const PATHS = {
     ROOT: '/',
     LOGIN: '/login',

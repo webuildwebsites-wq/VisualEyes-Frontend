@@ -916,7 +916,7 @@ const CustomerRegn = ({ wrapInput, configs, formValues, formik, dispatch }) => (
             </FieldArray>
         </div>
 
-        <div className="flex justify-center py-4">
+        {/* <div className="flex justify-center py-4">
             <button
                 type="button"
                 onClick={() => {
@@ -934,7 +934,7 @@ const CustomerRegn = ({ wrapInput, configs, formValues, formik, dispatch }) => (
             >
                 Create DigiOptics Account
             </button>
-        </div>
+        </div> */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
             {wrapInput(Select, {

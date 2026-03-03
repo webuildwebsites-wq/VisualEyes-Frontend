@@ -4,6 +4,38 @@ import { getAllCustomers, getCustomerById, getCustomerConfigs } from '../service
 import { toast } from 'react-toastify';
 import { PATHS } from '../routes/paths';
 import { useNavigate } from 'react-router-dom';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
+
+const datePickerStyles = {
+    '& .MuiOutlinedInput-root': {
+        borderRadius: '9999px',
+        backgroundColor: 'rgba(249, 250, 251, 0.8)',
+        fontSize: '0.75rem',
+        fontWeight: 700,
+        height: '42px',
+        '& fieldset': {
+            borderColor: '#f3f4f6',
+        },
+        '&:hover fieldset': {
+            borderColor: '#f59e0b80',
+        },
+        '&.Mui-focused fieldset': {
+            borderColor: '#f59e0b80',
+        },
+    },
+    '& .MuiInputBase-input': {
+        padding: '0 16px',
+        color: '#4b5563',
+        '&::placeholder': {
+            opacity: 1,
+            color: '#d1d5db',
+        }
+    },
+    '& .MuiInputAdornment-root': {
+        marginRight: '8px'
+    }
+};
 
 const CustomerList = () => {
     const navigate = useNavigate();
@@ -160,27 +192,33 @@ const CustomerList = () => {
                         </div>
                     </div>
 
-                    {/* Date Picker Section */}
-                    <div className="flex flex-col gap-2 min-w-[320px] ">
+                    {/* Registration Period */}
+                    <div className="flex flex-col gap-2 min-w-[380px] ">
                         <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Registration Period</span>
-                        <div className="relative flex items-center bg-gray-50/80 rounded-full border border-gray-100 px-6 py-2.5 shadow-inner group focus-within:bg-white focus-within:border-amber-500/50 transition-all duration-300">
-                            <Icon icon="mdi:calendar-range" className="text-gray-400 text-lg mr-3 group-focus-within:text-amber-500" />
-                            <div className="flex items-center gap-3 w-full">
-                                <input
-                                    type="date"
-                                    value={filters.fromDate}
-                                    onChange={(e) => setFilters({ ...filters, fromDate: e.target.value })}
-                                    className="text-xs text-gray-600 outline-none bg-transparent cursor-pointer font-bold w-full hover:text-amber-600 transition-colors"
-                                />
-                                <span className="text-gray-300 text-[10px] font-black uppercase">to</span>
-                                <input
-                                    type="date"
-                                    value={filters.toDate}
-                                    onChange={(e) => setFilters({ ...filters, toDate: e.target.value })}
-                                    className="text-xs text-gray-600 outline-none bg-transparent cursor-pointer font-bold w-full hover:text-amber-600 transition-colors"
-                                />
-                            </div>
-
+                        <div className="flex items-center gap-3">
+                            <DatePicker
+                                value={filters.fromDate ? dayjs(filters.fromDate) : null}
+                                onChange={(newValue) => setFilters({ ...filters, fromDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
+                                slotProps={{
+                                    textField: {
+                                        size: 'small',
+                                        placeholder: 'From Date',
+                                        sx: datePickerStyles
+                                    }
+                                }}
+                            />
+                            <span className="text-gray-300 text-[10px] font-black uppercase">to</span>
+                            <DatePicker
+                                value={filters.toDate ? dayjs(filters.toDate) : null}
+                                onChange={(newValue) => setFilters({ ...filters, toDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
+                                slotProps={{
+                                    textField: {
+                                        size: 'small',
+                                        placeholder: 'To Date',
+                                        sx: datePickerStyles
+                                    }
+                                }}
+                            />
                         </div>
                     </div>
 

@@ -15,6 +15,39 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import * as locationService from '../services/locationService';
 import { PATHS } from '../routes/paths';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
+
+const datePickerStyles = {
+    '& .MuiOutlinedInput-root': {
+        borderRadius: '12px',
+        backgroundColor: 'rgba(229, 231, 235, 0.5)',
+        fontSize: '0.875rem',
+        height: '56px', // Standard MUI Height to match other inputs
+        '& fieldset': {
+            borderColor: '#F59E0B',
+            borderWidth: '1px',
+        },
+        '&:hover fieldset': {
+            borderColor: '#F59E0B',
+            borderWidth: '2px',
+        },
+        '&.Mui-focused fieldset': {
+            borderColor: '#F59E0B',
+            borderWidth: '2px',
+        },
+    },
+    '& .MuiInputBase-input': {
+        paddingLeft: '1rem',
+        color: '#000',
+    },
+    '& .MuiInputLabel-root': {
+        color: '#4B5563',
+        '&.Mui-focused': {
+            color: '#F59E0B',
+        },
+    }
+};
 
 const Registration = () => {
     const navigate = useNavigate();
@@ -481,7 +514,7 @@ const Registration = () => {
     const showDocumentFields = formik.values.employeeType?.toUpperCase() !== 'SUPERADMIN';
 
     return (
-        <div className="flex justify-center p-4 py-8 bg-gray-50 min-h-screen">
+        <div className="flex justify-center p-2 min-h-screen">
             <div className="bg-white rounded-[3rem] shadow-2xl p-8 md:p-12 w-full max-w-5xl border border-gray-100">
                 <form onSubmit={formik.handleSubmit} className="space-y-8">
 
@@ -588,6 +621,7 @@ const Registration = () => {
                                 name="role"
                                 variant="orange"
                                 value={formik.values.role}
+                                onClick={() => { if (!formik.values.department) toast.error("Please select department first") }}
                                 onChange={formik.handleChange}
                                 onBlur={formik.handleBlur}
                                 placeholder="Select Role"
@@ -665,16 +699,19 @@ const Registration = () => {
                             />
                         )}
 
-                        <Input
+                        <DatePicker
                             label="Access Expiry"
-                            name="expiry"
-                            type="date"
-                            placeholder="Select Expiry Date"
-                            value={formik.values.expiry}
-                            onChange={formik.handleChange}
-                            onBlur={formik.handleBlur}
-                            error={formik.touched.expiry && formik.errors.expiry ? { message: formik.errors.expiry } : null}
-                            InputLabelProps={{ shrink: true }}
+                            value={formik.values.expiry ? dayjs(formik.values.expiry) : null}
+                            onChange={(newValue) => formik.setFieldValue('expiry', newValue ? newValue.format('YYYY-MM-DD') : '')}
+                            slotProps={{
+                                textField: {
+                                    fullWidth: true,
+                                    error: formik.touched.expiry && !!formik.errors.expiry,
+                                    helperText: formik.touched.expiry && formik.errors.expiry ? formik.errors.expiry : null,
+                                    sx: datePickerStyles,
+                                    InputLabelProps: { shrink: true }
+                                }
+                            }}
                         />
                         <Select
                             label="Lab *"

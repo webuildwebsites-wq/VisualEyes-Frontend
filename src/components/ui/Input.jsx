@@ -27,6 +27,9 @@ const Input = forwardRef(({ label, type = 'text', placeholder, value, onChange, 
                 placeholder={placeholder}
                 error={!!error || isRejected}
                 helperText={error ? error.message : null}
+                InputLabelProps={{
+                    shrink: true,
+                }}
                 InputProps={{
                     endAdornment: icon ? (
                         <InputAdornment position="end" className="cursor-pointer" sx={{ color: isOrange ? '#000' : 'inherit' }}>

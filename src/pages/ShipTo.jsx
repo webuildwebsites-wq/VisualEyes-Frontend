@@ -13,6 +13,7 @@ const ShipTo = () => {
     const [activeTab, setActiveTab] = useState('basic'); // 'basic' or 'docs'
     const [customers, setCustomers] = useState([]);
     const [regions, setRegions] = useState([]);
+    console.log(regions, "regions");
     const [cities, setCities] = useState({}); // { regionId: [cities] }
     const [uploading, setUploading] = useState({ aadhar: false, pan: false });
     const [previews, setPreviews] = useState({ aadhar: null, pan: null });
@@ -281,7 +282,7 @@ const ShipTo = () => {
                                                             placeholder="Enter Ship To Address"
                                                             error={formik.touched.branches?.[index]?.shipToAddress && formik.errors.branches?.[index]?.shipToAddress ? { message: formik.errors.branches[index].shipToAddress } : null}
                                                         />
-                                                        <Select
+                                                        {/* <Select
                                                             label="State (Region)"
                                                             name={`branches[${index}].stateRefId`}
                                                             value={branch.stateRefId}
@@ -292,10 +293,10 @@ const ShipTo = () => {
                                                                 formik.setFieldValue(`branches[${index}].state`, region?.name || '');
                                                             }}
                                                             onBlur={formik.handleBlur}
-                                                            options={regions.map(r => ({ value: r._id, label: r.name }))}
+                                                            options={regions.locations.map(r => ({ value: r._id, label: r.name }))}
                                                             placeholder="Select State"
                                                             error={formik.touched.branches?.[index]?.stateRefId && formik.errors.branches?.[index]?.stateRefId ? { message: formik.errors.branches[index].stateRefId } : null}
-                                                        />
+                                                        /> */}
                                                         <Select
                                                             label="City"
                                                             name={`branches[${index}].city`}

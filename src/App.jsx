@@ -10,6 +10,8 @@ import './App.css';
 import { PATHS, routesConfig } from './routes/config';
 
 import PermissionGuard from './components/PermissionGuard';
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
 function App() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
@@ -65,14 +67,16 @@ function App() {
   };
 
   return (
-    <BrowserRouter>
-      <div className="app-root min-h-screen bg-gray-50 text-gray-900 font-sans">
-        <Routes>
-          {renderRoutes(routesConfig)}
-        </Routes>
-      </div>
-      <ToastContainer position="top-right" autoClose={3000} />
-    </BrowserRouter>
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <BrowserRouter>
+        <div className="app-root min-h-screen bg-gray-50 text-gray-900 font-sans">
+          <Routes>
+            {renderRoutes(routesConfig)}
+          </Routes>
+        </div>
+        <ToastContainer position="top-right" autoClose={3000} />
+      </BrowserRouter>
+    </LocalizationProvider>
   );
 }
 
