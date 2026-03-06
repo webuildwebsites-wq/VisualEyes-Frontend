@@ -18,6 +18,7 @@ import {
     getBrandCategories,
     registerCustomer,
     draftRegisterCustomer,
+    updateDraftCustomer,
     getDraftCustomerById
 } from '../services/customerService';
 import { uploadImage } from '../services/bucketService';
@@ -147,6 +148,7 @@ export default function RegisterCustomer() {
 
     const [savingDraft, setSavingDraft] = useState(false);
     const [loadingDraftData, setLoadingDraftData] = useState(false);
+    const [draftCustomerId, setDraftCustomerId] = useState('');
 
     useEffect(() => {
         const fetchConfigs = async () => {
@@ -200,6 +202,7 @@ export default function RegisterCustomer() {
 
             const payload = {
                 ...values,
+                draftEmployeeId: draftCustomerId || undefined,
                 CustomerType: getLabel(configs.customerTypes, values.CustomerTypeRefId),
                 salesPerson: getLabel(configs.salesPersons, values.salesPersonRefId, 'employeeName'),
                 gstType: getLabel(configs.gstTypes, values.gstTypeRefId),
@@ -253,6 +256,7 @@ export default function RegisterCustomer() {
             };
 
             formik.setValues(formValues, false);
+            setDraftCustomerId(draftId);
             toast.success('Draft loaded successfully');
         } catch (error) {
             console.error('Error loading draft data:', error);
@@ -282,6 +286,7 @@ export default function RegisterCustomer() {
 
             const draftPayload = {
                 ...values,
+                draftEmployeeId: draftCustomerId || undefined,
                 CustomerType: getLabel(configs.customerTypes, values.CustomerTypeRefId),
                 salesPerson: getLabel(configs.salesPersons, values.salesPersonRefId, 'employeeName'),
                 gstType: getLabel(configs.gstTypes, values.gstTypeRefId),
@@ -304,20 +309,28 @@ export default function RegisterCustomer() {
                 }))
             };
 
-            await toast.promise(
-                draftRegisterCustomer(draftPayload),
+            const response = await toast.promise(
+                draftCustomerId
+                    ? updateDraftCustomer(draftCustomerId, draftPayload)
+                    : draftRegisterCustomer(draftPayload),
                 {
-                    pending: 'Saving draft...',
-                    success: 'Draft saved successfully! 👌',
+                    pending: draftCustomerId ? 'Updating draft...' : 'Saving draft...',
+                    success: draftCustomerId ? 'Draft updated successfully! 👌' : 'Draft saved successfully! 👌',
+                    error: draftCustomerId ? 'Failed to update draft' : 'Failed to save draft'
                 }
             );
+
+            if (response.success && !draftCustomerId) {
+                const newId = response.data?._id || (response.data?.employee?._id);
+                if (newId) setDraftCustomerId(newId);
+            }
         } catch (error) {
-            console.error('Draft save error:', error);
+            console.error('Draft error:', error);
             toast.error(error.error?.message || error.message || "Failed to save draft.");
         } finally {
             setSavingDraft(false);
         }
-    }, [formik.values, configs]);
+    }, [formik.values, configs, draftCustomerId]);
 
 
     const [brandCategories, setBrandCategories] = useState([]); // This state is actually unused now but keeping for props compatibility if needed, or remove completely if prop is removed.
@@ -471,7 +484,7 @@ export default function RegisterCustomer() {
                             disabled={savingDraft || loadingDraftData}
                             className="  "
                         >
-                            {savingDraft ? 'Saving...' : 'Save As Draft'}
+                            {savingDraft ? 'Saving...' : draftCustomerId ? 'Update Draft' : 'Save As Draft'}
                         </Button>
                         {loadingDraftData && (
                             <span className="text-orange-500 text-sm animate-pulse">Loading draft...</span>

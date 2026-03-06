@@ -40,11 +40,37 @@ const datePickerStyles = {
 const CustomerList = () => {
     const navigate = useNavigate();
     const [customers, setCustomers] = useState([]);
+    console.log(customers, "customers")
     const [loading, setLoading] = useState(true);
     const [configs, setConfigs] = useState({ customerTypes: [] });
     const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [viewLoading, setViewLoading] = useState(false);
+    const [expandedRows, setExpandedRows] = useState(new Set());
+    const [activeActionMenu, setActiveActionMenu] = useState(null);
+
+    const toggleRow = (id) => {
+        const newExpanded = new Set(expandedRows);
+        if (newExpanded.has(id)) {
+            newExpanded.delete(id);
+        } else {
+            newExpanded.add(id);
+        }
+        setExpandedRows(newExpanded);
+    };
+
+    const copyToClipboard = (text) => {
+        navigator.clipboard.writeText(text);
+        toast.info("Customer ID copied to clipboard", {
+            position: "bottom-center",
+            autoClose: 1500,
+            hideProgressBar: true,
+            closeOnClick: true,
+            pauseOnHover: false,
+            draggable: false,
+            theme: "colored",
+        });
+    };
 
     // Filter States
     const [filters, setFilters] = useState({
@@ -247,55 +273,185 @@ const CustomerList = () => {
                         <table className="w-full border-collapse min-w-[1240px]">
                             <thead>
                                 <tr className="bg-amber-500 text-white">
-                                    <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Cust. ID</th>
-                                    <th className="py-4 px-6 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Shop Name</th>
-                                    <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Type</th>
-                                    <th className="py-4 px-6 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Email</th>
-                                    <th className="py-4 px-6 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Phone</th>
+                                    <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">S.No</th>
+                                    <th className="py-4 px-6 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Name / Shop</th>
+                                    <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Account Type</th>
+                                    <th className="py-4 px-6 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Email / Phone</th>
+                                    <th className="py-4 px-6 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">City / Country</th>
                                     <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Status</th>
-                                    <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Done By</th>
+                                    {/* <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Done By</th> */}
                                     <th className="py-4 px-4 font-semibold text-xs text-center uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="text-gray-600">
                                 {customers.map((cust) => (
-                                    <tr key={cust._id} className="border-b border-gray-100 last:border-b-0 hover:bg-amber-50/10 transition-colors h-14">
-                                        <td className="px-4 py-2 text-center text-[11px] font-bold border-r border-gray-50 text-amber-600">{cust?.username || cust?._id?.slice(-8) || '---'}</td>
-                                        <td className="px-6 py-2 text-center text-xs font-medium border-r border-gray-50 text-gray-800">{cust?.shopName || '---'}</td>
-                                        <td className="px-4 py-2 text-center text-xs border-r border-gray-50">{cust?.CustomerType?.name || cust?.CustomerType || '---'}</td>
-                                        <td className="px-6 py-2 text-center text-xs border-r border-gray-50">{cust.emailId || '---'}</td>
-                                        <td className="px-6 py-2 text-center text-xs border-r border-gray-50">{cust.mobileNo1 || '---'}</td>
-                                        <td className="px-4 py-2 text-center border-r border-gray-50">
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${cust.status?.toLowerCase() === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                                }`}>
-                                                {cust.status || 'Active'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-2 text-center text-xs border-r border-gray-50 font-semibold">{cust?.createdByDepartment || 'John Doe'}</td>
-                                        <td className="px-4 py-2 text-center">
-                                            <div className="flex justify-center gap-2">
+                                    <React.Fragment key={cust._id}>
+                                        <tr
+                                            className={`border-b border-gray-100 last:border-b-0 hover:bg-amber-50/20 transition-all h-16 cursor-pointer ${expandedRows.has(cust._id) ? 'bg-amber-50/10' : ''}`}
+                                            onClick={() => toggleRow(cust._id)}
+                                        >
+                                            <td className="px-4 py-2 text-center border-r border-gray-50">
+                                                <span className="text-xs font-black text-amber-600 font-mono tracking-tighter">
+                                                    #{cust.serialNumber || '---'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-2 text-center border-r border-gray-50">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-black text-gray-800 tracking-tight">{cust?.shopName || '---'}</span>
+                                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{cust?.ownerName || '---'}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-2 text-center border-r border-gray-50">
+                                                <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md text-[9px] font-black uppercase tracking-widest border border-gray-200">
+                                                    {cust?.CustomerType?.name || cust?.CustomerType || '---'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-2 text-center border-r border-gray-50">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-semibold text-gray-600">{cust.emailId || '---'}</span>
+                                                    <span className="text-[10px] font-bold text-amber-600 mt-0.5">{cust.mobileNo1 || '---'}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-2 text-center border-r border-gray-50">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-gray-700">{cust.address?.[0]?.city || '---'}</span>
+                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">{cust.address?.[0]?.country || 'India'}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-2 text-center border-r border-gray-50">
+                                                <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${cust.Status?.isActive || cust.status?.toLowerCase() === 'active' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
+                                                    {cust.Status?.isActive ? 'ACTIVE' : (cust.status || 'ACTIVE')}
+                                                </span>
+                                            </td>
+                                            {/* <td className="px-4 py-2 text-center border-r border-gray-50">
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <span className="text-xs font-black text-gray-600">{cust?.createdByDepartment || 'SUPERADMIN'}</span>
+                                                    <Icon icon="mdi:account-circle" className="text-gray-300 text-lg" />
+                                                </div>
+                                            </td> */}
+                                            <td className="px-4 py-2 text-center relative" onClick={(e) => e.stopPropagation()}>
                                                 <button
-                                                    className="p-1.5 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-50 transition-all"
-                                                    onClick={() => handleViewDetails(cust._id)}
-                                                    title="View Details"
+                                                    onClick={() => setActiveActionMenu(activeActionMenu === cust._id ? null : cust._id)}
+                                                    className={`p-2 rounded-xl transition-all ${activeActionMenu === cust._id ? 'bg-amber-500 text-white shadow-lg' : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'}`}
                                                 >
-                                                    <Icon icon="mdi:eye" className="w-5 h-5" />
+                                                    <Icon icon="mdi:dots-vertical" className="w-6 h-6" />
                                                 </button>
-                                                <button
-                                                    className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-all"
-                                                    title="Edit"
-                                                >
-                                                    <Icon icon="mdi:pencil" className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                                                    title="Delete"
-                                                >
-                                                    <Icon icon="mdi:trash-can" className="w-5 h-5" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
+
+                                                {/* Absolute Action Dropdown */}
+                                                {activeActionMenu === cust._id && (
+                                                    <>
+                                                        <div
+                                                            className="fixed inset-0 z-[60]"
+                                                            onClick={() => setActiveActionMenu(null)}
+                                                        />
+                                                        <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 z-[70] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden min-w-[140px] animate-in fade-in slide-in-from-right-4 duration-200">
+                                                            <button
+                                                                onClick={() => { handleViewDetails(cust._id); setActiveActionMenu(null); }}
+                                                                className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-gray-600 hover:bg-amber-50 hover:text-amber-600 transition-colors"
+                                                            >
+                                                                <Icon icon="mdi:eye" className="text-lg" />
+                                                                View
+                                                            </button>
+                                                            <button className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors border-y border-gray-50">
+                                                                <Icon icon="mdi:pencil" className="text-lg" />
+                                                                Edit
+                                                            </button>
+                                                            <button className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors">
+                                                                <Icon icon="mdi:trash-can" className="text-lg" />
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </td>
+                                        </tr>
+
+                                        {/* Collapsible Details Row */}
+                                        {expandedRows.has(cust._id) && (
+                                            <tr className="bg-gray-50/50">
+                                                <td colSpan="8" className="p-0 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
+                                                    <div className="p-10 border-x-4 border-amber-500/20 bg-gradient-to-br from-white to-amber-50/30">
+                                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+                                                            {/* Detailed Columns */}
+                                                            <div className="space-y-6">
+                                                                <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2">Business Info</h4>
+                                                                <DetailItem label="Full Shop Name" value={cust.shopName} />
+                                                                <DetailItem label="Owner Full Name" value={cust.ownerName} />
+                                                                <div className="flex items-center gap-2 group/id cursor-pointer" onClick={(e) => { e.stopPropagation(); copyToClipboard(cust.username || cust._id); }}>
+                                                                    <DetailItem label="User ID (Click to Copy)" value={cust.username || cust._id} />
+                                                                    <Icon icon="mdi:content-copy" className="text-amber-400 opacity-0 group-hover/id:opacity-100 transition-opacity mt-4" />
+                                                                </div>
+                                                                <DetailItem label="Registration Type" value={cust.CustomerType?.name || cust.CustomerType} />
+                                                                <DetailItem label="Order Mode" value={cust.orderMode} />
+                                                            </div>
+
+                                                            <div className="space-y-6">
+                                                                <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2">Contact Details</h4>
+                                                                <DetailItem label="Business Email" value={cust.businessEmail || cust.emailId} />
+                                                                <DetailItem label="Primary Phone" value={cust.mobileNo1} />
+                                                                <DetailItem label="Secondary Phone" value={cust.mobileNo2} />
+                                                                <DetailItem label="Landline" value={cust.landlineNo} />
+                                                            </div>
+
+                                                            <div className="space-y-6">
+                                                                <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2">Logistics & Sales</h4>
+                                                                <DetailItem label="Zone / Region" value={cust.zone?.name || cust.zone} />
+                                                                <DetailItem label="Sales Person" value={cust.salesPerson?.name || cust.salesPerson} />
+                                                                <DetailItem label="Courier" value={cust.courierName?.name || cust.courierName} />
+                                                                <DetailItem label="Courier Time" value={cust.courierTime?.name || cust.courierTime} />
+                                                            </div>
+
+                                                            <div className="space-y-6">
+                                                                <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2">Account Status</h4>
+                                                                <DetailItem label="Credit Limit" value={`₹${cust.creditLimit?.toLocaleString()}`} />
+                                                                <DetailItem label="Credit Days" value={cust.creditDays?.name || cust.creditDays} />
+                                                                <DetailItem label="GST Registered" value={cust.IsGSTRegistered ? 'YES' : 'NO'} />
+                                                                <DetailItem label="GST Number" value={cust.GSTNumber} />
+                                                            </div>
+
+                                                            {/* Full Width Section for Addresses */}
+                                                            <div className="md:col-span-4 mt-4">
+                                                                <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2 mb-6">Registered Branches / Addresses</h4>
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                                    {cust.address?.map((addr, idx) => (
+                                                                        <div key={idx} className="bg-white p-5 rounded-[2rem] border border-amber-100 shadow-sm hover:shadow-md transition-shadow">
+                                                                            <div className="flex items-center gap-3 mb-4">
+                                                                                <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-black">
+                                                                                    {idx + 1}
+                                                                                </div>
+                                                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Branch Location</span>
+                                                                            </div>
+                                                                            <p className="text-xs font-semibold text-gray-700 leading-relaxed mb-4">{addr.branchAddress || addr.address1}</p>
+                                                                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50">
+                                                                                <div>
+                                                                                    <p className="text-[9px] font-black text-gray-300 uppercase">Contact</p>
+                                                                                    <p className="text-[10px] font-bold text-gray-600">{addr.contactPerson}</p>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-[9px] font-black text-gray-300 uppercase">Currency</p>
+                                                                                    <p className="text-[10px] font-bold text-amber-600">{addr.billingCurrency}</p>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Documents */}
+                                                            <div className="md:col-span-4 mt-6">
+                                                                <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2 mb-6">Verification Documents</h4>
+                                                                <div className="flex flex-wrap gap-8">
+                                                                    <DocumentChip label="GST Certificate" url={cust.GSTCertificateImg} />
+                                                                    <DocumentChip label="Aadhar Card" url={cust.aadharImage} />
+                                                                    <DocumentChip label="PAN Card" url={cust.panImage} />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
                                 ))}
                                 {Array(emptyRowsCount).fill(0).map((_, i) => (
                                     <tr key={`empty-${i}`} className="border-b border-gray-100 last:border-b-0 h-14">

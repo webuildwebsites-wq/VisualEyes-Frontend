@@ -43,6 +43,15 @@ export const createDraftEmployee = async (userData) => {
     }
 };
 
+export const updateDraftEmployee = async (id, userData) => {
+    try {
+        const response = await api.put(`/api/employee/management/update-draft-employee/${id}`, userData);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to update employee draft');
+    }
+};
+
 export const getAllDraftEmployees = async (page = 1, limit = 10) => {
     try {
         const response = await api.get(`/api/employee/management/get-all-draft-employee?page=${page}&limit=${limit}`);

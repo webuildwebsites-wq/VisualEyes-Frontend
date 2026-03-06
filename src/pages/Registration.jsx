@@ -5,7 +5,7 @@ import { Icon } from '@iconify/react';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
-import { createSupervisorUser, createDraftEmployee, getDraftEmployeeById } from '../services/employeeService';
+import { createSupervisorUser, createDraftEmployee, getDraftEmployeeById, updateDraftEmployee } from '../services/employeeService';
 import { uploadImage } from '../services/bucketService';
 import { getSystemConfigs } from '../services/configService';
 import { getAllDepartments, getSubRoles } from '../services/departmentService';
@@ -81,6 +81,7 @@ const Registration = () => {
     const [searchParams] = useSearchParams();
     const [loadingDraft, setLoadingDraft] = useState(false);
     const [savingDraft, setSavingDraft] = useState(false);
+    const [draftEmployeeId, setDraftEmployeeId] = useState('');
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -160,6 +161,7 @@ const Registration = () => {
             if (aadharUrl) setImages(prev => ({ ...prev, aadhar: { ...prev.aadhar, url: aadharUrl, preview: aadharUrl } }));
             if (panUrl) setImages(prev => ({ ...prev, pan: { ...prev.pan, url: panUrl, preview: panUrl } }));
 
+            setDraftEmployeeId(draftId);
             toast.success("Draft loaded successfully");
         } catch (error) {
             console.error("Error loading draft:", error);
@@ -189,16 +191,31 @@ const Registration = () => {
                 draft: true // Mark as draft for backend if needed
             };
 
-            await toast.promise(
-                createDraftEmployee(payload),
+            if (draftEmployeeId) {
+                payload.draftEmployeeId = draftEmployeeId;
+            }
+
+            const response = await toast.promise(
+                draftEmployeeId
+                    ? updateDraftEmployee(draftEmployeeId, payload)
+                    : createDraftEmployee(payload),
                 {
-                    pending: 'Saving draft...',
-                    success: 'Draft saved successfully! 👌',
-                    error: 'Failed to save draft'
+                    pending: draftEmployeeId ? 'Updating draft...' : 'Saving draft...',
+                    success: draftEmployeeId ? 'Draft updated successfully! 👌' : 'Draft saved successfully! 👌',
+                    error: draftEmployeeId ? 'Failed to update draft' : 'Failed to save draft'
                 }
             );
+
+            if (response.success && !draftEmployeeId) {
+                console.log(response.data);
+                const newDraftId = response.data?.employee?._id || response.data?._id;
+                if (newDraftId) {
+                    setDraftEmployeeId(newDraftId);
+                }
+            }
         } catch (error) {
             console.error('Draft error:', error);
+            toast.error(error?.error?.message || 'Failed to save draft');
         } finally {
             setSavingDraft(false);
         }
@@ -812,7 +829,7 @@ const Registration = () => {
                             disabled={savingDraft}
                             className="px-16 py-4 rounded-full border-2 border-orange-500 text-orange-500 font-bold hover:bg-orange-50 transition-all uppercase tracking-widest min-w-[240px] disabled:opacity-50"
                         >
-                            {savingDraft ? 'Saving...' : 'Save as Draft'}
+                            {savingDraft ? 'Saving...' : draftEmployeeId ? 'Update Draft' : 'Save as Draft'}
                         </button>
                     </div>
                 </form>

@@ -149,6 +149,15 @@ export const draftRegisterCustomer = async (customerData) => {
     }
 };
 
+export const updateDraftCustomer = async (id, customerData) => {
+    try {
+        const response = await api.put(`/api/customer/management/update-draft-customer/${id}`, customerData);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Draft update failed');
+    }
+};
+
 export const getMyDraftCustomers = async (page = 1, limit = 10) => {
     try {
         const response = await api.get(`/api/customer/management/get-my-draft-customers?page=${page}&limit=${limit}`);
