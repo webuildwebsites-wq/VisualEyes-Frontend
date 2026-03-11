@@ -204,95 +204,96 @@ const EmployeeList = () => {
     return (
         <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto p-4">
             {/* Filter Bar */}
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100/80 flex flex-col gap-6 ">
-                <div className="flex flex-wrap items-center justify-between gap-y-8 gap-x-6">
-                    <div className="flex flex-wrap items-center gap-6 flex-1">
-                        <div className="flex flex-col gap-2 min-w-[240px] flex-1 lg:flex-none">
-                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Search By Name, Username, Email & Phone</span>
-                            <FilterInput
-                                placeholder="Start typing..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                icon="mdi:account-search"
-                            />
-                        </div>
-
-                        <div className="flex flex-col gap-2 min-w-[180px] flex-1 lg:flex-none">
-                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Department</span>
-                            <FilterSelect
-                                placeholder="All Departments"
-                                value={filters.department}
-                                onChange={(e) => setFilters({ ...filters, department: e.target.value })}
-                                options={configs.departments.map(d => ({ label: d.name, value: d.name }))}
-                                icon="mdi:office-building"
-                            />
-                        </div>
-
-                        <div className="flex flex-col gap-2 min-w-[180px] flex-1 lg:flex-none">
-                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Employee Type</span>
-                            <FilterSelect
-                                placeholder="All Types"
-                                value={filters.EmployeeType}
-                                onChange={(e) => setFilters({ ...filters, EmployeeType: e.target.value })}
-                                options={configs.employeeTypes.map(t => ({ label: t.name, value: t.name }))}
-                                icon="mdi:account-badge-outline"
-                            />
-                        </div>
+            <div className="bg-white p-4 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm border border-gray-100/80 flex flex-col gap-4 md:gap-6 ">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:flex lg:flex-wrap items-end gap-3 md:gap-6">
+                    {/* Search - Full width on mobile/tablet, flexible on desktop */}
+                    <div className="flex flex-col gap-1.5 col-span-1 md:col-span-2 lg:min-w-[300px] lg:flex-1">
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Search By Name, Username, Email & Phone</span>
+                        <FilterInput
+                            placeholder="Start typing..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            icon="mdi:account-search"
+                        />
                     </div>
 
-                    <div className="flex items-center gap-6 w-full lg:w-auto">
-                        <div className="flex flex-col gap-2 min-w-[180px] flex-1 lg:flex-none">
-                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Quick Date</span>
-                            <FilterSelect
-                                placeholder="Select Range"
-                                value=""
-                                onChange={(e) => handleQuickDate(e.target.value)}
-                                options={[
-                                    { label: 'Yesterday', value: 'yesterday' },
-                                    { label: 'Last Week', value: 'last_week' },
-                                    { label: 'Last Month', value: 'last_month' },
-                                    { label: 'Last Quarter', value: 'last_quarter' },
-                                    { label: 'Last Year', value: 'last_year' }
-                                ]}
-                                icon="mdi:calendar-clock"
-                            />
-                        </div>
+                    {/* Department */}
+                    <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[160px]">
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Department</span>
+                        <FilterSelect
+                            placeholder="All Departments"
+                            value={filters.department}
+                            onChange={(e) => setFilters({ ...filters, department: e.target.value })}
+                            options={configs.departments.map(d => ({ label: d.name, value: d.name }))}
+                            icon="mdi:office-building"
+                        />
+                    </div>
 
-                        <div className="flex flex-col gap-2 min-w-[380px]">
-                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Access Start Period</span>
-                            <div className="flex items-center gap-3">
-                                <DatePicker
-                                    value={filters.fromDate ? dayjs(filters.fromDate) : null}
-                                    onChange={(newValue) => setFilters({ ...filters, fromDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
-                                    slotProps={{
-                                        textField: {
-                                            size: 'small',
-                                            placeholder: 'From Date',
-                                            sx: datePickerStyles
-                                        }
-                                    }}
-                                />
-                                <span className="text-gray-300 text-[10px] font-black uppercase">to</span>
-                                <DatePicker
-                                    value={filters.toDate ? dayjs(filters.toDate) : null}
-                                    onChange={(newValue) => setFilters({ ...filters, toDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
-                                    slotProps={{
-                                        textField: {
-                                            size: 'small',
-                                            placeholder: 'To Date',
-                                            sx: datePickerStyles
-                                        }
-                                    }}
-                                />
-                            </div>
+                    {/* Employee Type */}
+                    <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[160px]">
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Employee Type</span>
+                        <FilterSelect
+                            placeholder="All Types"
+                            value={filters.EmployeeType}
+                            onChange={(e) => setFilters({ ...filters, EmployeeType: e.target.value })}
+                            options={configs.employeeTypes.map(t => ({ label: t.name, value: t.name }))}
+                            icon="mdi:account-badge-outline"
+                        />
+                    </div>
+
+                    {/* Quick Date */}
+                    <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[160px]">
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Quick Date</span>
+                        <FilterSelect
+                            placeholder="Select Range"
+                            value=""
+                            onChange={(e) => handleQuickDate(e.target.value)}
+                            options={[
+                                { label: 'Yesterday', value: 'yesterday' },
+                                { label: 'Last Week', value: 'last_week' },
+                                { label: 'Last Month', value: 'last_month' },
+                                { label: 'Last Quarter', value: 'last_quarter' },
+                                { label: 'Last Year', value: 'last_year' }
+                            ]}
+                            icon="mdi:calendar-clock"
+                        />
+                    </div>
+
+                    {/* Access Start Period */}
+                    <div className="flex flex-col gap-1.5 col-span-1 md:col-span-2 lg:min-w-[380px]">
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Access Start Period</span>
+                        <div className="flex flex-col sm:flex-row items-center gap-3">
+                            <DatePicker
+                                value={filters.fromDate ? dayjs(filters.fromDate) : null}
+                                onChange={(newValue) => setFilters({ ...filters, fromDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
+                                slotProps={{
+                                    textField: {
+                                        size: 'small',
+                                        placeholder: 'From Date',
+                                        sx: { ...datePickerStyles, width: '100%' }
+                                    }
+                                }}
+                            />
+                            <span className="text-gray-300 text-[10px] font-black uppercase">to</span>
+                            <DatePicker
+                                value={filters.toDate ? dayjs(filters.toDate) : null}
+                                onChange={(newValue) => setFilters({ ...filters, toDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
+                                slotProps={{
+                                    textField: {
+                                        size: 'small',
+                                        placeholder: 'To Date',
+                                        sx: { ...datePickerStyles, width: '100%' }
+                                    }
+                                }}
+                            />
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-end self-end mb-1">
+                <div className="flex items-end self-end w-full md:w-auto mb-1">
                     <button
                         onClick={handleResetFilters}
-                        className="flex items-center gap-2 text-gray-400 hover:text-amber-600 px-5 py-2.5 rounded-full hover:bg-amber-50 transition-all duration-300 font-black text-[10px] uppercase tracking-widest group border border-transparent hover:border-amber-100 shadow-sm hover:shadow-md"
+                        className="flex items-center justify-center gap-2 text-gray-400 hover:text-amber-600 px-5 py-2.5 rounded-full hover:bg-amber-50 transition-all duration-300 font-black text-[10px] uppercase tracking-widest group border border-transparent hover:border-amber-100 shadow-sm hover:shadow-md w-full md:w-auto"
                     >
                         <Icon icon="mdi:refresh" className="text-lg group-hover:rotate-180 transition-transform duration-700" />
                         Clear Filters
@@ -523,7 +524,7 @@ const DetailItem = ({ label, value, status, onClick }) => (
 );
 
 const FilterSelect = ({ placeholder, value, onChange, options = [], icon }) => (
-    <div className="relative flex items-center bg-gray-50/80 rounded-full border border-gray-100 px-5 py-2.5 focus-within:border-amber-500/50 focus-within:bg-white focus-within:shadow-md transition-all duration-300 min-w-[170px] group shadow-inner">
+    <div className="relative flex items-center bg-gray-50/80 rounded-full border border-gray-100 px-5 py-2.5 focus-within:border-amber-500/50 focus-within:bg-white focus-within:shadow-md transition-all duration-300 w-full group shadow-inner">
         {icon && <Icon icon={icon} className="text-gray-400 text-lg mr-3 group-focus-within:text-amber-500 transition-colors" />}
         <select
             value={value}
@@ -542,7 +543,7 @@ const FilterSelect = ({ placeholder, value, onChange, options = [], icon }) => (
 );
 
 const FilterInput = ({ placeholder, value, onChange, icon }) => (
-    <div className="relative flex items-center bg-gray-50/80 rounded-full border border-gray-100 px-5 py-2.5 focus-within:border-amber-500/50 focus-within:bg-white focus-within:shadow-md transition-all duration-300 min-w-[220px] group shadow-inner">
+    <div className="relative flex items-center bg-gray-50/80 rounded-full border border-gray-100 px-5 py-2.5 focus-within:border-amber-500/50 focus-within:bg-white focus-within:shadow-md transition-all duration-300 w-full group shadow-inner">
         {icon && <Icon icon={icon} className="text-gray-400 text-lg mr-3 group-focus-within:text-amber-500 transition-colors" />}
         <input
             type="text"

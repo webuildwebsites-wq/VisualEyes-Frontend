@@ -110,8 +110,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         `}
             >
                 {/* Logo */}
-                <div className="py-6 flex justify-center ">
-                    <img src={logo} alt="Visual Eyes" className="w-full h-[85px] object-cover" />
+                <div className="py-2 md:py-6 flex justify-center ">
+                    <img src={logo} alt="Visual Eyes" className="w-full h-[60px] md:h-[85px] object-cover" />
                 </div>
 
                 {/* Menu */}
@@ -197,7 +197,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             {/* Edge Toggle Button (like Figma) */}
             <button
                 onClick={toggleSidebar}
-                className={`fixed top-1/2 z-50 bg-amber-400 text-white w-8 h-12 rounded-r-xl shadow-md flex items-center justify-center -translate-y-1/2 transition-all duration-300
+                className={`fixed top-20 md:top-1/2 z-50 bg-amber-400 text-white w-6 h-10 md:w-8 md:h-12 rounded-r-xl shadow-md flex items-center justify-center -translate-y-1/2 transition-all duration-300
                     ${isOpen ? 'left-64' : 'left-0'}
                 `}
                 aria-label="Toggle Sidebar"

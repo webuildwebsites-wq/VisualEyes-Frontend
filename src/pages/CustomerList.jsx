@@ -250,137 +250,126 @@ const CustomerList = () => {
     return (
         <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto p-4">
             {/* Filter Bar */}
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100/80 flex flex-col gap-6 ">
-                <div className="flex flex-wrap items-center justify-between gap-y-8 gap-x-6 items-start justify-start">
-                    <div className="flex flex-wrap items-center gap-6 flex-1 ">
-                        {/* Search */}
-                        <div className="flex flex-col gap-2 min-w-[240px] flex-1 lg:flex-none">
-                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Search By Name,Shop Name,Email,Phone & Sales Person</span>
-                            <FilterInput
-                                placeholder="Start typing..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                icon="mdi:store-search"
-                            />
-                        </div>
-
-                        {/* Customer Type */}
-                        <div className="flex flex-col gap-2 min-w-[180px] flex-1 lg:flex-none">
-                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Customer Type</span>
-                            <FilterSelect
-                                placeholder="All Types"
-                                value={filters.customerType}
-                                onChange={(e) => setFilters({ ...filters, customerType: e.target.value })}
-                                options={configs.customerTypes.map(c => ({ label: c.name, value: c._id }))}
-                                icon="mdi:account-group"
-                            />
-                        </div>
-                        <div className="flex flex-col gap-2 min-w-[180px] flex-1 lg:flex-none">
-                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Zone / Region</span>
-                            {console.log(configs.zones, 'configs.zone')}
-                            <FilterSelect
-                                placeholder="All Zones"
-                                value={filters.zone}
-                                onChange={(e) => setFilters({ ...filters, zone: e.target.value })}
-                                options={configs.zones.map(z => ({ label: z.zone, value: z._id || z.refId }))}
-                                icon="mdi:map-marker-radius"
-                            />
-                        </div>
-
-                        {/* Status */}
-                        <div className="flex flex-col gap-2 min-w-[160px] flex-1 lg:flex-none">
-                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Status</span>
-                            <FilterSelect
-                                placeholder="All Status"
-                                value={filters.status}
-                                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                                options={[
-                                    { label: 'Active', value: 'active' },
-                                    { label: 'Inactive', value: 'inactive' }
-                                ]}
-                                icon="mdi:checkbox-blank-circle-outline"
-                            />
-                        </div>
-
-                        {/* Done By */}
-                        <div className="flex flex-col gap-2 min-w-[180px] flex-1 lg:flex-none">
-                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Created By Dept.</span>
-                            <FilterSelect
-                                placeholder="By Department"
-                                value={filters.createdByDepartment}
-                                onChange={(e) => setFilters({ ...filters, createdByDepartment: e.target.value })}
-                                options={[
-                                    { label: 'Superadmin', value: 'SUPERADMIN' },
-                                    { label: 'Sales', value: 'SALES' },
-                                    { label: 'Finance', value: 'FINANCE' }
-                                ]}
-                                icon="mdi:account-tie"
-                            />
-                        </div>
-
-
-                        {/* Zone Filter */}
-
-                        <div className="flex  items-center gap-6 w-full lg:w-auto">
-                            {/* Quick Date Presets */}
-                            <div className="flex flex-col gap-2 min-w-[180px] flex-1 lg:flex-none">
-                                <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Quick Date</span>
-                                <FilterSelect
-                                    placeholder="Select Range"
-                                    value=""
-                                    onChange={(e) => handleQuickDate(e.target.value)}
-                                    options={[
-                                        { label: 'Yesterday', value: 'yesterday' },
-                                        { label: 'Last Week', value: 'last_week' },
-                                        { label: 'Last Month', value: 'last_month' },
-                                        { label: 'Last Quarter', value: 'last_quarter' },
-                                        { label: 'Last Year', value: 'last_year' }
-                                    ]}
-                                    icon="mdi:calendar-clock"
-                                />
-                            </div>
-
-                            {/* Registration Period */}
-                            <div className="flex flex-col gap-2 min-w-[380px] ">
-                                <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Registration Period</span>
-                                <div className="flex items-center gap-3">
-                                    <DatePicker
-                                        value={filters.fromDate ? dayjs(filters.fromDate) : null}
-                                        onChange={(newValue) => setFilters({ ...filters, fromDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
-                                        slotProps={{
-                                            textField: {
-                                                size: 'small',
-                                                placeholder: 'From Date',
-                                                sx: datePickerStyles
-                                            }
-                                        }}
-                                    />
-                                    <span className="text-gray-300 text-[10px] font-black uppercase">to</span>
-                                    <DatePicker
-                                        value={filters.toDate ? dayjs(filters.toDate) : null}
-                                        onChange={(newValue) => setFilters({ ...filters, toDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
-                                        slotProps={{
-                                            textField: {
-                                                size: 'small',
-                                                placeholder: 'To Date',
-                                                sx: datePickerStyles
-                                            }
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
+            <div className="bg-white p-4 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm border border-gray-100/80 flex flex-col gap-4 md:gap-6 ">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:flex lg:flex-wrap items-end gap-3 md:gap-6">
+                    {/* Search - Full width on mobile/tablet, flexible on desktop */}
+                    <div className="flex flex-col gap-1.5 col-span-1 md:col-span-2 lg:min-w-[300px] lg:flex-1">
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Search By Name, Shop, Email, Phone</span>
+                        <FilterInput
+                            placeholder="Start typing..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            icon="mdi:store-search"
+                        />
                     </div>
 
+                    {/* Customer Type */}
+                    <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[160px]">
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Customer Type</span>
+                        <FilterSelect
+                            placeholder="All Types"
+                            value={filters.customerType}
+                            onChange={(e) => setFilters({ ...filters, customerType: e.target.value })}
+                            options={configs.customerTypes.map(c => ({ label: c.name, value: c._id }))}
+                            icon="mdi:account-group"
+                        />
+                    </div>
 
-                    {/* Reset Button */}
+                    {/* Zone */}
+                    <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[160px]">
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Zone / Region</span>
+                        <FilterSelect
+                            placeholder="All Zones"
+                            value={filters.zone}
+                            onChange={(e) => setFilters({ ...filters, zone: e.target.value })}
+                            options={configs.zones.map(z => ({ label: z.zone, value: z._id || z.refId }))}
+                            icon="mdi:map-marker-radius"
+                        />
+                    </div>
 
+                    {/* Status */}
+                    <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[160px]">
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Status</span>
+                        <FilterSelect
+                            placeholder="All Status"
+                            value={filters.status}
+                            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                            options={[
+                                { label: 'Active', value: 'active' },
+                                { label: 'Inactive', value: 'inactive' }
+                            ]}
+                            icon="mdi:checkbox-blank-circle-outline"
+                        />
+                    </div>
+
+                    {/* Created By Dept */}
+                    <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[160px]">
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Created By Dept.</span>
+                        <FilterSelect
+                            placeholder="By Department"
+                            value={filters.createdByDepartment}
+                            onChange={(e) => setFilters({ ...filters, createdByDepartment: e.target.value })}
+                            options={[
+                                { label: 'Superadmin', value: 'SUPERADMIN' },
+                                { label: 'Sales', value: 'SALES' },
+                                { label: 'Finance', value: 'FINANCE' }
+                            ]}
+                            icon="mdi:account-tie"
+                        />
+                    </div>
+
+                    {/* Quick Date */}
+                    <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[160px]">
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Quick Date</span>
+                        <FilterSelect
+                            placeholder="Select Range"
+                            value=""
+                            onChange={(e) => handleQuickDate(e.target.value)}
+                            options={[
+                                { label: 'Yesterday', value: 'yesterday' },
+                                { label: 'Last Week', value: 'last_week' },
+                                { label: 'Last Month', value: 'last_month' },
+                                { label: 'Last Quarter', value: 'last_quarter' },
+                                { label: 'Last Year', value: 'last_year' }
+                            ]}
+                            icon="mdi:calendar-clock"
+                        />
+                    </div>
+
+                    {/* Registration Period */}
+                    <div className="flex flex-col gap-1.5 col-span-1 md:col-span-2 lg:min-w-[380px]">
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Registration Period</span>
+                        <div className="flex flex-col sm:flex-row items-center gap-3">
+                            <DatePicker
+                                value={filters.fromDate ? dayjs(filters.fromDate) : null}
+                                onChange={(newValue) => setFilters({ ...filters, fromDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
+                                slotProps={{
+                                    textField: {
+                                        size: 'small',
+                                        placeholder: 'From Date',
+                                        sx: { ...datePickerStyles, width: '100%' }
+                                    }
+                                }}
+                            />
+                            <span className="text-gray-300 text-[10px] font-black uppercase">to</span>
+                            <DatePicker
+                                value={filters.toDate ? dayjs(filters.toDate) : null}
+                                onChange={(newValue) => setFilters({ ...filters, toDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
+                                slotProps={{
+                                    textField: {
+                                        size: 'small',
+                                        placeholder: 'To Date',
+                                        sx: { ...datePickerStyles, width: '100%' }
+                                    }
+                                }}
+                            />
+                        </div>
+                    </div>
                 </div>
-                <div className="flex items-end self-end mb-1">
+                <div className="flex items-end self-end w-full md:w-auto mb-1">
                     <button
                         onClick={handleResetFilters}
-                        className="flex items-center gap-2 text-gray-400 hover:text-amber-600 px-5 py-2.5 rounded-full hover:bg-amber-50 transition-all duration-300 font-black text-[10px] uppercase tracking-widest group border border-transparent hover:border-amber-100 shadow-sm hover:shadow-md"
+                        className="flex items-center justify-center gap-2 text-gray-400 hover:text-amber-600 px-5 py-2.5 rounded-full hover:bg-amber-50 transition-all duration-300 font-black text-[10px] uppercase tracking-widest group border border-transparent hover:border-amber-100 shadow-sm hover:shadow-md w-full md:w-auto"
                     >
                         <Icon icon="mdi:refresh" className="text-lg group-hover:rotate-180 transition-transform duration-700" />
                         Clear Filters
@@ -490,7 +479,7 @@ const CustomerList = () => {
                                                                 <Icon icon="mdi:pencil" className="text-lg" />
                                                                 Edit
                                                             </button>
-                                                            <button 
+                                                            <button
                                                                 onClick={() => handleDeactivateClick(cust)}
                                                                 className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
                                                             >
@@ -498,7 +487,7 @@ const CustomerList = () => {
                                                                 Deactivate
                                                             </button>
                                                             {isFinance && (cust.approvalStatus === 'PENDING_FINANCE' || !cust.approvalStatus) && (
-                                                                <button 
+                                                                <button
                                                                     onClick={() => handleCorrectionClick(cust)}
                                                                     className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-amber-600 hover:bg-amber-50 transition-colors border-t border-gray-50"
                                                                 >
@@ -517,7 +506,7 @@ const CustomerList = () => {
                                             <tr className="bg-gray-50/50">
                                                 <td colSpan="8" className="p-0 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
                                                     <div className="p-10 border-x-4 border-amber-500/20 bg-gradient-to-br from-white to-amber-50/30">
-                                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+                                                        <div className="grid grid-cols-4 gap-12">
                                                             {/* Detailed Columns */}
                                                             <div className="space-y-6">
                                                                 <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2">Business Info</h4>
@@ -790,7 +779,7 @@ const DocumentChip = ({ label, url }) => (
 );
 
 const FilterSelect = ({ placeholder, value, onChange, options = [], icon }) => (
-    <div className="relative flex items-center bg-gray-50/80 rounded-full border border-gray-100 px-5 py-2.5 focus-within:border-amber-500/50 focus-within:bg-white focus-within:shadow-md transition-all duration-300 min-w-[170px] group shadow-inner">
+    <div className="relative flex items-center bg-gray-50/80 rounded-full border border-gray-100 px-5 py-2.5 focus-within:border-amber-500/50 focus-within:bg-white focus-within:shadow-md transition-all duration-300 w-full group shadow-inner">
         {icon && <Icon icon={icon} className="text-gray-400 text-lg mr-3 group-focus-within:text-amber-500 transition-colors" />}
         <select
             value={value}
@@ -809,7 +798,7 @@ const FilterSelect = ({ placeholder, value, onChange, options = [], icon }) => (
 );
 
 const FilterInput = ({ placeholder, value, onChange, icon }) => (
-    <div className="relative flex items-center bg-gray-50/80 rounded-full border border-gray-100 px-5 py-2.5 focus-within:border-amber-500/50 focus-within:bg-white focus-within:shadow-md transition-all duration-300 min-w-[220px] group shadow-inner">
+    <div className="relative flex items-center bg-gray-50/80 rounded-full border border-gray-100 px-5 py-2.5 focus-within:border-amber-500/50 focus-within:bg-white focus-within:shadow-md transition-all duration-300 w-full group shadow-inner">
         {icon && <Icon icon={icon} className="text-gray-400 text-lg mr-3 group-focus-within:text-amber-500 transition-colors" />}
         <input
             type="text"

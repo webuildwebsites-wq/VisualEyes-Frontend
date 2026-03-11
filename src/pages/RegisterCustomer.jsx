@@ -150,7 +150,10 @@ export default function RegisterCustomer() {
         ownerName: Yup.string().required('Owner Name is required'),
         CustomerTypeRefId: Yup.string().required('Customer Type is required'),
         mobileNo1: Yup.string().matches(/^\d{10}$/, 'Mobile No. must be 10 digits').required('Mobile No. 1 is required'),
+        mobileNo2: Yup.string().matches(/^\d{10}$/, 'Mobile No. must be 10 digits').nullable(),
+        landlineNo: Yup.string().matches(/^\d{8,12}$/, 'Landline No. must be between 8 and 12 digits').nullable(),
         emailId: Yup.string().email('Invalid email').required('Email ID is required'),
+        businessEmail: Yup.string().email('Invalid business email').nullable(),
         gstType: Yup.string().required('GST Type is required'),
         GSTNumber: Yup.string().when('gstType', {
             is: (val) => val?.toLowerCase() !== 'unregistered',
@@ -583,11 +586,12 @@ export default function RegisterCustomer() {
 
         switch (activeStep) {
             case 0: // Basic Info
-                const basicFields = ['shopName', 'ownerName', 'CustomerTypeRefId', 'orderMode', 'mobileNo1', 'emailId', 'gstType'];
-                const hasBasicFields = basicFields.every(field => !!values[field]);
-                const basicErrors = basicFields.some(field => !!errors[field]);
+                const reqFields = ['shopName', 'ownerName', 'CustomerTypeRefId', 'orderMode', 'mobileNo1', 'emailId', 'gstType'];
+                const optFields = ['mobileNo2', 'landlineNo', 'businessEmail'];
+                const hasReqFields = reqFields.every(field => !!values[field]);
+                const hasErrors = [...reqFields, ...optFields].some(field => !!errors[field]);
 
-                if (!hasBasicFields || basicErrors) return false;
+                if (!hasReqFields || hasErrors) return false;
 
                 if (values.gstType?.toLowerCase() !== 'unregistered') {
                     return !!values.GSTNumber && !!values.GSTCertificateImg && !errors.GSTNumber;
@@ -711,12 +715,12 @@ export default function RegisterCustomer() {
             )}
 
             {/* Tab Navigation */}
-            <div className="flex justify-center gap-4 mb-10 overflow-x-auto no-scrollbar py-2 text-center">
+            <div className="flex flex-wrap md:flex-nowrap justify-center gap-2 md:gap-4 mb-6 md:mb-10 overflow-x-auto no-scrollbar py-2 text-center">
                 {steps.map((label, idx) => (
                     <button
                         key={idx}
                         onClick={() => setStep(idx)}
-                        className={`px-8 py-2 rounded-full border-2 transition-all min-w-[160px] font-semibold whitespace-nowrap
+                        className={`px-4 md:px-8 py-2 rounded-full border-2 transition-all min-w-[120px] md:min-w-[160px] font-semibold whitespace-nowrap text-xs md:text-sm
                             ${activeStep === idx
                                 ? 'bg-[#F59E0B] text-white border-[#F59E0B] shadow-md'
                                 : 'bg-white text-gray-400 border-gray-200 hover:border-[#F59E0B]/50'
@@ -729,21 +733,20 @@ export default function RegisterCustomer() {
             </div>
 
             {/* Main Content Card */}
-            <div className="max-w-6xl mx-auto bg-white/80 backdrop-blur-md rounded-[40px] shadow-2xl p-12 border border-white/50 relative overflow-hidden">
+            <div className="max-w-6xl mx-auto bg-white/80 backdrop-blur-md rounded-3xl md:rounded-[40px] shadow-2xl p-4 md:p-12 border border-white/50 relative overflow-hidden">
                 <div className="relative z-10">
                     <FormikProvider value={formik}>
                         {renderStep()}
                     </FormikProvider>
 
                     {/* Footer Actions */}
-                    <div className="flex justify-center gap-6 mt-16  mx-auto ">
+                    <div className="flex flex-col md:flex-row justify-center gap-4 md:gap-6 mt-8 md:mt-16 mx-auto ">
                         <Button
                             variant="outlined"
                             onClick={handleSaveDraft}
                             disabled={savingDraft || loadingDraftData || isApprovalMode}
-                            className={isApprovalMode ? 'hidden' : ''}
+                            className={`w-full md:w-auto ${isApprovalMode ? 'hidden' : ''}`}
                         >
-
                             {draftCustomerId ? 'Update Draft' : 'Save As Draft'}
                         </Button>
 
@@ -794,6 +797,7 @@ export default function RegisterCustomer() {
                         )}
 
                         <Button
+                            variant="contained"
                             onClick={async () => {
                                 if (activeStep < steps.length - 1) {
                                     setStep(activeStep + 1);
@@ -814,7 +818,7 @@ export default function RegisterCustomer() {
                                 }
                             }}
                             disabled={(!isReadOnlyMode && !isStepValid()) || isVerificationMode}
-                            className={((!isReadOnlyMode && !isStepValid()) || isVerificationMode) ? "opacity-50 cursor-not-allowed" : ""}
+                            className={`w-full md:w-auto ${((!isReadOnlyMode && !isStepValid()) || isVerificationMode) ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
                             {activeStep === steps.length - 1
                                 ? (isReadOnlyMode ? 'Close' : (isApprovalMode ? 'Approve' : (correctionCustomerId ? 'Resubmit' : ( (user?.EmployeeType === 'SUPERADMIN' || isFinanceUser) ? 'Register' : 'Submit For Approval' ))))
@@ -976,7 +980,18 @@ const CustomerInfo = ({ wrapInput, configs, formik, aadharRef, panRef, gstRef, h
     </div>
 );
 
-const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, dispatch, isReadOnlyMode }) => (
+const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, dispatch, isReadOnlyMode }) => {
+    useEffect(() => {
+        if (!isReadOnlyMode && formik.values.address.length === 1) {
+            const firstAddr = formik.values.address[0];
+            if (!firstAddr.contactPerson && !firstAddr.contactNumber) {
+                formik.setFieldValue('address.0.contactPerson', formik.values.ownerName || '');
+                formik.setFieldValue('address.0.contactNumber', formik.values.mobileNo1 || '');
+            }
+        }
+    }, [isReadOnlyMode, formik.values.ownerName, formik.values.mobileNo1]);
+
+    return (
     <div className="space-y-12">
 
 
@@ -1102,7 +1117,17 @@ const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, d
                         <div className="flex justify-center mt-4">
                             <Button
                                 variant="outlined"
-                                onClick={() => push({ branchAddress: '', contactPerson: '', contactNumber: '', city: '', state: '', country: 'India', billingCurrency: 'Indian Rupees', billingMode: 'Credit', zipCode: '' })}
+                                onClick={() => push({
+                                    branchAddress: '',
+                                    contactPerson: formik.values.ownerName || '',
+                                    contactNumber: formik.values.mobileNo1 || '',
+                                    city: '',
+                                    state: '',
+                                    country: 'India',
+                                    billingCurrency: 'Indian Rupees',
+                                    billingMode: 'Credit',
+                                    zipCode: ''
+                                })}
                                 className="bg-[#F59E0B] text-white rounded-full px-10 py-3 flex items-center gap-2 w-fit hover:text-black hover:bg-[#D97706]"
                             >
                                 <Icon icon="mdi:plus" /> Add Address
@@ -1113,7 +1138,8 @@ const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, d
             )}
         </FieldArray>
     </div>
-);
+    );
+};
 
 const BrandRow = ({ index, bc, remove, configs, formik, wrapInput, isReadOnlyMode }) => {
     const [categories, setCategories] = useState([]);
@@ -1314,14 +1340,14 @@ const DetailItem = ({ label, value }) => (
 );
 
 const SummaryCard = ({ title, icon, color = "#F59E0B", children }) => (
-    <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100/50 hover:shadow-md transition-all">
-        <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: color }}>
-                <Icon icon={icon} className="text-xl" />
+    <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-sm border border-gray-100/50 hover:shadow-md transition-all">
+        <div className="flex items-center gap-3 mb-4 md:mb-8">
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: color }}>
+                <Icon icon={icon} className="text-lg md:text-xl" />
             </div>
-            <h3 className="font-bold text-gray-800 text-lg uppercase tracking-tight">{title}</h3>
+            <h3 className="font-bold text-gray-800 text-sm md:text-base lg:text-lg uppercase tracking-tight">{title}</h3>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 md:gap-x-8 gap-y-4 md:gap-y-6">
             {children}
         </div>
     </div>
@@ -1356,13 +1382,13 @@ const Overview = ({ formik, configs = {}, isSalesUser }) => {
     const { values } = formik;
 
     return (
-        <div className="space-y-8 max-h-[600px] overflow-y-auto pr-4 custom-scrollbar">
-            <h2 className="text-2xl font-black text-[#F59E0B] mb-8 flex items-center gap-3">
+        <div className="space-y-6 md:space-y-8 max-h-[500px] md:max-h-[600px] overflow-y-auto pr-2 md:pr-4 custom-scrollbar">
+            <h2 className="text-xl md:text-2xl font-black text-[#F59E0B] mb-4 md:mb-8 flex items-center gap-3">
                 <Icon icon="mdi:file-find-outline" /> Review Application
             </h2>
 
             <SummaryCard title="Basic Info" icon="mdi:account-circle">
-                <div className="col-span-full grid grid-cols-2 md:grid-cols-3 gap-6 mb-4">
+                <div className="col-span-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-4">
                     <DetailItem label="Shop Name" value={values.shopName} />
                     <DetailItem label="Owner's Name" value={values.ownerName} />
                     <DetailItem label="Mobile 1" value={values.mobileNo1} />
@@ -1373,9 +1399,9 @@ const Overview = ({ formik, configs = {}, isSalesUser }) => {
                     {(values.gstType === 'Regular' || values.gstType === 'Composition') && <DetailItem label="GST Number" value={values.GSTNumber} />}
                 </div>
 
-                <div className="col-span-full border-t border-gray-50 pt-6 mt-2">
+                <div className="col-span-full border-t border-gray-50 pt-4 md:pt-6 mt-2">
                     <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] mb-4">Identity Documents</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
                         {(values.gstType === 'Regular' || values.gstType === 'Composition') ? (
                             <DocPreview label="GST Document" src={values.GSTCertificateImg} />
                         ) : (
