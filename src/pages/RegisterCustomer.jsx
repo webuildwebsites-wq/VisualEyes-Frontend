@@ -111,14 +111,14 @@ const mapCustomerToFormValues = (customer, configs = {}) => {
         courierNameRefId: getRefId(customer.courierName, configs.courierNames),
         courierTimeRefId: getRefId(customer.courierTime, configs.courierTimes, 'time'),
         address: customer.address?.length ? customer.address : INITIAL_FORM_VALUES.address,
-        brandCategories: (customer.brandCategories || []).map(bc => ({
+        brandCategories: (customer.brandCategories?.length) ? customer.brandCategories.map(bc => ({
             brandId: getRefId(bc.brandId, configs.brands),
             brandName: getLabel(bc.brandId, configs.brands),
             categories: (bc.categories || []).map(cat => ({
-                categoryId: getRefId(cat.categoryId), // Nested categories might need more context, but usually ID is enough
+                categoryId: getRefId(cat.categoryId),
                 categoryName: getLabel(cat.categoryId)
             }))
-        })),
+        })) : INITIAL_FORM_VALUES.brandCategories,
     };
 };
 
@@ -641,7 +641,7 @@ export default function RegisterCustomer() {
             );
             case 1: return <AddressDetails formik={formik} configs={configs} isVerificationMode={isVerificationMode} rejectedFields={rejectedFields} dispatch={dispatch} isReadOnlyMode={isReadOnlyMode} />;
             case 2:
-                if (isSalesUser) return <Overview formik={formik} configs={configs} />;
+                if (isSalesUser) return <Overview formik={formik} configs={configs} isSalesUser={isSalesUser} />;
                 return <CustomerRegn wrapInput={wrapInput} configs={configs} formValues={formik.values} formik={formik} dispatch={dispatch} isReadOnlyMode={isReadOnlyMode} />;
             case 3: return <Overview formik={formik} configs={configs} isSalesUser={isSalesUser} />;
             default: return null;
@@ -817,7 +817,7 @@ export default function RegisterCustomer() {
                             className={((!isReadOnlyMode && !isStepValid()) || isVerificationMode) ? "opacity-50 cursor-not-allowed" : ""}
                         >
                             {activeStep === steps.length - 1
-                                ? (isApprovalMode ? 'Approve' : (isReadOnlyMode ? 'Close' : (correctionCustomerId ? 'Resubmit' : 'Submit For Approval')))
+                                ? (isReadOnlyMode ? 'Close' : (isApprovalMode ? 'Approve' : (correctionCustomerId ? 'Resubmit' : ( (user?.EmployeeType === 'SUPERADMIN' || isFinanceUser) ? 'Register' : 'Submit For Approval' ))))
                                 : 'Next'}
                         </Button>
                     </div>
@@ -1172,6 +1172,7 @@ const BrandRow = ({ index, bc, remove, configs, formik, wrapInput, isReadOnlyMod
                 <Select
                     label="Select Categories*"
                     multiple
+                    placeholder="Select Categories"
                     disabled={!bc.brandId || loading}
                     value={(bc.categories || []).map(c => c.categoryId)}
                     onChange={(e) => {
@@ -1367,7 +1368,7 @@ const Overview = ({ formik, configs = {}, isSalesUser }) => {
                     <DetailItem label="Mobile 1" value={values.mobileNo1} />
                     <DetailItem label="Mobile 2" value={values.mobileNo2} />
                     <DetailItem label="Landline" value={values.landlineNo} />
-                    <DetailItem label="Email ID" value={values.emailId} />
+                    {!isSalesUser && <DetailItem label="Email ID" value={values.emailId} />}
                     <DetailItem label="GST Type" value={values.gstType} />
                     {(values.gstType === 'Regular' || values.gstType === 'Composition') && <DetailItem label="GST Number" value={values.GSTNumber} />}
                 </div>
