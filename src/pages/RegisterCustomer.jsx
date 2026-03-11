@@ -19,12 +19,14 @@ import {
     registerCustomer,
     draftRegisterCustomer,
     updateDraftCustomer,
-    getDraftCustomerById
+    getDraftCustomerById,
+    getCustomerById,
+    resubmitCustomerCorrection,
+    approveCustomerFinance
 } from '../services/customerService';
 import { uploadImage } from '../services/bucketService';
 import { PATHS } from '../routes/paths';
-
-const steps = ['Customer Info', 'Address Details', 'Customer Regn', 'Overview'];
+import CorrectionRequestModal from '../components/ui/CorrectionRequestModal';
 
 const INITIAL_FORM_VALUES = {
     shopName: '',
@@ -60,61 +62,132 @@ const INITIAL_FORM_VALUES = {
     courierTimeRefId: ''
 };
 
-// Defined OUTSIDE the component so it's never recreated on render
-const validationSchema = Yup.object().shape({
-    shopName: Yup.string().required('Shop Name is required'),
-    ownerName: Yup.string().required('Owner Name is required'),
-    CustomerTypeRefId: Yup.string().required('Customer Type is required'),
-    mobileNo1: Yup.string().matches(/^\d{10}$/, 'Mobile No. must be 10 digits').required('Mobile No. 1 is required'),
-    emailId: Yup.string().email('Invalid email').required('Email ID is required'),
-    gstType: Yup.string().required('GST Type is required'),
-    GSTNumber: Yup.string().when('gstType', {
-        is: (val) => val?.toLowerCase() !== 'unregistered',
-        then: (schema) => schema.required('GST Number is required'),
-        otherwise: (schema) => schema.notRequired()
-    }),
-    address: Yup.array().of(
-        Yup.object().shape({
-            branchAddress: Yup.string().required('Branch Address is required'),
-            city: Yup.string().required('City is required'),
-            state: Yup.string().required('State is required'),
-            contactNumber: Yup.string().required('Contact Number is required'),
-            zipCode: Yup.string().required('Pincode is required'),
-        })
-    ),
-    customerpassword: Yup.string().required('Password is required'),
-    AadharCard: Yup.string().when('gstType', {
-        is: (val) => val?.toLowerCase() === 'unregistered',
-        then: (schema) => schema.matches(/^\d{12}$/, 'Aadhar No. must be 12 digits').required('Aadhar Card No. is required'),
-        otherwise: (schema) => schema.notRequired()
-    }),
-    PANCard: Yup.string().when('gstType', {
-        is: (val) => val?.toLowerCase() === 'unregistered',
-        then: (schema) => schema.matches(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format (e.g., ABCDE1234F)').required('PAN Card No. is required'),
-        otherwise: (schema) => schema.notRequired()
-    }),
-    brandCategories: Yup.array().of(
-        Yup.object().shape({
-            brandId: Yup.string().required('Brand is required'),
-            categories: Yup.array().of(
-                Yup.object().shape({
-                    categoryId: Yup.string().required('Category is required')
-                })
-            ).min(1, 'At least one category is required')
-        })
-    ).min(1, 'At least one brand is required')
-});
+const mapCustomerToFormValues = (customer, configs = {}) => {
+    if (!customer) return INITIAL_FORM_VALUES;
+
+    // Helper to find ID by label in a config list
+    const findId = (list, val, labelKey = 'name') => {
+        if (!val) return '';
+        if (!list || !Array.isArray(list)) return val;
+
+        const searchVal = String(val).toLowerCase();
+        const item = list.find(i =>
+            String(i._id).toLowerCase() === searchVal ||
+            String(i[labelKey] || i).toLowerCase() === searchVal
+        );
+        return item?._id || val;
+    };
+
+    // Helper to get Label from object or string
+    const getLabel = (obj, list, labelKey = 'name') => {
+        if (!obj) return '';
+        if (typeof obj === 'string') {
+            // If it's already an ID, try to get the label from list
+            const item = (list || []).find(i => i._id === obj);
+            return item ? (item[labelKey] || item) : obj;
+        }
+        return obj.name || obj.employeeName || obj.zone || obj.days || obj.time || '';
+    };
+
+    const getRefId = (obj, list, labelKey = 'name') => {
+        if (!obj) return '';
+        const baseId = (typeof obj === 'object') ? (obj._id || obj.refId || '') : obj;
+        return findId(list, baseId, labelKey);
+    };
+
+    return {
+        ...INITIAL_FORM_VALUES,
+        ...customer,
+        CustomerType: getLabel(customer.CustomerType, configs.customerTypes),
+        CustomerTypeRefId: getRefId(customer.CustomerType, configs.customerTypes),
+        gstType: getLabel(customer.gstType, configs.gstTypes) || (customer.IsGSTRegistered ? 'Regular' : 'Unregistered'),
+        gstTypeRefId: getRefId(customer.gstType || (customer.IsGSTRegistered ? 'Regular' : 'Unregistered'), configs.gstTypes),
+        zoneRefId: getRefId(customer.zone, configs.zones, 'zone'),
+        salesPersonRefId: getRefId(customer.salesPerson, configs.salesPersons, 'employeeName'),
+        specificLabRefId: getRefId(customer.specificLab, configs.specificLabs),
+        plantRefId: getRefId(customer.plant, configs.plants),
+        fittingCenterRefId: getRefId(customer.fittingCenter, configs.fittingCenters),
+        creditDaysRefId: getRefId(customer.creditDays, configs.creditDays, 'days'),
+        courierNameRefId: getRefId(customer.courierName, configs.courierNames),
+        courierTimeRefId: getRefId(customer.courierTime, configs.courierTimes, 'time'),
+        address: customer.address?.length ? customer.address : INITIAL_FORM_VALUES.address,
+        brandCategories: (customer.brandCategories || []).map(bc => ({
+            brandId: getRefId(bc.brandId, configs.brands),
+            brandName: getLabel(bc.brandId, configs.brands),
+            categories: (bc.categories || []).map(cat => ({
+                categoryId: getRefId(cat.categoryId), // Nested categories might need more context, but usually ID is enough
+                categoryName: getLabel(cat.categoryId)
+            }))
+        })),
+    };
+};
+
+
 
 export default function RegisterCustomer() {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
+    const user = useSelector((state) => state.auth.user);
+    const isSalesUser = user?.Department?.name?.toUpperCase() === 'SALES';
+    const isFinanceUser = ['FINANCE', 'F&A', 'F&A CFO', 'ACCOUNTING', 'SUPERADMIN', 'ADMIN'].includes(user?.Department?.name?.toUpperCase()) || user?.EmployeeType === 'SUPERADMIN';
 
-    // Get active step from URL, default to 0
+    const steps = useMemo(() => {
+        const baseSteps = ['Customer Info', 'Address Details', 'Customer Regn', 'Overview'];
+        if (isSalesUser) {
+            return baseSteps.filter(step => step !== 'Customer Regn');
+        }
+        return baseSteps;
+    }, [isSalesUser]);
+
     const activeStep = useMemo(() => {
         const step = parseInt(searchParams.get('step'));
         return isNaN(step) ? 0 : Math.min(Math.max(0, step), steps.length - 1);
-    }, [searchParams]);
+    }, [searchParams, steps]);
+
+    const validationSchema = useMemo(() => Yup.object().shape({
+        shopName: Yup.string().required('Shop Name is required'),
+        ownerName: Yup.string().required('Owner Name is required'),
+        CustomerTypeRefId: Yup.string().required('Customer Type is required'),
+        mobileNo1: Yup.string().matches(/^\d{10}$/, 'Mobile No. must be 10 digits').required('Mobile No. 1 is required'),
+        emailId: Yup.string().email('Invalid email').required('Email ID is required'),
+        gstType: Yup.string().required('GST Type is required'),
+        GSTNumber: Yup.string().when('gstType', {
+            is: (val) => val?.toLowerCase() !== 'unregistered',
+            then: (schema) => schema.required('GST Number is required'),
+            otherwise: (schema) => schema.notRequired()
+        }),
+        address: Yup.array().of(
+            Yup.object().shape({
+                branchAddress: Yup.string().required('Branch Address is required'),
+                city: Yup.string().required('City is required'),
+                state: Yup.string().required('State is required'),
+                contactNumber: Yup.string().required('Contact Number is required'),
+                zipCode: Yup.string().required('Pincode is required'),
+            })
+        ),
+        customerpassword: isSalesUser ? Yup.string().notRequired() : Yup.string().required('Password is required'),
+        AadharCard: Yup.string().when('gstType', {
+            is: (val) => val?.toLowerCase() === 'unregistered',
+            then: (schema) => schema.matches(/^\d{12}$/, 'Aadhar No. must be 12 digits').required('Aadhar Card No. is required'),
+            otherwise: (schema) => schema.notRequired()
+        }),
+        PANCard: Yup.string().when('gstType', {
+            is: (val) => val?.toLowerCase() === 'unregistered',
+            then: (schema) => schema.matches(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format (e.g., ABCDE1234F)').required('PAN Card No. is required'),
+            otherwise: (schema) => schema.notRequired()
+        }),
+        brandCategories: isSalesUser ? Yup.array().notRequired() : Yup.array().of(
+            Yup.object().shape({
+                brandId: Yup.string().required('Brand is required'),
+                categories: Yup.array().of(
+                    Yup.object().shape({
+                        categoryId: Yup.string().required('Category is required')
+                    })
+                ).min(1, 'At least one category is required')
+            })
+        ).min(1, 'At least one brand is required')
+    }), [isSalesUser]);
 
     const setStep = (step) => {
         setSearchParams({ step: step.toString() });
@@ -149,6 +222,11 @@ export default function RegisterCustomer() {
     const [savingDraft, setSavingDraft] = useState(false);
     const [loadingDraftData, setLoadingDraftData] = useState(false);
     const [draftCustomerId, setDraftCustomerId] = useState('');
+    const [correctionCustomerId, setCorrectionCustomerId] = useState('');
+    const [approvalId, setApprovalId] = useState('');
+    const [correctionRequest, setCorrectionRequest] = useState(null);
+    const [isApprovalMode, setIsApprovalMode] = useState(false);
+    const [isReadOnlyMode, setIsReadOnlyMode] = useState(false);
 
     useEffect(() => {
         const fetchConfigs = async () => {
@@ -191,7 +269,7 @@ export default function RegisterCustomer() {
     const formik = useFormik({
         initialValues: INITIAL_FORM_VALUES,
         validationSchema,
-        validateOnChange: false, // Validate only on blur/submit, not every keystroke
+        validateOnChange: false,
         validateOnBlur: true,
         onSubmit: async (values) => {
             const getLabel = (list, id, labelKey = 'name') => {
@@ -225,18 +303,73 @@ export default function RegisterCustomer() {
                 }))
             };
 
+            const getObj = (list, refId, labelKey = 'name') => {
+                if (!refId) return undefined;
+                return {
+                    name: getLabel(list, refId, labelKey),
+                    refId: refId
+                };
+            };
+
+            let finalPayload = payload;
+            if (approvalId) {
+                finalPayload = {
+                    ...payload,
+                    password: values.customerpassword,
+                    CustomerType: getObj(configs.customerTypes, values.CustomerTypeRefId),
+                    salesPerson: getObj(configs.salesPersons, values.salesPersonRefId, 'employeeName'),
+                    gstType: getObj(configs.gstTypes, values.gstTypeRefId),
+                    zone: getObj(configs.zones, values.zoneRefId, 'zone'),
+                    specificLab: getObj(configs.specificLabs, values.specificLabRefId),
+                    plant: getObj(configs.plants, values.plantRefId),
+                    fittingCenter: getObj(configs.fittingCenters, values.fittingCenterRefId),
+                    creditDays: getObj(configs.creditDays, values.creditDaysRefId, 'days'),
+                    courierName: getObj(configs.courierNames, values.courierNameRefId),
+                    courierTime: getObj(configs.courierTimes, values.courierTimeRefId, 'time'),
+                };
+                delete finalPayload.customerpassword;
+                delete finalPayload.CustomerTypeRefId;
+                delete finalPayload.salesPersonRefId;
+                delete finalPayload.gstTypeRefId;
+                delete finalPayload.zoneRefId;
+                delete finalPayload.specificLabRefId;
+                delete finalPayload.plantRefId;
+                delete finalPayload.fittingCenterRefId;
+                delete finalPayload.creditDaysRefId;
+                delete finalPayload.courierNameRefId;
+                delete finalPayload.courierTimeRefId;
+            }
+
             try {
-                await toast.promise(
-                    registerCustomer(payload),
-                    {
-                        pending: 'Registering customer...',
-                        success: 'Customer registered successfully! 👌',
-                    }
-                );
-                navigate(PATHS.WELCOME, { state: { from: 'customer-register' } });
+                if (approvalId) {
+                    await toast.promise(
+                        approveCustomerFinance(approvalId, finalPayload),
+                        {
+                            pending: 'Approving customer...',
+                            success: 'Customer approved successfully! 🚀',
+                        }
+                    );
+                } else if (correctionCustomerId) {
+                    await toast.promise(
+                        resubmitCustomerCorrection(correctionCustomerId, finalPayload),
+                        {
+                            pending: 'Resubmitting corrections...',
+                            success: 'Corrections resubmitted successfully! 👌',
+                        }
+                    );
+                } else {
+                    await toast.promise(
+                        registerCustomer(finalPayload),
+                        {
+                            pending: 'Registering customer...',
+                            success: 'Customer registered successfully! 👌',
+                        }
+                    );
+                }
+                navigate(PATHS.APPROVALS);
             } catch (error) {
                 console.error('Registration error:', error);
-                toast.error(error.error?.message || error.error.message || "Registration failed. Please try again. 🤯");
+                toast.error(error.error?.message || error.message || "Operation failed. Please try again. 🤯");
             }
         }
     });
@@ -246,14 +379,8 @@ export default function RegisterCustomer() {
         try {
             const response = await getDraftCustomerById(draftId);
             const draft = response.data || response;
-
             const draftData = draft.data || draft;
-            const formValues = {
-                ...INITIAL_FORM_VALUES,
-                ...draftData,
-                address: draftData.address?.length ? draftData.address : INITIAL_FORM_VALUES.address,
-                brandCategories: draftData.brandCategories?.length ? draftData.brandCategories : INITIAL_FORM_VALUES.brandCategories,
-            };
+            const formValues = mapCustomerToFormValues(draftData, configs);
 
             formik.setValues(formValues, false);
             setDraftCustomerId(draftId);
@@ -264,14 +391,68 @@ export default function RegisterCustomer() {
         } finally {
             setLoadingDraftData(false);
         }
-    }, [formik.setValues]);
+    }, [formik.setValues, configs]);
 
     useEffect(() => {
         const draftId = searchParams.get('draftId');
         if (draftId) {
             loadDraftDataById(draftId);
         }
-    }, [searchParams, loadDraftDataById]);
+
+        const correctionId = searchParams.get('correctionId');
+        if (correctionId) {
+            const fetchCorrectionData = async () => {
+                setLoadingDraftData(true);
+                try {
+                    const response = await getCustomerById(correctionId);
+                    const customer = response.data?.customer || response.data || response;
+                    const formValues = mapCustomerToFormValues(customer, configs);
+
+                    formik.setValues(formValues, false);
+                    setCorrectionCustomerId(correctionId);
+                    setCorrectionRequest(customer.correctionRequest);
+                    toast.info('Correction details loaded. Please update the highlighted fields.');
+                } catch (error) {
+                    console.error('Error loading correction data:', error);
+                    toast.error('Failed to load correction data');
+                } finally {
+                    setLoadingDraftData(false);
+                }
+            };
+            fetchCorrectionData();
+        }
+
+        const approvalIdFromUrl = searchParams.get('approvalId');
+        if (approvalIdFromUrl) {
+            const fetchApprovalData = async () => {
+                setLoadingDraftData(true);
+                try {
+                    const response = await getCustomerById(approvalIdFromUrl);
+                    const customer = response.data?.customer || response.data || response;
+
+                    const formValues = mapCustomerToFormValues(customer, configs);
+                    // Ensure password is reset for finance to fill
+                    formValues.customerpassword = '';
+
+                    formik.setValues(formValues, false);
+
+                    setApprovalId(approvalIdFromUrl);
+                    if (isFinanceUser) {
+                        setIsApprovalMode(true);
+                    } else {
+                        setIsReadOnlyMode(true);
+                    }
+                    toast.info(isFinanceUser ? 'Approval data loaded. Please complete the registration.' : 'Application details loaded (View Only).');
+                } catch (error) {
+                    console.error('Error loading approval data:', error);
+                    toast.error('Failed to load approval data');
+                } finally {
+                    setLoadingDraftData(false);
+                }
+            };
+            fetchApprovalData();
+        }
+    }, [searchParams, loadDraftDataById, configs, isFinanceUser]);
 
     const handleSaveDraft = useCallback(async () => {
         setSavingDraft(true);
@@ -321,7 +502,7 @@ export default function RegisterCustomer() {
             );
 
             if (response.success && !draftCustomerId) {
-                const newId = response.data?._id || (response.data?.employee?._id);
+                const newId = response.data?._id || response.data?.customer?._id;
                 if (newId) setDraftCustomerId(newId);
             }
         } catch (error) {
@@ -332,13 +513,24 @@ export default function RegisterCustomer() {
         }
     }, [formik.values, configs, draftCustomerId]);
 
+    const handleSendForCorrection = async (correctionData) => {
+        if (!approvalId) return;
+        try {
+            await toast.promise(
+                sendCustomerForCorrection(approvalId, correctionData),
+                {
+                    pending: 'Sending for correction...',
+                    success: 'Customer sent back for correction! 📝',
+                }
+            );
+            navigate(PATHS.APPROVALS);
+        } catch (error) {
+            console.error('Correction error:', error);
+            toast.error(error.message || "Failed to send for correction");
+        }
+    };
 
-    const [brandCategories, setBrandCategories] = useState([]); // This state is actually unused now but keeping for props compatibility if needed, or remove completely if prop is removed.
-    // Actually, looking at the renderStep, brandCategories is passed to CustomerRegn.
-    // But CustomerRegn doesn't use it anymore as BrandRow fetches its own.
-    // Let's remove it from both.
-
-
+    const [isCorrectionModalOpen, setIsCorrectionModalOpen] = useState(false);
 
     const handleFileUpload = async (e, fieldName, type) => {
         const file = e.target.files[0];
@@ -357,23 +549,32 @@ export default function RegisterCustomer() {
         }
     };
 
-
     const wrapInput = (Component, props) => {
-        const { onChange: customOnChange, ...rest } = props;
+        const { onChange: customOnChange, disabled: customDisabled, ...rest } = props;
+        const isCorrectionField = correctionRequest?.fieldsToCorrect?.includes(props.name);
+
         return (
-            <Component
-                {...rest}
-                isVerificationMode={isVerificationMode}
-                isRejected={rejectedFields[props.name]}
-                onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
-                error={formik.touched[props.name] && formik.errors[props.name] ? { message: formik.errors[props.name] } : null}
-                onChange={(e) => {
-                    if (customOnChange) customOnChange(e);
-                    else formik.handleChange(e);
-                }}
-                onBlur={formik.handleBlur}
-                value={formik.values[props.name] ?? ''}
-            />
+            <div className={`relative ${isCorrectionField ? 'p-1 rounded-2xl bg-red-50/50 border border-red-100 ring-2 ring-red-500/20' : ''}`}>
+                <Component
+                    {...rest}
+                    disabled={isReadOnlyMode || customDisabled}
+                    isVerificationMode={isVerificationMode}
+                    isRejected={rejectedFields[props.name]}
+                    onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
+                    error={formik.touched[props.name] && formik.errors[props.name] ? { message: formik.errors[props.name] } : null}
+                    onChange={(e) => {
+                        if (customOnChange) customOnChange(e);
+                        else formik.handleChange(e);
+                    }}
+                    onBlur={formik.handleBlur}
+                    value={formik.values[props.name] ?? ''}
+                />
+                {isCorrectionField && (
+                    <div className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg animate-bounce">
+                        <Icon icon="mdi:alert-circle" className="text-sm" />
+                    </div>
+                )}
+            </div>
         );
     };
 
@@ -388,7 +589,6 @@ export default function RegisterCustomer() {
 
                 if (!hasBasicFields || basicErrors) return false;
 
-                // Conditional identity docs
                 if (values.gstType?.toLowerCase() !== 'unregistered') {
                     return !!values.GSTNumber && !!values.GSTCertificateImg && !errors.GSTNumber;
                 } else {
@@ -404,11 +604,11 @@ export default function RegisterCustomer() {
                     return hasFields && !hasErrors;
                 });
 
-            case 2: // Customer Regn
+            case 2: // Customer Regn (or Overview for Sales)
+                if (isSalesUser) return true;
                 const regFields = ['customerpassword', 'zoneRefId', 'salesPersonRefId', 'specificLabRefId', 'plantRefId', 'fittingCenterRefId', 'creditLimit', 'creditDaysRefId', 'courierNameRefId', 'courierTimeRefId'];
                 const hasRegFields = regFields.every(field => !!values[field]);
                 const regErrors = regFields.some(field => !!errors[field]);
-
                 const hasBrands = values.brandCategories && values.brandCategories.length > 0;
                 const brandsValid = hasBrands && values.brandCategories.every((bc, idx) => {
                     const hasId = !!bc.brandId;
@@ -416,10 +616,9 @@ export default function RegisterCustomer() {
                     const catsValid = hasCats && bc.categories.every(cat => !!cat.categoryId);
                     return hasId && catsValid;
                 });
-
                 return hasRegFields && !regErrors && brandsValid;
 
-            case 3: // Overview
+            case 3:
                 return true;
             default: return false;
         }
@@ -437,19 +636,79 @@ export default function RegisterCustomer() {
                     gstRef={gstInputRef}
                     handleFileUpload={handleFileUpload}
                     uploading={uploading}
+                    isReadOnlyMode={isReadOnlyMode}
                 />
             );
-            case 1: return <AddressDetails formik={formik} configs={configs} isVerificationMode={isVerificationMode} rejectedFields={rejectedFields} dispatch={dispatch} />;
-            case 2: return <CustomerRegn wrapInput={wrapInput} configs={configs} formValues={formik.values} formik={formik} dispatch={dispatch} />;
-            case 3: return <Overview formik={formik} configs={configs} />;
+            case 1: return <AddressDetails formik={formik} configs={configs} isVerificationMode={isVerificationMode} rejectedFields={rejectedFields} dispatch={dispatch} isReadOnlyMode={isReadOnlyMode} />;
+            case 2:
+                if (isSalesUser) return <Overview formik={formik} configs={configs} />;
+                return <CustomerRegn wrapInput={wrapInput} configs={configs} formValues={formik.values} formik={formik} dispatch={dispatch} isReadOnlyMode={isReadOnlyMode} />;
+            case 3: return <Overview formik={formik} configs={configs} isSalesUser={isSalesUser} />;
             default: return null;
         }
     };
 
-    return (
-        <div className="min-h-screen  p-6">
-            {/* Header Area */}
+    const customerName = formik.values.shopName || 'this customer';
 
+    return (
+        <div className="min-h-screen p-6">
+            {/* Correction Header */}
+            {/* {correctionRequest && (
+                <div className="max-w-6xl mx-auto mb-8 bg-red-50 border border-red-100 rounded-[2rem] p-8 flex items-start gap-6 animate-in slide-in-from-top-4 duration-500">
+                    <div className="w-12 h-12 rounded-2xl bg-red-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-red-500/20">
+                        <Icon icon="mdi:comment-alert" className="text-2xl" />
+                    </div>
+                    <div>
+                        <h4 className="text-red-800 font-black uppercase tracking-widest text-xs mb-1">Correction Required</h4>
+                        <p className="text-red-700 font-bold text-sm leading-relaxed">{correctionRequest.remark}</p>
+                        <p className="text-red-500 text-[10px] uppercase font-black tracking-widest mt-2 flex items-center gap-2">
+                             Requested By: {correctionRequest.requestedBy?.employeeName} • {new Date(correctionRequest.requestedAt).toLocaleDateString()}
+                        </p>
+                    </div>
+                </div>
+            )} */}
+
+            {/* Approval Mode Banner */}
+            {isApprovalMode && (
+                <div className="max-w-6xl mx-auto mb-8 bg-amber-50 border border-amber-100 rounded-[2rem] p-8 flex items-start gap-6 animate-in slide-in-from-top-4 duration-500 shadow-sm">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20">
+                        <Icon icon="mdi:shield-check" className="text-2xl" />
+                    </div>
+                    <div className="flex-1">
+                        <h4 className="text-amber-800 font-black uppercase tracking-widest text-xs mb-1">Finance Approval Mode</h4>
+                        <p className="text-amber-700 font-bold text-sm leading-relaxed">
+                            You are reviewing a customer registration submitted by Sales. Please verify all details, provide the mandatory <span className="underline">Login Details</span>, and click Approve to finalize.
+                        </p>
+                    </div>
+                    {isFinanceUser && activeStep === steps.length - 1 && (
+                        <Button
+                            variant="outlined"
+                            className="bg-white border-amber-200 text-amber-700 hover:bg-amber-100"
+                            onClick={() => setIsCorrectionModalOpen(true)}
+                        >
+                            <Icon icon="mdi:keyboard-backspace" className="mr-2" />
+                            Send for Correction
+                        </Button>
+                    )}
+                </div>
+            )}
+
+            {isReadOnlyMode && (
+                <div className="max-w-6xl mx-auto mb-8 bg-gray-50 border border-gray-100 rounded-[2rem] p-8 flex items-start gap-6 animate-in slide-in-from-top-4 duration-500 shadow-sm">
+                    <div className="w-12 h-12 rounded-2xl bg-gray-400 text-white flex items-center justify-center shrink-0 shadow-lg shadow-gray-400/20">
+                        <Icon icon="mdi:eye" className="text-2xl" />
+                    </div>
+                    <div className="flex-1">
+                        <h4 className="text-gray-800 font-black uppercase tracking-widest text-xs mb-1">View Only Mode</h4>
+                        <p className="text-gray-600 font-bold text-sm leading-relaxed">
+                            This registration is currently <span className="text-amber-600">Pending Finance Approval</span>. You can review the submitted details, but modifications are restricted at this stage.
+                        </p>
+                    </div>
+                    <div className="px-4 py-2 bg-amber-50 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-amber-100">
+                        READ ONLY
+                    </div>
+                </div>
+            )}
 
             {/* Tab Navigation */}
             <div className="flex justify-center gap-4 mb-10 overflow-x-auto no-scrollbar py-2 text-center">
@@ -477,53 +736,72 @@ export default function RegisterCustomer() {
                     </FormikProvider>
 
                     {/* Footer Actions */}
-                    <div className="flex justify-center  gap-6 mt-16">
+                    <div className="flex justify-center gap-6 mt-16  mx-auto ">
                         <Button
                             variant="outlined"
                             onClick={handleSaveDraft}
-                            disabled={savingDraft || loadingDraftData}
-                            className="  "
+                            disabled={savingDraft || loadingDraftData || isApprovalMode}
+                            className={isApprovalMode ? 'hidden' : ''}
                         >
-                            {savingDraft ? 'Saving...' : draftCustomerId ? 'Update Draft' : 'Save As Draft'}
+
+                            {draftCustomerId ? 'Update Draft' : 'Save As Draft'}
                         </Button>
+
                         {loadingDraftData && (
-                            <span className="text-orange-500 text-sm animate-pulse">Loading draft...</span>
+                            <span className="text-orange-500 text-sm animate-pulse flex items-center">
+                                <Icon icon="mdi:loading" className="animate-spin mr-2" />
+                                Loading Details...
+                            </span>
                         )}
 
-                        {!isVerificationMode ? (
-                            <Button
-                                variant="outlined"
-                                onClick={() => dispatch(toggleVerificationMode())}
-                                className="  "
-                            >
-                                Send Back To Sales
-                            </Button>
-                        ) : (
-                            <>
-                                <Button
-                                    variant="outlined"
-                                    onClick={() => dispatch(toggleVerificationMode())}
-                                    className="   "
-                                >
-                                    Exit Verification
-                                </Button>
-                                <Button
-                                    onClick={() => {
-                                        toast.info("Sending rejections back to sales...");
-                                        // Specific logic for sending rejections would go here
-                                    }}
-                                    className="bg-red-500 text-white"
-                                >
-                                    Send Back
-                                </Button>
-                            </>
+                        {isFinanceUser && isApprovalMode && (
+                            <div className="flex gap-4 ">
+                                {!isVerificationMode ? (
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => dispatch(toggleVerificationMode())}
+                                        className="nowrap w-full "
+                                    >
+
+                                        Send Back To Sales
+                                    </Button>
+                                ) : (
+                                    <>
+                                        <Button
+                                            variant="outlined"
+                                            onClick={() => dispatch(toggleVerificationMode())}
+                                        >
+                                            Exit Verification
+                                        </Button>
+                                        <Button
+                                            onClick={() => {
+                                                const fields = Object.keys(rejectedFields).filter(k => rejectedFields[k]);
+                                                if (fields.length === 0) {
+                                                    toast.warning("Please select at least one field to reject");
+                                                    return;
+                                                }
+                                                // Re-use the existing modal logic but as the final submission
+                                                setCorrectionRequest({ fields, remarks: '' });
+                                                setIsCorrectionModalOpen(true);
+                                            }}
+                                            className="bg-red-500 text-white"
+                                        >
+                                            Submit Rejection
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
                         )}
 
                         <Button
                             onClick={async () => {
-                                if (activeStep < 3) {
+                                if (activeStep < steps.length - 1) {
                                     setStep(activeStep + 1);
                                 } else {
+                                    if (isReadOnlyMode) {
+                                        navigate(PATHS.APPROVALS);
+                                        return;
+                                    }
                                     const errors = await formik.validateForm();
                                     if (Object.keys(errors).length > 0) {
                                         toast.warning('Please fill all required fields correctly before submitting.');
@@ -535,23 +813,34 @@ export default function RegisterCustomer() {
                                     }
                                 }
                             }}
-                            disabled={!isStepValid()}
-                            className={!isStepValid() ? "opacity-50 cursor-not-allowed" : ""}
+                            disabled={(!isReadOnlyMode && !isStepValid()) || isVerificationMode}
+                            className={((!isReadOnlyMode && !isStepValid()) || isVerificationMode) ? "opacity-50 cursor-not-allowed" : ""}
                         >
-                            {activeStep === 3 ? 'Register' : 'Next'}
+                            {activeStep === steps.length - 1
+                                ? (isApprovalMode ? 'Approve' : (isReadOnlyMode ? 'Close' : (correctionCustomerId ? 'Resubmit' : 'Submit For Approval')))
+                                : 'Next'}
                         </Button>
                     </div>
                 </div>
 
                 {/* Background decorative circles */}
-                <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-gray-50 rounded-full opacity-50"></div>
-                <div className="absolute bottom-[-5%] left-[-5%] w-48 h-48 bg-gray-50 rounded-full opacity-50"></div>
+                {/* <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-gray-50 rounded-full opacity-50"></div>
+                <div className="absolute bottom-[-5%] left-[-5%] w-48 h-48 bg-gray-50 rounded-full opacity-50"></div> */}
             </div>
+
+            <CorrectionRequestModal
+                isOpen={isCorrectionModalOpen}
+                onClose={() => setIsCorrectionModalOpen(false)}
+                onSubmit={handleSendForCorrection}
+                customerName={formik.values.shopName}
+                initialFields={correctionRequest?.fields || correctionRequest?.fieldsToCorrect || []}
+                loading={false}
+            />
         </div>
     );
 }
 
-const FileUploadField = ({ label, name, placeholder, fileRef, onFileChange, uploading, currentValue, formik, wrapInput, imgFieldName }) => (
+const FileUploadField = ({ label, name, placeholder, fileRef, onFileChange, uploading, currentValue, formik, wrapInput, imgFieldName, isReadOnlyMode }) => (
     <div className="flex flex-col gap-4 p-6 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200 animate-in fade-in slide-in-from-top-2 duration-300">
         <div className="flex flex-col gap-2">
             <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider ml-1">{label}</span>
@@ -562,8 +851,8 @@ const FileUploadField = ({ label, name, placeholder, fileRef, onFileChange, uplo
             <input type="file" hidden ref={fileRef} onChange={onFileChange} />
             <Button
                 onClick={() => fileRef.current.click()}
-                disabled={uploading}
-                className="bg-[#F59E0B] text-white rounded-xl h-[52px] px-6 flex items-center justify-center gap-2 transition-all hover:bg-[#D97706] shadow-sm font-bold uppercase tracking-tighter text-xs"
+                disabled={uploading || isReadOnlyMode}
+                className={(uploading || isReadOnlyMode) ? "bg-gray-400 text-white rounded-xl h-[52px] px-6 flex items-center justify-center gap-2 cursor-not-allowed opacity-50" : "bg-[#F59E0B] text-white rounded-xl h-[52px] px-6 flex items-center justify-center gap-2 transition-all hover:bg-[#D97706] shadow-sm font-bold uppercase tracking-tighter text-xs"}
             >
                 <Icon icon={uploading ? "mdi:loading" : "mdi:cloud-upload"} className={uploading ? "animate-spin text-xl" : "text-xl"} />
                 {uploading ? 'Uploading...' : 'Upload Document'}
@@ -576,15 +865,17 @@ const FileUploadField = ({ label, name, placeholder, fileRef, onFileChange, uplo
                         <a href={currentValue} target="_blank" rel="noopener noreferrer" className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30 text-white hover:bg-white/30 transition-all scale-90 group-hover:scale-100 duration-300">
                             <Icon icon="mdi:eye" className="text-2xl" />
                         </a>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (imgFieldName) formik.setFieldValue(imgFieldName, '');
-                            }}
-                            className="bg-red-500/20 backdrop-blur-md p-3 rounded-full border border-red-500/30 text-red-500 hover:bg-red-500/30 transition-all scale-90 group-hover:scale-100 duration-300"
-                        >
-                            <Icon icon="mdi:trash-can-outline" className="text-2xl" />
-                        </button>
+                        {!isReadOnlyMode && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (imgFieldName) formik.setFieldValue(imgFieldName, '');
+                                }}
+                                className="bg-red-500/20 backdrop-blur-md p-3 rounded-full border border-red-500/30 text-red-500 hover:bg-red-500/30 transition-all scale-90 group-hover:scale-100 duration-300"
+                            >
+                                <Icon icon="mdi:trash-can-outline" className="text-2xl" />
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
@@ -592,7 +883,7 @@ const FileUploadField = ({ label, name, placeholder, fileRef, onFileChange, uplo
     </div>
 );
 
-const CustomerInfo = ({ wrapInput, configs, formik, aadharRef, panRef, gstRef, handleFileUpload, uploading }) => (
+const CustomerInfo = ({ wrapInput, configs, formik, aadharRef, panRef, gstRef, handleFileUpload, uploading, isReadOnlyMode }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
         {wrapInput(Input, { label: 'Shop Name*', name: 'shopName', placeholder: 'Enter Shop Name' })}
         {wrapInput(Input, { label: "Owner's Name*", name: 'ownerName', placeholder: "Enter Owner's Name" })}
@@ -653,6 +944,7 @@ const CustomerInfo = ({ wrapInput, configs, formik, aadharRef, panRef, gstRef, h
                     formik={formik}
                     wrapInput={wrapInput}
                     imgFieldName="AadharCardImg"
+                    isReadOnlyMode={isReadOnlyMode}
                 />
                 <FileUploadField
                     label="PAN Card No.*"
@@ -665,6 +957,7 @@ const CustomerInfo = ({ wrapInput, configs, formik, aadharRef, panRef, gstRef, h
                     formik={formik}
                     wrapInput={wrapInput}
                     imgFieldName="PANCardImg"
+                    isReadOnlyMode={isReadOnlyMode}
                 />
             </>
         ) : <FileUploadField
@@ -678,11 +971,12 @@ const CustomerInfo = ({ wrapInput, configs, formik, aadharRef, panRef, gstRef, h
             formik={formik}
             wrapInput={wrapInput}
             imgFieldName="GSTCertificateImg"
+            isReadOnlyMode={isReadOnlyMode}
         />}
     </div>
 );
 
-const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, dispatch }) => (
+const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, dispatch, isReadOnlyMode }) => (
     <div className="space-y-12">
 
 
@@ -693,7 +987,7 @@ const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, d
                         <div key={index} className="relative pt-6">
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-[#F59E0B] font-bold">Address {index + 1}*</h3>
-                                {index > 0 && <button onClick={() => remove(index)} className="text-red-500 text-sm font-bold flex items-center gap-1"><Icon icon="mdi:delete" /> Remove</button>}
+                                {index > 0 && !isReadOnlyMode && <button onClick={() => remove(index)} className="text-red-500 text-sm font-bold flex items-center gap-1"><Icon icon="mdi:delete" /> Remove</button>}
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
                                 <Input
@@ -702,6 +996,7 @@ const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, d
                                     value={addr.branchAddress}
                                     onChange={formik.handleChange}
                                     onBlur={formik.handleBlur}
+                                    disabled={isReadOnlyMode}
                                     isVerificationMode={isVerificationMode}
                                     isRejected={rejectedFields[`address.${index}.branchAddress`]}
                                     onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
@@ -713,6 +1008,7 @@ const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, d
                                     value={addr.contactPerson}
                                     onChange={formik.handleChange}
                                     onBlur={formik.handleBlur}
+                                    disabled={isReadOnlyMode}
                                     isVerificationMode={isVerificationMode}
                                     isRejected={rejectedFields[`address.${index}.contactPerson`]}
                                     onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
@@ -723,6 +1019,7 @@ const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, d
                                     value={addr.contactNumber}
                                     onChange={formik.handleChange}
                                     onBlur={formik.handleBlur}
+                                    disabled={isReadOnlyMode}
                                     isVerificationMode={isVerificationMode}
                                     isRejected={rejectedFields[`address.${index}.contactNumber`]}
                                     onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
@@ -734,6 +1031,7 @@ const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, d
                                     value={addr.city}
                                     onChange={formik.handleChange}
                                     onBlur={formik.handleBlur}
+                                    disabled={isReadOnlyMode}
                                     isVerificationMode={isVerificationMode}
                                     isRejected={rejectedFields[`address.${index}.city`]}
                                     onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
@@ -745,6 +1043,7 @@ const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, d
                                     value={addr.state}
                                     onChange={formik.handleChange}
                                     onBlur={formik.handleBlur}
+                                    disabled={isReadOnlyMode}
                                     isVerificationMode={isVerificationMode}
                                     isRejected={rejectedFields[`address.${index}.state`]}
                                     onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
@@ -756,6 +1055,7 @@ const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, d
                                     name={`address.${index}.country`}
                                     value={addr.country}
                                     onChange={formik.handleChange}
+                                    disabled={isReadOnlyMode}
                                     isVerificationMode={isVerificationMode}
                                     isRejected={rejectedFields[`address.${index}.country`]}
                                     onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
@@ -766,6 +1066,7 @@ const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, d
                                     name={`address.${index}.billingCurrency`}
                                     value={addr.billingCurrency}
                                     onChange={formik.handleChange}
+                                    disabled={isReadOnlyMode}
                                     isVerificationMode={isVerificationMode}
                                     isRejected={rejectedFields[`address.${index}.billingCurrency`]}
                                     onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
@@ -776,6 +1077,7 @@ const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, d
                                     name={`address.${index}.billingMode`}
                                     value={addr.billingMode}
                                     onChange={formik.handleChange}
+                                    disabled={isReadOnlyMode}
                                     isVerificationMode={isVerificationMode}
                                     isRejected={rejectedFields[`address.${index}.billingMode`]}
                                     onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
@@ -787,6 +1089,7 @@ const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, d
                                     value={addr.zipCode}
                                     onChange={formik.handleChange}
                                     onBlur={formik.handleBlur}
+                                    disabled={isReadOnlyMode}
                                     isVerificationMode={isVerificationMode}
                                     isRejected={rejectedFields[`address.${index}.zipCode`]}
                                     onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
@@ -795,22 +1098,24 @@ const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, d
                             </div>
                         </div>
                     ))}
-                    <div className="flex justify-center mt-4">
-                        <Button
-                            variant="outlined"
-                            onClick={() => push({ branchAddress: '', contactPerson: '', contactNumber: '', city: '', state: '', country: 'India', billingCurrency: 'Indian Rupees', billingMode: 'Credit', zipCode: '' })}
-                            className="bg-[#F59E0B] text-white rounded-full px-10 py-3 flex items-center gap-2 w-fit hover:text-black hover:bg-[#D97706]"
-                        >
-                            <Icon icon="mdi:plus" /> Add Address
-                        </Button>
-                    </div>
+                    {!isReadOnlyMode && (
+                        <div className="flex justify-center mt-4">
+                            <Button
+                                variant="outlined"
+                                onClick={() => push({ branchAddress: '', contactPerson: '', contactNumber: '', city: '', state: '', country: 'India', billingCurrency: 'Indian Rupees', billingMode: 'Credit', zipCode: '' })}
+                                className="bg-[#F59E0B] text-white rounded-full px-10 py-3 flex items-center gap-2 w-fit hover:text-black hover:bg-[#D97706]"
+                            >
+                                <Icon icon="mdi:plus" /> Add Address
+                            </Button>
+                        </div>
+                    )}
                 </div>
             )}
         </FieldArray>
     </div>
 );
 
-const BrandRow = ({ index, bc, remove, configs, formik, wrapInput }) => {
+const BrandRow = ({ index, bc, remove, configs, formik, wrapInput, isReadOnlyMode }) => {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
 
@@ -841,13 +1146,15 @@ const BrandRow = ({ index, bc, remove, configs, formik, wrapInput }) => {
 
     return (
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative group">
-            <button
-                type="button"
-                onClick={() => remove(index)}
-                className="absolute -top-2 -right-2 bg-red-50 text-red-500 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity border border-red-100"
-            >
-                <Icon icon="mdi:close" className="text-lg" />
-            </button>
+            {!isReadOnlyMode && (
+                <button
+                    type="button"
+                    onClick={() => remove(index)}
+                    className="absolute -top-2 -right-2 bg-red-50 text-red-500 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity border border-red-100"
+                >
+                    <Icon icon="mdi:close" className="text-lg" />
+                </button>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Select
                     label="Select Brand*"
@@ -883,7 +1190,7 @@ const BrandRow = ({ index, bc, remove, configs, formik, wrapInput }) => {
     );
 };
 
-const CustomerRegn = ({ wrapInput, configs, formValues, formik, dispatch }) => (
+const CustomerRegn = ({ wrapInput, configs, formValues, formik, dispatch, isReadOnlyMode }) => (
     <div className="space-y-12">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
             <Input
@@ -915,15 +1222,18 @@ const CustomerRegn = ({ wrapInput, configs, formValues, formik, dispatch }) => (
                                 configs={configs}
                                 formik={formik}
                                 wrapInput={wrapInput}
+                                isReadOnlyMode={isReadOnlyMode}
                             />
                         ))}
-                        <Button
-                            variant="outlined"
-                            onClick={() => push({ brandId: '', brandName: '', categories: [] })}
-                            className="bg-gray-50 border-dashed border-2 border-gray-200 text-gray-500 hover:border-[#F59E0B] hover:text-[#F59E0B] w-full py-4 rounded-2xl flex items-center justify-center gap-2"
-                        >
-                            <Icon icon="mdi:plus-circle" /> Add Another Brand
-                        </Button>
+                        {!isReadOnlyMode && (
+                            <Button
+                                variant="outlined"
+                                onClick={() => push({ brandId: '', brandName: '', categories: [] })}
+                                className="bg-gray-50 border-dashed border-2 border-gray-200 text-gray-500 hover:border-[#F59E0B] hover:text-[#F59E0B] w-full py-4 rounded-2xl flex items-center justify-center gap-2"
+                            >
+                                <Icon icon="mdi:plus-circle" /> Add Another Brand
+                            </Button>
+                        )}
                     </div>
                 )}
             </FieldArray>
@@ -1041,7 +1351,7 @@ const DocPreview = ({ label, src }) => (
     </div>
 );
 
-const Overview = ({ formik, configs = {} }) => {
+const Overview = ({ formik, configs = {}, isSalesUser }) => {
     const { values } = formik;
 
     return (
@@ -1098,34 +1408,38 @@ const Overview = ({ formik, configs = {} }) => {
                 ))}
             </div>
 
-            <SummaryCard title="Registration Details" icon="mdi:cog">
-                <DetailItem label="Zone" value={configs.zones.find(z => z._id === values.zoneRefId)?.zone} />
-                <DetailItem label="Sales Person" value={configs.salesPersons.find(s => s._id === values.salesPersonRefId)?.employeeName} />
-                <DetailItem label="Specific Lab" value={configs.specificLabs.find(l => l._id === values.specificLabRefId)?.name} />
-                <DetailItem label="Plant" value={configs.plants.find(p => p._id === values.plantRefId)?.name} />
-                <DetailItem label="Fitting Centre" value={configs.fittingCenters.find(f => f._id === values.fittingCenterRefId)?.name} />
-                <DetailItem label="Credit Limit" value={values.creditLimit} />
-                <DetailItem label="Credit Days" value={configs.creditDays.find(d => d._id === values.creditDaysRefId)?.days} />
-                <DetailItem label="Courier Name" value={configs.courierNames.find(c => c._id === values.courierNameRefId)?.name} />
-                <DetailItem label="Courier Time" value={configs.courierTimes.find(t => t._id === values.courierTimeRefId)?.time} />
-            </SummaryCard>
+            {!isSalesUser && (
+                <SummaryCard title="Registration Details" icon="mdi:cog">
+                    <DetailItem label="Zone" value={configs.zones.find(z => z._id === values.zoneRefId)?.zone} />
+                    <DetailItem label="Sales Person" value={configs.salesPersons.find(s => s._id === values.salesPersonRefId)?.employeeName} />
+                    <DetailItem label="Specific Lab" value={configs.specificLabs.find(l => l._id === values.specificLabRefId)?.name} />
+                    <DetailItem label="Plant" value={configs.plants.find(p => p._id === values.plantRefId)?.name} />
+                    <DetailItem label="Fitting Centre" value={configs.fittingCenters.find(f => f._id === values.fittingCenterRefId)?.name} />
+                    <DetailItem label="Credit Limit" value={values.creditLimit} />
+                    <DetailItem label="Credit Days" value={configs.creditDays.find(d => d._id === values.creditDaysRefId)?.days} />
+                    <DetailItem label="Courier Name" value={configs.courierNames.find(c => c._id === values.courierNameRefId)?.name} />
+                    <DetailItem label="Courier Time" value={configs.courierTimes.find(t => t._id === values.courierTimeRefId)?.time} />
+                </SummaryCard>
+            )}
 
-            <SummaryCard title="Selected Brands & Categories" icon="mdi:tag-multiple">
-                <div className="col-span-full space-y-4">
-                    {values.brandCategories.map((bc, idx) => (
-                        <div key={idx} className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                            <h4 className="font-bold text-gray-800 mb-2">{bc.brandName || 'Unknown Brand'}</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {(bc.categories || []).map((cat, cIdx) => (
-                                    <span key={cIdx} className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-semibold text-gray-600">
-                                        {cat.categoryName}
-                                    </span>
-                                ))}
+            {!isSalesUser && (
+                <SummaryCard title="Selected Brands & Categories" icon="mdi:tag-multiple">
+                    <div className="col-span-full space-y-4">
+                        {values.brandCategories.map((bc, idx) => (
+                            <div key={idx} className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                <h4 className="font-bold text-gray-800 mb-2">{bc.brandName || 'Unknown Brand'}</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {(bc.categories || []).map((cat, cIdx) => (
+                                        <span key={cIdx} className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-semibold text-gray-600">
+                                            {cat.categoryName}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
-            </SummaryCard>
+                        ))}
+                    </div>
+                </SummaryCard>
+            )}
         </div>
     );
 };

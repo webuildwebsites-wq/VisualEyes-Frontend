@@ -8,9 +8,10 @@ export const createSupervisorUser = async (userData) => {
         throw error.response ? error.response.data : new Error('Failed to create supervisor Employee');
     }
 };
-export const getAllEmployees = async (page = 1, limit = 10) => {
+export const getAllEmployees = async (page = 1, limit = 10, filters = {}) => {
     try {
-        const response = await api.get(`/api/employee/management/get-all-employees?page=${page}&limit=${limit}`);
+        const queryParams = new URLSearchParams({ page, limit, ...filters });
+        const response = await api.get(`/api/employee/management/get-all-employees?${queryParams.toString()}`);
         return response.data;
     } catch (error) {
         throw error.response ? error.response.data : new Error('Failed to fetch employees');
@@ -69,3 +70,36 @@ export const getMyDraftEmployees = async (page = 1, limit = 10) => {
         throw error.response ? error.response.data : new Error('Failed to fetch my draft employees');
     }
 };
+
+export const deleteEmployee = async (id) => {
+    try {
+        const response = await api.delete(`/api/employee/management/delete-employee/${id}`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to delete employee');
+    }
+};
+
+export const deactivateDraftEmployee = async (id) => {
+    try {
+        const response = await api.delete(`/api/employee/management/deactivate-draft-employee/${id}`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to deactivate draft employee');
+    }
+};
+
+export const getMultipleEmployees = async (employeeIds, department, page = 1, limit = 10) => {
+    try {
+        const params = { page, limit };
+        if (employeeIds) params.employeeIds = employeeIds;
+        if (department) params.department = department;
+        
+        const queryParams = new URLSearchParams(params);
+        const response = await api.get(`/api/employee/management/get-multiple-employees?${queryParams.toString()}`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to fetch multiple employees');
+    }
+};
+

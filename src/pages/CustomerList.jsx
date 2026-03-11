@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
-import { getAllCustomers, getCustomerById, getCustomerConfigs } from '../services/customerService';
+import { getAllCustomers, getCustomerById, getCustomerConfigs, deactivateCustomer, sendCustomerForCorrection } from '../services/customerService';
+import { getAllZones } from '../services/locationService';
+import ConfirmationModal from '../components/ui/ConfirmationModal';
+import CorrectionRequestModal from '../components/ui/CorrectionRequestModal';
+import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import { PATHS } from '../routes/paths';
 import { useNavigate } from 'react-router-dom';
@@ -42,12 +46,20 @@ const CustomerList = () => {
     const [customers, setCustomers] = useState([]);
     console.log(customers, "customers")
     const [loading, setLoading] = useState(true);
-    const [configs, setConfigs] = useState({ customerTypes: [] });
+    const [configs, setConfigs] = useState({ customerTypes: [], zones: [] });
     const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [viewLoading, setViewLoading] = useState(false);
     const [expandedRows, setExpandedRows] = useState(new Set());
     const [activeActionMenu, setActiveActionMenu] = useState(null);
+    const [selectedCustomerForDeactivate, setSelectedCustomerForDeactivate] = useState(null);
+    const [selectedCustomerForCorrection, setSelectedCustomerForCorrection] = useState(null);
+    const [deactivateLoading, setDeactivateLoading] = useState(false);
+    const [correctionLoading, setCorrectionLoading] = useState(false);
+
+    const user = useSelector((state) => state.auth.user);
+    const isFinance = ['FINANCE', 'F&A', 'F&A CFO', 'ACCOUNTING MODULE', 'SUPERADMIN', 'ADMIN'].includes(user?.Department?.name?.toUpperCase() || user?.Department?.toUpperCase());
+
 
     const toggleRow = (id) => {
         const newExpanded = new Set(expandedRows);
@@ -74,10 +86,11 @@ const CustomerList = () => {
 
     // Filter States
     const [filters, setFilters] = useState({
-        shopName: '',
+        search: '',
         customerType: '',
         status: '',
         createdByDepartment: '',
+        zone: '',
         fromDate: '',
         toDate: ''
     });
@@ -87,7 +100,9 @@ const CustomerList = () => {
     const fetchConfigs = async () => {
         try {
             const data = await getCustomerConfigs();
-            setConfigs(data);
+            const zones = await getAllZones();
+            console.log(zones.locations, 'zones')
+            setConfigs({ ...data, zones: zones?.locations });
         } catch (error) {
             console.error('Error fetching configs:', error);
         }
@@ -126,6 +141,46 @@ const CustomerList = () => {
         }
     };
 
+    const handleDeactivateClick = (cust) => {
+        setSelectedCustomerForDeactivate(cust);
+        setActiveActionMenu(null);
+    };
+
+    const handleConfirmDeactivate = async () => {
+        if (!selectedCustomerForDeactivate) return;
+        setDeactivateLoading(true);
+        try {
+            await deactivateCustomer(selectedCustomerForDeactivate._id);
+            toast.success('Customer deactivated successfully');
+            await fetchCustomers(pagination.currentPage);
+        } catch (error) {
+            toast.error(error.message || 'Failed to deactivate customer');
+        } finally {
+            setDeactivateLoading(false);
+            setSelectedCustomerForDeactivate(null);
+        }
+    };
+
+    const handleCorrectionClick = (cust) => {
+        setSelectedCustomerForCorrection(cust);
+        setActiveActionMenu(null);
+    };
+
+    const handleConfirmCorrection = async (correctionData) => {
+        if (!selectedCustomerForCorrection) return;
+        setCorrectionLoading(true);
+        try {
+            await sendCustomerForCorrection(selectedCustomerForCorrection._id, correctionData);
+            toast.success('Correction request sent successfully');
+            await fetchCustomers(pagination.currentPage);
+        } catch (error) {
+            toast.error(error.message || 'Failed to send correction request');
+        } finally {
+            setCorrectionLoading(false);
+            setSelectedCustomerForCorrection(null);
+        }
+    };
+
     useEffect(() => {
         fetchConfigs();
     }, []);
@@ -133,7 +188,7 @@ const CustomerList = () => {
     // Debounce Search for Shop Name
     useEffect(() => {
         const timer = setTimeout(() => {
-            setFilters(prev => ({ ...prev, shopName: searchTerm }));
+            setFilters(prev => ({ ...prev, search: searchTerm }));
         }, 500);
         return () => clearTimeout(timer);
     }, [searchTerm]);
@@ -143,13 +198,48 @@ const CustomerList = () => {
         fetchCustomers(1, filters);
     }, [filters]);
 
+    const handleQuickDate = (type) => {
+        const today = dayjs();
+        let fromDate = '';
+        let toDate = today.format('YYYY-MM-DD');
+
+        switch (type) {
+            case 'yesterday':
+                fromDate = today.subtract(1, 'day').format('YYYY-MM-DD');
+                toDate = today.subtract(1, 'day').format('YYYY-MM-DD');
+                break;
+            case 'last_week':
+                fromDate = today.subtract(1, 'week').startOf('week').format('YYYY-MM-DD');
+                toDate = today.subtract(1, 'week').endOf('week').format('YYYY-MM-DD');
+                break;
+            case 'last_month':
+                fromDate = today.subtract(1, 'month').startOf('month').format('YYYY-MM-DD');
+                toDate = today.subtract(1, 'month').endOf('month').format('YYYY-MM-DD');
+                break;
+            case 'last_quarter':
+                fromDate = today.subtract(1, 'quarter').startOf('quarter').format('YYYY-MM-DD');
+                toDate = today.subtract(1, 'quarter').endOf('quarter').format('YYYY-MM-DD');
+                break;
+            case 'last_year':
+                fromDate = today.subtract(1, 'year').startOf('year').format('YYYY-MM-DD');
+                toDate = today.subtract(1, 'year').endOf('year').format('YYYY-MM-DD');
+                break;
+            default:
+                fromDate = '';
+                toDate = '';
+        }
+
+        setFilters(prev => ({ ...prev, fromDate, toDate }));
+    };
+
     const handleResetFilters = () => {
         setSearchTerm('');
         setFilters({
-            shopName: '',
+            search: '',
             customerType: '',
             status: '',
             createdByDepartment: '',
+            zone: '',
             fromDate: '',
             toDate: ''
         });
@@ -165,9 +255,9 @@ const CustomerList = () => {
                     <div className="flex flex-wrap items-center gap-6 flex-1 ">
                         {/* Search */}
                         <div className="flex flex-col gap-2 min-w-[240px] flex-1 lg:flex-none">
-                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Search Shop</span>
+                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Search By Name,Shop Name,Email,Phone & Sales Person</span>
                             <FilterInput
-                                placeholder="Start typing shop name..."
+                                placeholder="Start typing..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 icon="mdi:store-search"
@@ -183,6 +273,17 @@ const CustomerList = () => {
                                 onChange={(e) => setFilters({ ...filters, customerType: e.target.value })}
                                 options={configs.customerTypes.map(c => ({ label: c.name, value: c._id }))}
                                 icon="mdi:account-group"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2 min-w-[180px] flex-1 lg:flex-none">
+                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Zone / Region</span>
+                            {console.log(configs.zones, 'configs.zone')}
+                            <FilterSelect
+                                placeholder="All Zones"
+                                value={filters.zone}
+                                onChange={(e) => setFilters({ ...filters, zone: e.target.value })}
+                                options={configs.zones.map(z => ({ label: z.zone, value: z._id || z.refId }))}
+                                icon="mdi:map-marker-radius"
                             />
                         </div>
 
@@ -203,7 +304,7 @@ const CustomerList = () => {
 
                         {/* Done By */}
                         <div className="flex flex-col gap-2 min-w-[180px] flex-1 lg:flex-none">
-                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Handled By</span>
+                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Created By Dept.</span>
                             <FilterSelect
                                 placeholder="By Department"
                                 value={filters.createdByDepartment}
@@ -216,37 +317,62 @@ const CustomerList = () => {
                                 icon="mdi:account-tie"
                             />
                         </div>
+
+
+                        {/* Zone Filter */}
+
+                        <div className="flex  items-center gap-6 w-full lg:w-auto">
+                            {/* Quick Date Presets */}
+                            <div className="flex flex-col gap-2 min-w-[180px] flex-1 lg:flex-none">
+                                <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Quick Date</span>
+                                <FilterSelect
+                                    placeholder="Select Range"
+                                    value=""
+                                    onChange={(e) => handleQuickDate(e.target.value)}
+                                    options={[
+                                        { label: 'Yesterday', value: 'yesterday' },
+                                        { label: 'Last Week', value: 'last_week' },
+                                        { label: 'Last Month', value: 'last_month' },
+                                        { label: 'Last Quarter', value: 'last_quarter' },
+                                        { label: 'Last Year', value: 'last_year' }
+                                    ]}
+                                    icon="mdi:calendar-clock"
+                                />
+                            </div>
+
+                            {/* Registration Period */}
+                            <div className="flex flex-col gap-2 min-w-[380px] ">
+                                <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Registration Period</span>
+                                <div className="flex items-center gap-3">
+                                    <DatePicker
+                                        value={filters.fromDate ? dayjs(filters.fromDate) : null}
+                                        onChange={(newValue) => setFilters({ ...filters, fromDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
+                                        slotProps={{
+                                            textField: {
+                                                size: 'small',
+                                                placeholder: 'From Date',
+                                                sx: datePickerStyles
+                                            }
+                                        }}
+                                    />
+                                    <span className="text-gray-300 text-[10px] font-black uppercase">to</span>
+                                    <DatePicker
+                                        value={filters.toDate ? dayjs(filters.toDate) : null}
+                                        onChange={(newValue) => setFilters({ ...filters, toDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
+                                        slotProps={{
+                                            textField: {
+                                                size: 'small',
+                                                placeholder: 'To Date',
+                                                sx: datePickerStyles
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
 
-                    {/* Registration Period */}
-                    <div className="flex flex-col gap-2 min-w-[380px] ">
-                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Registration Period</span>
-                        <div className="flex items-center gap-3">
-                            <DatePicker
-                                value={filters.fromDate ? dayjs(filters.fromDate) : null}
-                                onChange={(newValue) => setFilters({ ...filters, fromDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
-                                slotProps={{
-                                    textField: {
-                                        size: 'small',
-                                        placeholder: 'From Date',
-                                        sx: datePickerStyles
-                                    }
-                                }}
-                            />
-                            <span className="text-gray-300 text-[10px] font-black uppercase">to</span>
-                            <DatePicker
-                                value={filters.toDate ? dayjs(filters.toDate) : null}
-                                onChange={(newValue) => setFilters({ ...filters, toDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
-                                slotProps={{
-                                    textField: {
-                                        size: 'small',
-                                        placeholder: 'To Date',
-                                        sx: datePickerStyles
-                                    }
-                                }}
-                            />
-                        </div>
-                    </div>
 
                     {/* Reset Button */}
 
@@ -279,6 +405,7 @@ const CustomerList = () => {
                                     <th className="py-4 px-6 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Email / Phone</th>
                                     <th className="py-4 px-6 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">City / Country</th>
                                     <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Status</th>
+                                    <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Sales Person / Zone</th>
                                     {/* <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Done By</th> */}
                                     <th className="py-4 px-4 font-semibold text-xs text-center uppercase tracking-wider">Action</th>
                                 </tr>
@@ -323,6 +450,13 @@ const CustomerList = () => {
                                                     {cust.Status?.isActive ? 'ACTIVE' : (cust.status || 'ACTIVE')}
                                                 </span>
                                             </td>
+                                            <td className="px-4 py-2 text-center border-r border-gray-50">
+                                                <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest '}`}>
+                                                    {cust.salesPerson?.name || '---'}
+                                                </span>
+                                                <br />
+                                                <span className="text-[10px] font-bold text-amber-600 mt-0.5">{cust.zone?.name || '---'}</span>
+                                            </td>
                                             {/* <td className="px-4 py-2 text-center border-r border-gray-50">
                                                 <div className="flex flex-col items-center gap-1">
                                                     <span className="text-xs font-black text-gray-600">{cust?.createdByDepartment || 'SUPERADMIN'}</span>
@@ -356,10 +490,22 @@ const CustomerList = () => {
                                                                 <Icon icon="mdi:pencil" className="text-lg" />
                                                                 Edit
                                                             </button>
-                                                            <button className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors">
-                                                                <Icon icon="mdi:trash-can" className="text-lg" />
-                                                                Delete
+                                                            <button 
+                                                                onClick={() => handleDeactivateClick(cust)}
+                                                                className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
+                                                            >
+                                                                <Icon icon="mdi:account-off" className="text-lg" />
+                                                                Deactivate
                                                             </button>
+                                                            {isFinance && (cust.approvalStatus === 'PENDING_FINANCE' || !cust.approvalStatus) && (
+                                                                <button 
+                                                                    onClick={() => handleCorrectionClick(cust)}
+                                                                    className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-amber-600 hover:bg-amber-50 transition-colors border-t border-gray-50"
+                                                                >
+                                                                    <Icon icon="mdi:comment-alert" className="text-lg" />
+                                                                    Correction
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </>
                                                 )}
@@ -377,10 +523,10 @@ const CustomerList = () => {
                                                                 <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2">Business Info</h4>
                                                                 <DetailItem label="Full Shop Name" value={cust.shopName} />
                                                                 <DetailItem label="Owner Full Name" value={cust.ownerName} />
-                                                                <div className="flex items-center gap-2 group/id cursor-pointer" onClick={(e) => { e.stopPropagation(); copyToClipboard(cust.username || cust._id); }}>
+                                                                {/* <div className="flex items-center gap-2 group/id cursor-pointer" onClick={(e) => { e.stopPropagation(); copyToClipboard(cust.username || cust._id); }}>
                                                                     <DetailItem label="User ID (Click to Copy)" value={cust.username || cust._id} />
                                                                     <Icon icon="mdi:content-copy" className="text-amber-400 opacity-0 group-hover/id:opacity-100 transition-opacity mt-4" />
-                                                                </div>
+                                                                </div> */}
                                                                 <DetailItem label="Registration Type" value={cust.CustomerType?.name || cust.CustomerType} />
                                                                 <DetailItem label="Order Mode" value={cust.orderMode} />
                                                             </div>
@@ -406,7 +552,14 @@ const CustomerList = () => {
                                                                 <DetailItem label="Credit Limit" value={`₹${cust.creditLimit?.toLocaleString()}`} />
                                                                 <DetailItem label="Credit Days" value={cust.creditDays?.name || cust.creditDays} />
                                                                 <DetailItem label="GST Registered" value={cust.IsGSTRegistered ? 'YES' : 'NO'} />
-                                                                <DetailItem label="GST Number" value={cust.GSTNumber} />
+                                                                {cust.IsGSTRegistered ? (
+                                                                    <DetailItem label="GST Number" value={cust.GSTNumber} />
+                                                                ) : (
+                                                                    <>
+                                                                        <DetailItem label="Aadhar Card No." value={cust.AadharCard} />
+                                                                        <DetailItem label="PAN Card No." value={cust.PANCard} />
+                                                                    </>
+                                                                )}
                                                             </div>
 
                                                             {/* Full Width Section for Addresses */}
@@ -442,8 +595,8 @@ const CustomerList = () => {
                                                                 <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2 mb-6">Verification Documents</h4>
                                                                 <div className="flex flex-wrap gap-8">
                                                                     <DocumentChip label="GST Certificate" url={cust.GSTCertificateImg} />
-                                                                    <DocumentChip label="Aadhar Card" url={cust.aadharImage} />
-                                                                    <DocumentChip label="PAN Card" url={cust.panImage} />
+                                                                    <DocumentChip label="Aadhar Card" url={cust.AadharCardImg || cust.aadharImage} />
+                                                                    <DocumentChip label="PAN Card" url={cust.PANCardImg || cust.panImage} />
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -547,7 +700,7 @@ const CustomerList = () => {
                                         {selectedCustomer.address?.map((addr, idx) => (
                                             <div key={idx} className="bg-amber-50/50 p-4 rounded-2xl border border-amber-100">
                                                 <p className="font-bold text-gray-800 text-sm mb-2 italic">Address {idx + 1}</p>
-                                                <p className="text-xs text-gray-600 mb-1">{addr.address1}</p>
+                                                <p className="text-xs text-gray-600 mb-1">{addr.address1 || addr.branchAddress}</p>
                                                 <p className="text-xs text-gray-600 mb-2">{addr.city}, {addr.state}, {addr.country} - {addr.zipCode}</p>
                                                 <div className="flex justify-between text-[10px] font-bold text-amber-600">
                                                     <span>Contact: {addr.contactPerson}</span>
@@ -558,13 +711,24 @@ const CustomerList = () => {
                                     </div>
                                 </div>
 
+                                {/* Section: Identity Details (Aadhar/PAN) - Only if not GST registered */}
+                                {!selectedCustomer.IsGSTRegistered && (
+                                    <div className="space-y-4 md:col-span-3">
+                                        <h3 className="text-amber-500 font-bold uppercase text-xs tracking-widest border-b pb-2">Identity Details (Non-GST)</h3>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                            <DetailItem label="Aadhar Card No." value={selectedCustomer.AadharCard} />
+                                            <DetailItem label="PAN Card No." value={selectedCustomer.PANCard} />
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Section: Documents */}
                                 <div className="space-y-4 md:col-span-3">
                                     <h3 className="text-amber-500 font-bold uppercase text-xs tracking-widest border-b pb-2">Verification Documents</h3>
                                     <div className="flex flex-wrap gap-8">
                                         <DocumentChip label="GST Certificate" url={selectedCustomer.GSTCertificateImg} />
-                                        <DocumentChip label="Aadhar Card" url={selectedCustomer.aadharImage} />
-                                        <DocumentChip label="PAN Card" url={selectedCustomer.panImage} />
+                                        <DocumentChip label="Aadhar Card" url={selectedCustomer.AadharCardImg || selectedCustomer.aadharImage} />
+                                        <DocumentChip label="PAN Card" url={selectedCustomer.PANCardImg || selectedCustomer.panImage} />
                                     </div>
                                 </div>
                             </div>
@@ -579,6 +743,24 @@ const CustomerList = () => {
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
                 </div>
             )}
+            <ConfirmationModal
+                isOpen={!!selectedCustomerForDeactivate}
+                onClose={() => setSelectedCustomerForDeactivate(null)}
+                onConfirm={handleConfirmDeactivate}
+                loading={deactivateLoading}
+                title="Deactivate Customer"
+                message={`Are you sure you want to deactivate ${selectedCustomerForDeactivate?.shopName}? This action will restrict their access.`}
+                confirmText="Deactivate"
+                type="danger"
+            />
+
+            <CorrectionRequestModal
+                isOpen={!!selectedCustomerForCorrection}
+                onClose={() => setSelectedCustomerForCorrection(null)}
+                onSubmit={handleConfirmCorrection}
+                loading={correctionLoading}
+                customerName={selectedCustomerForCorrection?.shopName}
+            />
         </div>
     );
 };

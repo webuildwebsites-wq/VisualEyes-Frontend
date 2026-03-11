@@ -8,6 +8,7 @@ import EmployeeList from '../pages/EmployeeList';
 import DashboardWizard from '../pages/AddStore';
 import OrderWizard from '../pages/OrderWizard';
 import DraftsList from '../pages/DraftsList';
+import ApprovalsList from '../pages/ApprovalsList';
 import PlaceholderPage from '../pages/PlaceholderPage';
 import AuthWrapper from '../components/AuthWrapper';
 import MainLayout from '../components/layout/MainLayout';
@@ -97,6 +98,11 @@ export const routesConfig = [
                     {
                         path: PATHS.DRAFTS,
                         element: DraftsList
+                    },
+                    {
+                        path: PATHS.APPROVALS,
+                        element: ApprovalsList,
+                        requiredPermission: 'CanManageCustomers'
                     },
                     ...STAFF_MODULE,
                     ...CUSTOMER_MODULE,

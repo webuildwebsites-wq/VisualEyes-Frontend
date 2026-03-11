@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Icon } from '@iconify/react';
 import { toast } from 'react-toastify';
 import Button from '../components/ui/Button';
-import { getMyDraftCustomers } from '../services/customerService';
-import { getMyDraftEmployees } from '../services/employeeService';
+import { getMyDraftCustomers, deactivateDraftCustomer } from '../services/customerService';
+import { getMyDraftEmployees, deactivateDraftEmployee } from '../services/employeeService';
+import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { PATHS } from '../routes/paths';
 
 const DraftsList = () => {
@@ -13,6 +14,8 @@ const DraftsList = () => {
     const [drafts, setDrafts] = useState([]);
 
     const [loading, setLoading] = useState(false);
+    const [selectedDraftForDeactivate, setSelectedDraftForDeactivate] = useState(null);
+    const [deactivateLoading, setDeactivateLoading] = useState(false);
 
     const fetchDrafts = useCallback(async () => {
         setLoading(true);
@@ -50,6 +53,31 @@ const DraftsList = () => {
             navigate(`${PATHS.CUSTOMER.REGISTER}?step=0&draftId=${draftId}`);
         } else {
             navigate(`${PATHS.STAFF.REGISTER}?draftId=${draftId}`);
+        }
+    };
+
+    const handleDeactivateClick = (draft) => {
+        setSelectedDraftForDeactivate(draft);
+    };
+
+    const handleConfirmDeactivate = async () => {
+        if (!selectedDraftForDeactivate) return;
+
+        setDeactivateLoading(true);
+        try {
+            if (activeTab === 'customers') {
+                await deactivateDraftCustomer(selectedDraftForDeactivate._id);
+            } else {
+                await deactivateDraftEmployee(selectedDraftForDeactivate._id);
+            }
+            toast.success(`${activeTab === 'customers' ? 'Customer' : 'Employee'} draft deactivated successfully`);
+            await fetchDrafts();
+        } catch (error) {
+            console.error('Error deactivating draft:', error);
+            toast.error(error.message || 'Failed to deactivate draft');
+        } finally {
+            setDeactivateLoading(false);
+            setSelectedDraftForDeactivate(null);
         }
     };
 
@@ -145,18 +173,38 @@ const DraftsList = () => {
                                         <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Reference</span>
                                         <span className="text-gray-600 font-mono text-xs">{draft._id.slice(-8).toUpperCase()}</span>
                                     </div>
-                                    <Button
-                                        onClick={() => handleEditDraft(draft)}
-                                        className="rounded-2xl max-w-[120px] px-6 py-2 group-hover:bg-amber-500 group-hover:scale-105 transition-all"
-                                    >
-                                        Continue
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => handleDeactivateClick(draft)}
+                                            className="p-2 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                            title="Deactivate Draft"
+                                        >
+                                            <Icon icon="mdi:trash-can-outline" className="text-xl" />
+                                        </button>
+                                        <Button
+                                            onClick={() => handleEditDraft(draft)}
+                                            className="rounded-2xl max-w-[120px] px-6 py-2 group-hover:bg-amber-500 group-hover:scale-105 transition-all"
+                                        >
+                                            Continue
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={!!selectedDraftForDeactivate}
+                onClose={() => setSelectedDraftForDeactivate(null)}
+                onConfirm={handleConfirmDeactivate}
+                loading={deactivateLoading}
+                title="Deactivate Draft"
+                message={`Are you sure you want to deactivate this ${activeTab === 'customers' ? 'customer' : 'employee'} draft? This action cannot be undone.`}
+                confirmText="Deactivate"
+                type="danger"
+            />
         </div>
     );
 };

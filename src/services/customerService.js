@@ -140,6 +140,7 @@ export const getAllZones = async () => {
         return [];
     }
 };
+
 export const draftRegisterCustomer = async (customerData) => {
     try {
         const response = await api.post('/api/customer/management/draft-register', customerData);
@@ -173,5 +174,68 @@ export const getAllDraftCustomers = async (page = 1, limit = 10) => {
         return response.data;
     } catch (error) {
         throw error.response ? error.response.data : new Error('Failed to fetch all draft customers');
+    }
+};
+
+export const deactivateDraftCustomer = async (id) => {
+    try {
+        const response = await api.delete(`/api/customer/management/deactivate-draft-customer/${id}`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to deactivate draft customer');
+    }
+};
+
+export const deactivateCustomer = async (id) => {
+    try {
+        const response = await api.delete(`/api/customer/management/deactivate-customer/${id}`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to deactivate customer');
+    }
+};
+
+export const getPendingFinanceApprovals = async (page = 1, limit = 10) => {
+    try {
+        const response = await api.get(`/api/customer/management/customer/pending-finance?page=${page}&limit=${limit}`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to fetch pending finance approvals');
+    }
+};
+
+export const getCorrectionRequiredCustomers = async (page = 1, limit = 10) => {
+    try {
+        const response = await api.get(`/api/customer/management/customer/correction-required?page=${page}&limit=${limit}`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to fetch correction required customers');
+    }
+};
+
+export const sendCustomerForCorrection = async (customerId, correctionData) => {
+    try {
+        const response = await api.put(`/api/customer/management/${customerId}/send-for-correction`, correctionData);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to send customer for correction');
+    }
+};
+
+export const resubmitCustomerCorrection = async (customerId, correctionData) => {
+    try {
+        const response = await api.put(`/api/customer/management/${customerId}/resubmit-correction`, correctionData);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to resubmit customer correction');
+    }
+};
+
+export const approveCustomerFinance = async (customerId, approvalData) => {
+    try {
+        const response = await api.put(`/api/customer/management/${customerId}/finance-complete`, approvalData);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to approve customer');
     }
 };

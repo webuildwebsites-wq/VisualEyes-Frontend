@@ -20,6 +20,7 @@ export const PATHS = {
     STORES: '/stores',
     NEW_ORDER: '/new-order',
     DRAFTS: '/drafts',
+    APPROVALS: '/approvals',
 
     // OPERATIONS MODULE
     OPERATIONS: {

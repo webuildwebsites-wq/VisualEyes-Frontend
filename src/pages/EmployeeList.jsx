@@ -1,15 +1,64 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
-import { getAllEmployees, getEmployeeById } from '../services/employeeService';
+import { getAllEmployees, deleteEmployee } from '../services/employeeService';
+import ConfirmationModal from '../components/ui/ConfirmationModal';
+import { getAllDepartments } from '../services/departmentService';
+import { getSystemConfigs } from '../services/configService';
 import { toast } from 'react-toastify';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
+
+const datePickerStyles = {
+    '& .MuiOutlinedInput-root': {
+        borderRadius: '9999px',
+        backgroundColor: 'rgba(249, 250, 251, 0.8)',
+        fontSize: '0.75rem',
+        fontWeight: 700,
+        height: '42px',
+        '& fieldset': {
+            borderColor: '#f3f4f6',
+        },
+        '&:hover fieldset': {
+            borderColor: '#f59e0b80',
+        },
+        '&.Mui-focused fieldset': {
+            borderColor: '#f59e0b80',
+        },
+    },
+    '& .MuiInputBase-input': {
+        padding: '0 16px',
+        color: '#4b5563',
+        '&::placeholder': {
+            opacity: 1,
+            color: '#d1d5db',
+        }
+    },
+    '& .MuiInputAdornment-root': {
+        marginRight: '8px'
+    }
+};
 
 const EmployeeList = () => {
     const [employees, setEmployees] = useState([]);
-    console.log(employees, 'employees')
     const [loading, setLoading] = useState(true);
+    const [configs, setConfigs] = useState({ departments: [], employeeTypes: [] });
     const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
     const [expandedRows, setExpandedRows] = useState(new Set());
     const [activeActionMenu, setActiveActionMenu] = useState(null);
+    const [selectedEmployeeForDelete, setSelectedEmployeeForDelete] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [viewLoading, setViewLoading] = useState(false);
+
+    // Filter States
+    const [filters, setFilters] = useState({
+        search: '',
+        department: '',
+        EmployeeType: '',
+        fromDate: '',
+        toDate: ''
+    });
+
+    const [searchTerm, setSearchTerm] = useState('');
 
     const toggleRow = (id) => {
         const newExpanded = new Set(expandedRows);
@@ -34,10 +83,29 @@ const EmployeeList = () => {
         });
     };
 
-    const fetchEmployees = async (page = 1) => {
+    const fetchConfigs = async () => {
+        try {
+            const [deptRes, configRes] = await Promise.all([
+                getAllDepartments(),
+                getSystemConfigs()
+            ]);
+
+            setConfigs({
+                departments: deptRes.data || [],
+                employeeTypes: configRes.data?.find(c => c.configType === 'EmployeeType')?.values || []
+            });
+        } catch (error) {
+            console.error('Error fetching configs:', error);
+        }
+    };
+
+    const fetchEmployees = async (page = 1, currentFilters = filters) => {
         setLoading(true);
         try {
-            const response = await getAllEmployees(page);
+            const activeFilters = Object.fromEntries(
+                Object.entries(currentFilters).filter(([_, v]) => v !== '')
+            );
+            const response = await getAllEmployees(page, 10, activeFilters);
             if (response.success) {
                 setEmployees(response.data.users);
                 setPagination(response.data.pagination);
@@ -49,20 +117,189 @@ const EmployeeList = () => {
         }
     };
 
-    const handleViewDetails = (id) => {
-        toggleRow(id);
+    const handleDeleteClick = (emp) => {
+        setSelectedEmployeeForDelete(emp);
+        setActiveActionMenu(null);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!selectedEmployeeForDelete) return;
+        
+        setDeleteLoading(true);
+        try {
+            await deleteEmployee(selectedEmployeeForDelete._id);
+            toast.success('Employee deleted successfully');
+            await fetchEmployees(pagination.currentPage);
+        } catch (error) {
+            console.error('Error deleting employee:', error);
+            toast.error(error.message || 'Failed to delete employee');
+        } finally {
+            setDeleteLoading(false);
+            setSelectedEmployeeForDelete(null);
+        }
     };
 
     useEffect(() => {
-        fetchEmployees();
+        fetchConfigs();
     }, []);
 
-    // Helper for empty rows to maintain grid structure
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setFilters(prev => ({ ...prev, search: searchTerm }));
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    useEffect(() => {
+        fetchEmployees(1, filters);
+    }, [filters]);
+
+    const handleQuickDate = (type) => {
+        const today = dayjs();
+        let fromDate = '';
+        let toDate = today.format('YYYY-MM-DD');
+
+        switch (type) {
+            case 'yesterday':
+                fromDate = today.subtract(1, 'day').format('YYYY-MM-DD');
+                toDate = today.subtract(1, 'day').format('YYYY-MM-DD');
+                break;
+            case 'last_week':
+                fromDate = today.subtract(1, 'week').startOf('week').format('YYYY-MM-DD');
+                toDate = today.subtract(1, 'week').endOf('week').format('YYYY-MM-DD');
+                break;
+            case 'last_month':
+                fromDate = today.subtract(1, 'month').startOf('month').format('YYYY-MM-DD');
+                toDate = today.subtract(1, 'month').endOf('month').format('YYYY-MM-DD');
+                break;
+            case 'last_quarter':
+                fromDate = today.subtract(1, 'quarter').startOf('quarter').format('YYYY-MM-DD');
+                toDate = today.subtract(1, 'quarter').endOf('quarter').format('YYYY-MM-DD');
+                break;
+            case 'last_year':
+                fromDate = today.subtract(1, 'year').startOf('year').format('YYYY-MM-DD');
+                toDate = today.subtract(1, 'year').endOf('year').format('YYYY-MM-DD');
+                break;
+            default:
+                fromDate = '';
+                toDate = '';
+        }
+
+        setFilters(prev => ({ ...prev, fromDate, toDate }));
+    };
+
+    const handleResetFilters = () => {
+        setSearchTerm('');
+        setFilters({
+            search: '',
+            department: '',
+            EmployeeType: '',
+            fromDate: '',
+            toDate: ''
+        });
+    };
+
     const emptyRowsCount = Math.max(0, 10 - employees.length);
 
     return (
-        <div className="flex flex-col items-center">
-            {/* Table Container */}
+        <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto p-4">
+            {/* Filter Bar */}
+            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100/80 flex flex-col gap-6 ">
+                <div className="flex flex-wrap items-center justify-between gap-y-8 gap-x-6">
+                    <div className="flex flex-wrap items-center gap-6 flex-1">
+                        <div className="flex flex-col gap-2 min-w-[240px] flex-1 lg:flex-none">
+                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Search By Name, Username, Email & Phone</span>
+                            <FilterInput
+                                placeholder="Start typing..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                icon="mdi:account-search"
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-2 min-w-[180px] flex-1 lg:flex-none">
+                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Department</span>
+                            <FilterSelect
+                                placeholder="All Departments"
+                                value={filters.department}
+                                onChange={(e) => setFilters({ ...filters, department: e.target.value })}
+                                options={configs.departments.map(d => ({ label: d.name, value: d.name }))}
+                                icon="mdi:office-building"
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-2 min-w-[180px] flex-1 lg:flex-none">
+                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Employee Type</span>
+                            <FilterSelect
+                                placeholder="All Types"
+                                value={filters.EmployeeType}
+                                onChange={(e) => setFilters({ ...filters, EmployeeType: e.target.value })}
+                                options={configs.employeeTypes.map(t => ({ label: t.name, value: t.name }))}
+                                icon="mdi:account-badge-outline"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-6 w-full lg:w-auto">
+                        <div className="flex flex-col gap-2 min-w-[180px] flex-1 lg:flex-none">
+                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Quick Date</span>
+                            <FilterSelect
+                                placeholder="Select Range"
+                                value=""
+                                onChange={(e) => handleQuickDate(e.target.value)}
+                                options={[
+                                    { label: 'Yesterday', value: 'yesterday' },
+                                    { label: 'Last Week', value: 'last_week' },
+                                    { label: 'Last Month', value: 'last_month' },
+                                    { label: 'Last Quarter', value: 'last_quarter' },
+                                    { label: 'Last Year', value: 'last_year' }
+                                ]}
+                                icon="mdi:calendar-clock"
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-2 min-w-[380px]">
+                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-5">Access Start Period</span>
+                            <div className="flex items-center gap-3">
+                                <DatePicker
+                                    value={filters.fromDate ? dayjs(filters.fromDate) : null}
+                                    onChange={(newValue) => setFilters({ ...filters, fromDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
+                                    slotProps={{
+                                        textField: {
+                                            size: 'small',
+                                            placeholder: 'From Date',
+                                            sx: datePickerStyles
+                                        }
+                                    }}
+                                />
+                                <span className="text-gray-300 text-[10px] font-black uppercase">to</span>
+                                <DatePicker
+                                    value={filters.toDate ? dayjs(filters.toDate) : null}
+                                    onChange={(newValue) => setFilters({ ...filters, toDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
+                                    slotProps={{
+                                        textField: {
+                                            size: 'small',
+                                            placeholder: 'To Date',
+                                            sx: datePickerStyles
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-end self-end mb-1">
+                    <button
+                        onClick={handleResetFilters}
+                        className="flex items-center gap-2 text-gray-400 hover:text-amber-600 px-5 py-2.5 rounded-full hover:bg-amber-50 transition-all duration-300 font-black text-[10px] uppercase tracking-widest group border border-transparent hover:border-amber-100 shadow-sm hover:shadow-md"
+                    >
+                        <Icon icon="mdi:refresh" className="text-lg group-hover:rotate-180 transition-transform duration-700" />
+                        Clear Filters
+                    </button>
+                </div>
+            </div>
+
             <div className="w-full bg-white rounded-[2rem] shadow-xl overflow-hidden border border-gray-100 min-h-[500px]">
                 {loading ? (
                     <div className="flex justify-center items-center h-[500px]">
@@ -124,7 +361,6 @@ const EmployeeList = () => {
                                                     <Icon icon="mdi:dots-vertical" className="w-6 h-6" />
                                                 </button>
 
-                                                {/* Absolute Action Dropdown */}
                                                 {activeActionMenu === emp._id && (
                                                     <>
                                                         <div
@@ -133,7 +369,7 @@ const EmployeeList = () => {
                                                         />
                                                         <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 z-[70] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden min-w-[140px] animate-in fade-in slide-in-from-right-4 duration-200">
                                                             <button
-                                                                onClick={() => { handleViewDetails(emp._id); setActiveActionMenu(null); }}
+                                                                onClick={() => { toggleRow(emp._id); setActiveActionMenu(null); }}
                                                                 className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-gray-600 hover:bg-amber-50 hover:text-amber-600 transition-colors"
                                                             >
                                                                 <Icon icon="mdi:eye" className="text-lg" />
@@ -143,7 +379,10 @@ const EmployeeList = () => {
                                                                 <Icon icon="mdi:pencil" className="text-lg" />
                                                                 Edit
                                                             </button>
-                                                            <button className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors">
+                                                            <button 
+                                                                onClick={() => handleDeleteClick(emp)}
+                                                                className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
+                                                            >
                                                                 <Icon icon="mdi:trash-can" className="text-lg" />
                                                                 Delete
                                                             </button>
@@ -153,20 +392,15 @@ const EmployeeList = () => {
                                             </td>
                                         </tr>
 
-                                        {/* Collapsible Details Row */}
                                         {expandedRows.has(emp._id) && (
                                             <tr className="bg-gray-50/50">
                                                 <td colSpan="7" className="p-0 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
                                                     <div className="p-10 border-x-4 border-amber-500/20 bg-gradient-to-br from-white to-amber-50/30">
                                                         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-                                                            {/* Detailed Columns */}
                                                             <div className="space-y-6">
                                                                 <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2">Profile Info</h4>
                                                                 <DetailItem label="Full Name" value={emp.employeeName} />
-                                                                <div className="flex items-center gap-2 group/id cursor-pointer" onClick={(e) => { e.stopPropagation(); copyToClipboard(emp.username); }}>
-                                                                    <DetailItem label="Username (Copy)" value={emp.username} />
-                                                                    <Icon icon="mdi:content-copy" className="text-amber-400 opacity-0 group-hover/id:opacity-100 transition-opacity mt-4" />
-                                                                </div>
+                                                                <DetailItem label="Username (Copy)" onClick={() => copyToClipboard(emp.username)} value={emp.username} />
                                                                 <DetailItem label="Employee Type" value={emp.EmployeeType?.name || emp.EmployeeType} />
                                                                 <DetailItem label="Serial No." value={`#${emp.serialNumber}`} />
                                                             </div>
@@ -193,7 +427,6 @@ const EmployeeList = () => {
                                                                 <DetailItem label="Pincode" value={emp.pincode} />
                                                             </div>
 
-                                                            {/* Documents */}
                                                             <div className="md:col-span-4 mt-6">
                                                                 <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2 mb-6">Staff Documents</h4>
                                                                 <div className="flex flex-wrap gap-8">
@@ -234,7 +467,6 @@ const EmployeeList = () => {
                     </div>
                 )}
 
-                {/* Simple Pagination Controls */}
                 {!loading && pagination.totalPages > 1 && (
                     <div className="flex justify-center items-center gap-4 py-4 border-t border-gray-100">
                         <button
@@ -256,17 +488,68 @@ const EmployeeList = () => {
                 )}
             </div>
 
+            {viewLoading && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/10 backdrop-blur-[2px]">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
+                </div>
+            )}
+
+            <ConfirmationModal
+                isOpen={!!selectedEmployeeForDelete}
+                onClose={() => setSelectedEmployeeForDelete(null)}
+                onConfirm={handleConfirmDelete}
+                loading={deleteLoading}
+                title="Delete Employee"
+                message={`Are you sure you want to delete ${selectedEmployeeForDelete?.employeeName}? This action cannot be undone.`}
+                confirmText="Delete"
+                type="danger"
+            />
         </div>
     );
 };
 
-const DetailItem = ({ label, value, status }) => (
-    <div className="space-y-1">
-        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">{label}</p>
-        <p className={`text-sm font-semibold ${status ? (value === 'Active' ? 'text-green-600' : 'text-red-500') : 'text-gray-700'}`}>
-            {value || '---'}
-        </p>
+export default EmployeeList;
+
+const DetailItem = ({ label, value, status, onClick }) => (
+    <div className={`space-y-1 ${onClick ? 'cursor-pointer group/item flex items-center gap-2' : ''}`} onClick={onClick}>
+        <div className="flex flex-col flex-1">
+            <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">{label}</p>
+            <p className={`text-sm font-semibold ${status ? (value === 'Active' ? 'text-green-600' : 'text-red-500') : 'text-gray-700'} ${onClick ? 'group-hover/item:text-amber-600 transition-colors' : ''}`}>
+                {value || '---'}
+            </p>
+        </div>
+        {onClick && <Icon icon="mdi:content-copy" className="text-amber-400 opacity-0 group-hover/item:opacity-100 transition-opacity" />}
     </div>
 );
 
-export default EmployeeList;
+const FilterSelect = ({ placeholder, value, onChange, options = [], icon }) => (
+    <div className="relative flex items-center bg-gray-50/80 rounded-full border border-gray-100 px-5 py-2.5 focus-within:border-amber-500/50 focus-within:bg-white focus-within:shadow-md transition-all duration-300 min-w-[170px] group shadow-inner">
+        {icon && <Icon icon={icon} className="text-gray-400 text-lg mr-3 group-focus-within:text-amber-500 transition-colors" />}
+        <select
+            value={value}
+            onChange={onChange}
+            className="text-xs text-gray-600 outline-none w-full bg-transparent appearance-none cursor-pointer pr-6 font-bold"
+        >
+            <option value="">{placeholder}</option>
+            {options.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+        </select>
+        <div className="absolute right-5 pointer-events-none text-gray-300 group-hover:text-amber-500 transition-colors">
+            <Icon icon="mdi:chevron-down" className="text-base" />
+        </div>
+    </div>
+);
+
+const FilterInput = ({ placeholder, value, onChange, icon }) => (
+    <div className="relative flex items-center bg-gray-50/80 rounded-full border border-gray-100 px-5 py-2.5 focus-within:border-amber-500/50 focus-within:bg-white focus-within:shadow-md transition-all duration-300 min-w-[220px] group shadow-inner">
+        {icon && <Icon icon={icon} className="text-gray-400 text-lg mr-3 group-focus-within:text-amber-500 transition-colors" />}
+        <input
+            type="text"
+            placeholder={placeholder}
+            value={value}
+            onChange={onChange}
+            className="text-xs text-gray-600 outline-none w-full bg-transparent font-bold placeholder:text-gray-300 placeholder:font-medium"
+        />
+    </div>
+);

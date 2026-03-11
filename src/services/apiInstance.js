@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { store } from '../store/store';
+import { toast } from 'react-toastify';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -41,9 +42,13 @@ api.interceptors.response.use(
     },
     (error) => {
         if (error.response && error.response.status === 401) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            // window.location.href = '/login';
+            toast.alert('Authentication failed. Please login again.')
+            // console.log('error', error)
+            setTimeout(() => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = '/login';
+            }, 1000);
         }
         return Promise.reject(error);
     }

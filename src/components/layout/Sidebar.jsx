@@ -16,30 +16,30 @@ const navItems = [
         label: 'Registration',
         icon: 'mdi:person-add-outline',
         subItems: [
-            { label: 'Register Customer', path: PATHS.CUSTOMER.REGISTER, requiredPermission: 'CanCreateCustomers' },
-            { label: 'Register Staff', path: PATHS.STAFF.REGISTER, requiredPermission: 'CanCreateEmployee' }
+            { label: 'Register Customer', path: PATHS.CUSTOMER.REGISTER },
+            { label: 'Register Staff', path: PATHS.STAFF.REGISTER }
         ]
     },
     {
         label: 'Staff',
         icon: 'mdi:account-group-outline',
         subItems: [
-            { label: 'Staff List', path: PATHS.STAFF.LIST, requiredPermission: 'CanManageEmployee' }
+            { label: 'Staff List', path: PATHS.STAFF.LIST }
         ]
     },
     {
         label: 'Customer ',
         icon: 'mdi:face-agent',
         subItems: [
-            { label: 'Customer List', path: PATHS.CUSTOMER.LIST, requiredPermission: 'CanManageCustomers' },
-            { label: 'Ship To', path: PATHS.CUSTOMER.SHIP_TO, requiredPermission: 'CanManageCustomers' }
+            { label: 'Customer List', path: PATHS.CUSTOMER.LIST },
+            { label: 'Ship To', path: PATHS.CUSTOMER.SHIP_TO },
+            { label: 'Pending Approvals', path: PATHS.APPROVALS }
         ]
     },
     { label: 'Drafts', icon: 'mdi:file-edit-outline', path: PATHS.DRAFTS },
-    { label: 'F&A', icon: 'mdi:finance', path: PATHS.OPERATIONS.FINANCE, requiredPermission: 'CanViewFinancials' },
-    { label: 'Stores', icon: 'mdi:store', path: PATHS.STORES, requiredPermission: 'CanManageProducts' },
-    { label: 'Reports', icon: 'mdi:chart-bar', path: PATHS.OPERATIONS.REPORTS, requiredPermission: 'CanViewReports' },
-    // Some items might not have specific permissions yet or are always visible to authenticated users
+    // { label: 'F&A', icon: 'mdi:finance', path: PATHS.OPERATIONS.FINANCE },
+    { label: 'Stores', icon: 'mdi:store', path: PATHS.STORES },
+    { label: 'Reports', icon: 'mdi:chart-bar', path: PATHS.OPERATIONS.REPORTS },
     { label: 'Lab', icon: 'mdi:flask-outline', path: PATHS.OPERATIONS.LAB },
     { label: 'Tint', icon: 'mdi:water-outline', path: PATHS.OPERATIONS.TINT },
     { label: 'Hard Coat', icon: 'mdi:shield-outline', path: PATHS.OPERATIONS.HARD_COAT },
@@ -58,20 +58,14 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
 
     // Filtered nav items based on permissions
     const filteredNavItems = useMemo(() => {
-        const checkAccess = (item) => {
-            if (user?.EmployeeType === 'SUPERADMIN') return true;
-            if (!item.requiredPermission) return true;
-            return !!user?.permissions?.[item.requiredPermission];
-        };
-
         return navItems
             .map(item => {
                 if (item.subItems) {
-                    const filteredSubItems = item.subItems.filter(checkAccess);
+                    const filteredSubItems = item.subItems.filter(sub => hasAccess(sub.path, user));
                     if (filteredSubItems.length === 0) return null;
                     return { ...item, subItems: filteredSubItems };
                 }
-                return checkAccess(item) ? item : null;
+                return hasAccess(item.path, user) ? item : null;
             })
             .filter(Boolean);
     }, [user]);

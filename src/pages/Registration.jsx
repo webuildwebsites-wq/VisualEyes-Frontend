@@ -62,7 +62,6 @@ const Registration = () => {
     const [configs, setConfigs] = useState({
         EmployeeType: [],
         labs: [],
-        regions: [],
         departments: []
     });
 
@@ -86,10 +85,9 @@ const Registration = () => {
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                const [configRes, deptRes, regionRes] = await Promise.all([
+                const [configRes, deptRes] = await Promise.all([
                     getSystemConfigs(),
                     getAllDepartments(),
-                    // getAllRegions()
                 ]);
 
                 if (configRes.success) {
@@ -106,11 +104,6 @@ const Registration = () => {
                         departments: deptRes.data || []
                     }));
                 }
-
-                setConfigs(prev => ({
-                    ...prev,
-                    regions: regionRes || []
-                }));
             } catch (error) {
                 console.error('Failed to fetch initial data:', error);
                 toast.error("Failed to load form options");
@@ -138,7 +131,7 @@ const Registration = () => {
                 phone: draft.phone || '',
                 address: draft.address || '',
                 country: draft.country || 'India',
-                region: draft.region || '',
+                zoneRefId: draft.zoneRefId || draft.region || '',
                 department: draft.Department?.refId || draft.departmentRefId || '',
                 role: draft.subRoles?.[0]?.refId || '',
                 pincode: draft.pincode || '',
@@ -230,7 +223,6 @@ const Registration = () => {
             phone: '',
             address: '',
             country: 'India',
-            region: '',
             department: '',
             role: '',
             pincode: '',
@@ -362,7 +354,7 @@ const Registration = () => {
 
         formik.setFieldValue('department', deptId);
         formik.setFieldValue('role', '');
-        formik.setFieldValue('region', '');
+        formik.setFieldValue('zoneRefId', '');
         setSubRolesList([]);
         setLocationData({ zones: [], states: [], cities: [], zipcodes: [] });
 
@@ -406,9 +398,10 @@ const Registration = () => {
 
     const handleZoneChange = async (e) => {
         const zoneId = e.target.value;
+
         const selectedZone = locationData.zones.find(z => z._id === zoneId);
 
-        formik.setFieldValue('region', zoneId); // Store the ID
+        formik.setFieldValue('zoneRefId', zoneId); // Store the ID
         formik.setFieldValue('state', '');
         formik.setFieldValue('city', '');
         formik.setFieldValue('pincode', '');
@@ -659,13 +652,14 @@ const Registration = () => {
                         />
                         {isSalesDept ? (
                             <>
+                                {console.log(locationData, 'locationData')}
                                 <Select
-                                    label="Zone *"
+                                    label="Region *"
                                     name="zoneRefId"
                                     value={formik.values.zoneRefId}
                                     onChange={handleZoneChange}
                                     onBlur={formik.handleBlur}
-                                    placeholder="Select Zone"
+                                    placeholder="Select Region"
                                     error={formik.touched.zoneRefId && formik.errors.zoneRefId ? { message: formik.errors.zoneRefId } : null}
                                     options={(Array.isArray(locationData.zones) ? locationData.zones : []).map(z => ({ value: z._id, label: z.name || z.zone }))}
                                     disabled={loadingLocation}
