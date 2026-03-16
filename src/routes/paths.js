@@ -21,6 +21,7 @@ export const PATHS = {
     NEW_ORDER: '/new-order',
     DRAFTS: '/drafts',
     APPROVALS: '/approvals',
+    CORRECTIONS: '/corrections',
 
     // OPERATIONS MODULE
     OPERATIONS: {

@@ -94,12 +94,22 @@ const CorrectionRequestModal = ({ isOpen, onClose, onSubmit, customerName, loadi
                             {initialFields.map((fieldId) => {
                                 const field = ALLOWED_FIELDS.find(f => f.id === fieldId);
                                 let label = field ? field.label : fieldId;
-                                if (!field && fieldId.includes('.')) {
-                                    const parts = fieldId.split('.');
-                                    if (parts[0] === 'address' && !isNaN(parts[1]) && parts[2]) {
-                                        label = `Address ${parseInt(parts[1]) + 1} - ${parts[2].replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())}`;
-                                    } else if (parts[0] === 'brandCategories' && !isNaN(parts[1]) && parts[2]) {
-                                        label = `Brand ${parseInt(parts[1]) + 1} - ${parts[2].replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())}`;
+                                
+                                if (!field) {
+                                    // Strip RefId and format PascalCase/camelCase to labels
+                                    label = fieldId.replace(/RefId$/, '')
+                                                 .replace(/([A-Z])/g, ' $1')
+                                                 .trim()
+                                                 .replace(/^./, str => str.toUpperCase());
+                                    
+                                    if (fieldId.includes('.') || fieldId.includes('[')) {
+                                        // Handle both formats: address.0.branchAddress or address[0].branchAddress
+                                        const parts = fieldId.split(/[.[\]]+/).filter(Boolean);
+                                        if (parts[0] === 'address' && !isNaN(parts[1]) && parts[2]) {
+                                            label = `Address ${parseInt(parts[1]) + 1} - ${parts[2].replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())}`;
+                                        } else if (parts[0] === 'brandCategories' && !isNaN(parts[1]) && parts[2]) {
+                                            label = `Brand ${parseInt(parts[1]) + 1} - ${parts[2].replace(/([A-Z])/g, ' $1').trim().replace(/^./, str => str.toUpperCase())}`;
+                                        }
                                     }
                                 }
                                 return (

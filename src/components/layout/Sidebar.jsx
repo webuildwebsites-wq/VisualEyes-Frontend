@@ -8,6 +8,7 @@ import { logoutUser } from '../../services/authService';
 import { logOut } from '../../store/slices/authSlice';
 import { selectCurrentUser } from '../../store/slices/authSlice';
 import { hasAccess } from '../../routes/permissions';
+import { resetRegistration } from '../../store/slices/customerRegistrationSlice';
 import logo from '../../assets/logo.svg';
 
 const navItems = [
@@ -33,7 +34,8 @@ const navItems = [
         subItems: [
             { label: 'Customer List', path: PATHS.CUSTOMER.LIST },
             { label: 'Ship To', path: PATHS.CUSTOMER.SHIP_TO },
-            { label: 'Pending Approvals', path: PATHS.APPROVALS }
+            { label: 'Pending Approvals', path: PATHS.APPROVALS },
+            { label: 'Correction Needed', path: PATHS.CORRECTIONS }
         ]
     },
     { label: 'Drafts', icon: 'mdi:file-edit-outline', path: PATHS.DRAFTS },
@@ -94,6 +96,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         } catch (error) {
             console.error('Logout failed', error);
         } finally {
+            dispatch(resetRegistration());
             dispatch(logOut());
         }
     };
@@ -139,8 +142,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                     </button>
 
                                     {/* Submenu */}
-                                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${openSubmenus[item.label] ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
-                                        <div className="bg-gray-50 rounded-2xl py-2 px-2 ml-4 space-y-1 border-l-2 border-amber-200">
+                                    <div className={` transition-all duration-300 ease-in-out ${openSubmenus[item.label] ? ' opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+                                        <div className="bg-gray-50 rounded-2xl py-2 px-2 ml-4 space-y-2 border-l-2 border-amber-200">
                                             {item.subItems.map((subItem) => (
                                                 <NavLink
                                                     key={subItem.path}

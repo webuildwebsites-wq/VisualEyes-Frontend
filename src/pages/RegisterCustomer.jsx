@@ -22,7 +22,8 @@ import {
     getDraftCustomerById,
     getCustomerById,
     resubmitCustomerCorrection,
-    approveCustomerFinance
+    approveCustomerFinance,
+    sendCustomerForCorrection
 } from '../services/customerService';
 import { uploadImage } from '../services/bucketService';
 import { PATHS } from '../routes/paths';
@@ -344,17 +345,56 @@ export default function RegisterCustomer() {
             }
 
             try {
-                if (approvalId) {
-                    await toast.promise(
-                        approveCustomerFinance(approvalId, finalPayload),
-                        {
-                            pending: 'Approving customer...',
-                            success: 'Customer approved successfully! 🚀',
+                if (correctionCustomerId) {
+                    // Filter payload to only include fields listed in correctionRequest.fieldsToCorrect
+                    const correctionFields = correctionRequest?.fieldsToCorrect || [];
+                    const filteredPayload = {};
+
+                    correctionFields.forEach(field => {
+                        const topKey = field.split(/[.[\]]+/)[0];
+                        if (['address', 'brandCategories'].includes(topKey)) {
+                            // Send the entire array for complex nested structures
+                            filteredPayload[topKey] = values[topKey];
+                        } else if (values[field] !== undefined) {
+                            filteredPayload[field] = values[field];
+                        } else if (payload[field] !== undefined) {
+                            filteredPayload[field] = payload[field];
                         }
-                    );
-                } else if (correctionCustomerId) {
+                    });
+
+                    // Relationship mapping: if RefId is rejected, ensure Label is sent, and vice-versa
+                    const mappings = [
+                        { id: 'CustomerTypeRefId', label: 'CustomerType' },
+                        { id: 'salesPersonRefId', label: 'salesPerson' },
+                        { id: 'gstTypeRefId', label: 'gstType' },
+                        { id: 'zoneRefId', label: 'zone' },
+                        { id: 'specificLabRefId', label: 'specificLab' },
+                        { id: 'plantRefId', label: 'plant' },
+                        { id: 'fittingCenterRefId', label: 'fittingCenter' },
+                        { id: 'creditDaysRefId', label: 'creditDays' },
+                        { id: 'courierNameRefId', label: 'courierName' },
+                        { id: 'courierTimeRefId', label: 'courierTime' }
+                    ];
+
+                    mappings.forEach(({ id, label }) => {
+                        if (correctionFields.includes(id) || correctionFields.includes(label)) {
+                            filteredPayload[id] = values[id];
+                            filteredPayload[label] = payload[label];
+                        }
+                    });
+
+                    // Calculated fields
+                    if (correctionFields.includes('gstType') || correctionFields.includes('gstTypeRefId') || correctionFields.includes('IsGSTRegistered')) {
+                        filteredPayload.IsGSTRegistered = payload.IsGSTRegistered;
+                    }
+
+                    // Calculated fields
+                    if (correctionFields.includes('gstType') || correctionFields.includes('gstTypeRefId') || correctionFields.includes('IsGSTRegistered')) {
+                        filteredPayload.IsGSTRegistered = payload.IsGSTRegistered;
+                    }
+
                     await toast.promise(
-                        resubmitCustomerCorrection(correctionCustomerId, finalPayload),
+                        resubmitCustomerCorrection(correctionCustomerId, filteredPayload),
                         {
                             pending: 'Resubmitting corrections...',
                             success: 'Corrections resubmitted successfully! 👌',
@@ -552,28 +592,43 @@ export default function RegisterCustomer() {
         }
     };
 
-    const wrapInput = (Component, props) => {
+    const wrapInput = (Component, props, hideVerify = false) => {
         const { onChange: customOnChange, disabled: customDisabled, ...rest } = props;
         const isCorrectionField = correctionRequest?.fieldsToCorrect?.includes(props.name);
+
+        const getIn = (obj, path) => {
+            if (!obj || !path) return undefined;
+            const keys = path.split(/[.[\]]+/).filter(Boolean);
+            let current = obj;
+            for (const key of keys) {
+                if (!current || typeof current !== 'object') return undefined;
+                current = current[key];
+            }
+            return current;
+        };
+
+        const fieldError = getIn(formik.errors, props.name);
+        const fieldTouched = getIn(formik.touched, props.name);
+        const fieldValue = getIn(formik.values, props.name);
 
         return (
             <div className={`relative ${isCorrectionField ? 'p-1 rounded-2xl bg-red-50/50 border border-red-100 ring-2 ring-red-500/20' : ''}`}>
                 <Component
                     {...rest}
                     disabled={isReadOnlyMode || customDisabled}
-                    isVerificationMode={isVerificationMode}
+                    isVerificationMode={hideVerify ? false : isVerificationMode}
                     isRejected={rejectedFields[props.name]}
                     onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
-                    error={formik.touched[props.name] && formik.errors[props.name] ? { message: formik.errors[props.name] } : null}
+                    error={fieldTouched && fieldError ? { message: fieldError } : null}
                     onChange={(e) => {
                         if (customOnChange) customOnChange(e);
                         else formik.handleChange(e);
                     }}
                     onBlur={formik.handleBlur}
-                    value={formik.values[props.name] ?? ''}
+                    value={fieldValue ?? ''}
                 />
                 {isCorrectionField && (
-                    <div className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg animate-bounce">
+                    <div className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg animate-bounce z-20">
                         <Icon icon="mdi:alert-circle" className="text-sm" />
                     </div>
                 )}
@@ -643,7 +698,7 @@ export default function RegisterCustomer() {
                     isReadOnlyMode={isReadOnlyMode}
                 />
             );
-            case 1: return <AddressDetails formik={formik} configs={configs} isVerificationMode={isVerificationMode} rejectedFields={rejectedFields} dispatch={dispatch} isReadOnlyMode={isReadOnlyMode} />;
+            case 1: return <AddressDetails formik={formik} wrapInput={wrapInput} configs={configs} isVerificationMode={isVerificationMode} rejectedFields={rejectedFields} dispatch={dispatch} isReadOnlyMode={isReadOnlyMode} />;
             case 2:
                 if (isSalesUser) return <Overview formik={formik} configs={configs} isSalesUser={isSalesUser} />;
                 return <CustomerRegn wrapInput={wrapInput} configs={configs} formValues={formik.values} formik={formik} dispatch={dispatch} isReadOnlyMode={isReadOnlyMode} />;
@@ -657,8 +712,8 @@ export default function RegisterCustomer() {
     return (
         <div className="min-h-screen p-6">
             {/* Correction Header */}
-            {/* {correctionRequest && (
-                <div className="max-w-6xl mx-auto mb-8 bg-red-50 border border-red-100 rounded-[2rem] p-8 flex items-start gap-6 animate-in slide-in-from-top-4 duration-500">
+            {correctionRequest && (
+                <div className="max-w-6xl mx-auto mb-8 bg-red-50 border border-red-100 rounded-[2rem] p-8 flex items-start gap-6 animate-in slide-in-from-top-4 duration-500 shadow-sm">
                     <div className="w-12 h-12 rounded-2xl bg-red-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-red-500/20">
                         <Icon icon="mdi:comment-alert" className="text-2xl" />
                     </div>
@@ -666,11 +721,11 @@ export default function RegisterCustomer() {
                         <h4 className="text-red-800 font-black uppercase tracking-widest text-xs mb-1">Correction Required</h4>
                         <p className="text-red-700 font-bold text-sm leading-relaxed">{correctionRequest.remark}</p>
                         <p className="text-red-500 text-[10px] uppercase font-black tracking-widest mt-2 flex items-center gap-2">
-                             Requested By: {correctionRequest.requestedBy?.employeeName} • {new Date(correctionRequest.requestedAt).toLocaleDateString()}
+                            Requested By: {correctionRequest.requestedBy?.employeeName || 'Finance'} • {correctionRequest.requestedAt ? new Date(correctionRequest.requestedAt).toLocaleDateString() : 'Recent'}
                         </p>
                     </div>
                 </div>
-            )} */}
+            )}
 
             {/* Approval Mode Banner */}
             {isApprovalMode && (
@@ -684,13 +739,13 @@ export default function RegisterCustomer() {
                             You are reviewing a customer registration submitted by Sales. Please verify all details, provide the mandatory <span className="underline">Login Details</span>, and click Approve to finalize.
                         </p>
                     </div>
-                    {isFinanceUser && activeStep === steps.length - 1 && (
+                    {isFinanceUser && (activeStep === 0 || activeStep === 1 || activeStep === steps.length - 1) && (
                         <Button
                             variant="outlined"
-                            className="bg-white border-amber-200 text-amber-700 hover:bg-amber-100"
+                            className="bg-white border-amber-200 text-amber-700 hover:bg-amber-100 flex gap-2 align-center justify-center"
                             onClick={() => setIsCorrectionModalOpen(true)}
                         >
-                            <Icon icon="mdi:keyboard-backspace" className="mr-2" />
+                            {/* <Icon icon="mdi:keyboard-backspace" className="mr-2" /> */}
                             Send for Correction
                         </Button>
                     )}
@@ -821,7 +876,7 @@ export default function RegisterCustomer() {
                             className={`w-full md:w-auto ${((!isReadOnlyMode && !isStepValid()) || isVerificationMode) ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
                             {activeStep === steps.length - 1
-                                ? (isReadOnlyMode ? 'Close' : (isApprovalMode ? 'Approve' : (correctionCustomerId ? 'Resubmit' : ( (user?.EmployeeType === 'SUPERADMIN' || isFinanceUser) ? 'Register' : 'Submit For Approval' ))))
+                                ? (isReadOnlyMode ? 'Close' : (isApprovalMode ? 'Approve' : (correctionCustomerId ? 'Resubmit' : ((user?.EmployeeType === 'SUPERADMIN' || isFinanceUser) ? 'Register' : 'Submit For Approval'))))
                                 : 'Next'}
                         </Button>
                     </div>
@@ -980,164 +1035,111 @@ const CustomerInfo = ({ wrapInput, configs, formik, aadharRef, panRef, gstRef, h
     </div>
 );
 
-const AddressDetails = ({ formik, configs, isVerificationMode, rejectedFields, dispatch, isReadOnlyMode }) => {
+const AddressDetails = ({ formik, wrapInput, configs, isVerificationMode, rejectedFields, dispatch, isReadOnlyMode }) => {
     useEffect(() => {
         if (!isReadOnlyMode && formik.values.address.length === 1) {
             const firstAddr = formik.values.address[0];
             if (!firstAddr.contactPerson && !firstAddr.contactNumber) {
-                formik.setFieldValue('address.0.contactPerson', formik.values.ownerName || '');
-                formik.setFieldValue('address.0.contactNumber', formik.values.mobileNo1 || '');
+                formik.setFieldValue('address[0].contactPerson', formik.values.ownerName || '');
+                formik.setFieldValue('address[0].contactNumber', formik.values.mobileNo1 || '');
             }
         }
     }, [isReadOnlyMode, formik.values.ownerName, formik.values.mobileNo1]);
 
     return (
-    <div className="space-y-12">
-
-
-        <FieldArray name="address">
-            {({ push, remove }) => (
-                <div className="space-y-12">
-                    {formik.values.address.map((addr, index) => (
-                        <div key={index} className="relative pt-6">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-[#F59E0B] font-bold">Address {index + 1}*</h3>
-                                {index > 0 && !isReadOnlyMode && <button onClick={() => remove(index)} className="text-red-500 text-sm font-bold flex items-center gap-1"><Icon icon="mdi:delete" /> Remove</button>}
+        <div className="space-y-12">
+            <FieldArray name="address">
+                {({ push, remove }) => (
+                    <div className="space-y-12">
+                        {formik.values.address.map((addr, index) => (
+                            <div key={index} className="relative pt-6">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className="text-[#F59E0B] font-bold">Address {index + 1}*</h3>
+                                    {index > 0 && !isReadOnlyMode && <button onClick={() => remove(index)} className="text-red-500 text-sm font-bold flex items-center gap-1"><Icon icon="mdi:delete" /> Remove</button>}
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                                    {wrapInput(Input, {
+                                        label: "Branch Address*",
+                                        name: `address[${index}].branchAddress`,
+                                        value: addr.branchAddress,
+                                        placeholder: "Enter Branch Address"
+                                    })}
+                                    {wrapInput(Input, {
+                                        label: "Contact Person Name*",
+                                        name: `address[${index}].contactPerson`,
+                                        value: addr.contactPerson,
+                                        placeholder: "Enter Contact Person"
+                                    })}
+                                    {wrapInput(Input, {
+                                        label: "Contact Number*",
+                                        name: `address[${index}].contactNumber`,
+                                        value: addr.contactNumber,
+                                        placeholder: "Enter Contact Number"
+                                    })}
+                                    {wrapInput(Input, {
+                                        label: "City*",
+                                        name: `address[${index}].city`,
+                                        value: addr.city,
+                                        placeholder: "Enter City"
+                                    })}
+                                    {wrapInput(Select, {
+                                        label: "State*",
+                                        name: `address[${index}].state`,
+                                        value: addr.state,
+                                        options: (Array.isArray(configs.states) ? configs.states : []).map(z => ({ value: z.name, label: z.name }))
+                                    })}
+                                    {wrapInput(Select, {
+                                        label: "Country*",
+                                        name: `address[${index}].country`,
+                                        value: addr.country,
+                                        options: [{ value: 'India', label: 'India' }]
+                                    })}
+                                    {wrapInput(Select, {
+                                        label: "Billing Currency*",
+                                        name: `address[${index}].billingCurrency`,
+                                        value: addr.billingCurrency,
+                                        options: [{ value: 'Indian Rupees', label: 'Indian Rupees' }]
+                                    })}
+                                    {wrapInput(Select, {
+                                        label: "Billing Mode*",
+                                        name: `address[${index}].billingMode`,
+                                        value: addr.billingMode,
+                                        options: [{ value: 'Credit', label: 'Credit' }, { value: 'Advance', label: 'Advance' }]
+                                    })}
+                                    {wrapInput(Input, {
+                                        label: "Pincode*",
+                                        name: `address[${index}].zipCode`,
+                                        value: addr.zipCode,
+                                        placeholder: "Enter Pincode"
+                                    })}
+                                </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                                <Input
-                                    label="Branch Address*"
-                                    name={`address.${index}.branchAddress`}
-                                    value={addr.branchAddress}
-                                    onChange={formik.handleChange}
-                                    onBlur={formik.handleBlur}
-                                    disabled={isReadOnlyMode}
-                                    isVerificationMode={isVerificationMode}
-                                    isRejected={rejectedFields[`address.${index}.branchAddress`]}
-                                    onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
-                                    error={formik.touched.address?.[index]?.branchAddress && formik.errors.address?.[index]?.branchAddress ? { message: formik.errors.address[index].branchAddress } : null}
-                                />
-                                <Input
-                                    label="Contact Person Name*"
-                                    name={`address.${index}.contactPerson`}
-                                    value={addr.contactPerson}
-                                    onChange={formik.handleChange}
-                                    onBlur={formik.handleBlur}
-                                    disabled={isReadOnlyMode}
-                                    isVerificationMode={isVerificationMode}
-                                    isRejected={rejectedFields[`address.${index}.contactPerson`]}
-                                    onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
-                                />
-                                <Input
-                                    label="Contact Number*"
-                                    name={`address.${index}.contactNumber`}
-                                    value={addr.contactNumber}
-                                    onChange={formik.handleChange}
-                                    onBlur={formik.handleBlur}
-                                    disabled={isReadOnlyMode}
-                                    isVerificationMode={isVerificationMode}
-                                    isRejected={rejectedFields[`address.${index}.contactNumber`]}
-                                    onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
-                                    error={formik.touched.address?.[index]?.contactNumber && formik.errors.address?.[index]?.contactNumber ? { message: formik.errors.address[index].contactNumber } : null}
-                                />
-                                <Input
-                                    label="City*"
-                                    name={`address.${index}.city`}
-                                    value={addr.city}
-                                    onChange={formik.handleChange}
-                                    onBlur={formik.handleBlur}
-                                    disabled={isReadOnlyMode}
-                                    isVerificationMode={isVerificationMode}
-                                    isRejected={rejectedFields[`address.${index}.city`]}
-                                    onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
-                                    error={formik.touched.address?.[index]?.city && formik.errors.address?.[index]?.city ? { message: formik.errors.address[index].city } : null}
-                                />
-                                <Select
-                                    label="State*"
-                                    name={`address.${index}.state`}
-                                    value={addr.state}
-                                    onChange={formik.handleChange}
-                                    onBlur={formik.handleBlur}
-                                    disabled={isReadOnlyMode}
-                                    isVerificationMode={isVerificationMode}
-                                    isRejected={rejectedFields[`address.${index}.state`]}
-                                    onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
-                                    options={(Array.isArray(configs.states) ? configs.states : []).map(z => ({ value: z.name, label: z.name }))}
-                                    error={formik.touched.address?.[index]?.state && formik.errors.address?.[index]?.state ? { message: formik.errors.address[index].state } : null}
-                                />
-                                <Select
-                                    label="Country*"
-                                    name={`address.${index}.country`}
-                                    value={addr.country}
-                                    onChange={formik.handleChange}
-                                    disabled={isReadOnlyMode}
-                                    isVerificationMode={isVerificationMode}
-                                    isRejected={rejectedFields[`address.${index}.country`]}
-                                    onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
-                                    options={[{ value: 'India', label: 'India' }]}
-                                />
-                                <Select
-                                    label="Billing Currency*"
-                                    name={`address.${index}.billingCurrency`}
-                                    value={addr.billingCurrency}
-                                    onChange={formik.handleChange}
-                                    disabled={isReadOnlyMode}
-                                    isVerificationMode={isVerificationMode}
-                                    isRejected={rejectedFields[`address.${index}.billingCurrency`]}
-                                    onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
-                                    options={[{ value: 'Indian Rupees', label: 'Indian Rupees' }]}
-                                />
-                                <Select
-                                    label="Billing Mode*"
-                                    name={`address.${index}.billingMode`}
-                                    value={addr.billingMode}
-                                    onChange={formik.handleChange}
-                                    disabled={isReadOnlyMode}
-                                    isVerificationMode={isVerificationMode}
-                                    isRejected={rejectedFields[`address.${index}.billingMode`]}
-                                    onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
-                                    options={[{ value: 'Credit', label: 'Credit' }, { value: 'Advance', label: 'Advance' }]}
-                                />
-                                <Input
-                                    label="Pincode*"
-                                    name={`address.${index}.zipCode`}
-                                    value={addr.zipCode}
-                                    onChange={formik.handleChange}
-                                    onBlur={formik.handleBlur}
-                                    disabled={isReadOnlyMode}
-                                    isVerificationMode={isVerificationMode}
-                                    isRejected={rejectedFields[`address.${index}.zipCode`]}
-                                    onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
-                                    error={formik.touched.address?.[index]?.zipCode && formik.errors.address?.[index]?.zipCode ? { message: formik.errors.address[index].zipCode } : null}
-                                />
+                        ))}
+                        {!isReadOnlyMode && (
+                            <div className="flex justify-center mt-4">
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => push({
+                                        branchAddress: '',
+                                        contactPerson: formik.values.ownerName || '',
+                                        contactNumber: formik.values.mobileNo1 || '',
+                                        city: '',
+                                        state: '',
+                                        country: 'India',
+                                        billingCurrency: 'Indian Rupees',
+                                        billingMode: 'Credit',
+                                        zipCode: ''
+                                    })}
+                                    className="bg-[#F59E0B] text-white rounded-full px-10 py-3 flex items-center gap-2 w-fit hover:text-black hover:bg-[#D97706]"
+                                >
+                                    <Icon icon="mdi:plus" /> Add Address
+                                </Button>
                             </div>
-                        </div>
-                    ))}
-                    {!isReadOnlyMode && (
-                        <div className="flex justify-center mt-4">
-                            <Button
-                                variant="outlined"
-                                onClick={() => push({
-                                    branchAddress: '',
-                                    contactPerson: formik.values.ownerName || '',
-                                    contactNumber: formik.values.mobileNo1 || '',
-                                    city: '',
-                                    state: '',
-                                    country: 'India',
-                                    billingCurrency: 'Indian Rupees',
-                                    billingMode: 'Credit',
-                                    zipCode: ''
-                                })}
-                                className="bg-[#F59E0B] text-white rounded-full px-10 py-3 flex items-center gap-2 w-fit hover:text-black hover:bg-[#D97706]"
-                            >
-                                <Icon icon="mdi:plus" /> Add Address
-                            </Button>
-                        </div>
-                    )}
-                </div>
-            )}
-        </FieldArray>
-    </div>
+                        )}
+                    </div>
+                )}
+            </FieldArray>
+        </div>
     );
 };
 
@@ -1182,155 +1184,140 @@ const BrandRow = ({ index, bc, remove, configs, formik, wrapInput, isReadOnlyMod
                 </button>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Select
-                    label="Select Brand*"
-                    name={`brandCategories.${index}.brandId`}
-                    value={bc.brandId}
-                    onChange={(e) => {
+                {wrapInput(Select, {
+                    label: "Select Brand*",
+                    name: `brandCategories[${index}].brandId`,
+                    value: bc.brandId,
+                    options: (configs.brands || []).map(b => ({ value: b._id, label: b.name })),
+                    onChange: (e) => {
                         const brand = configs.brands.find(b => b._id === e.target.value);
-                        formik.setFieldValue(`brandCategories.${index}.brandId`, e.target.value);
-                        formik.setFieldValue(`brandCategories.${index}.brandName`, brand?.name || '');
-                        formik.setFieldValue(`brandCategories.${index}.categories`, []); // Reset categories
-                    }}
-                    options={(configs.brands || []).map(b => ({ value: b._id, label: b.name }))}
-                />
+                        formik.setFieldValue(`brandCategories[${index}].brandId`, e.target.value);
+                        formik.setFieldValue(`brandCategories[${index}].brandName`, brand?.name || '');
+                        formik.setFieldValue(`brandCategories[${index}].categories`, []); // Reset categories
+                    }
+                })}
 
-                <Select
-                    label="Select Categories*"
-                    multiple
-                    placeholder="Select Categories"
-                    disabled={!bc.brandId || loading}
-                    value={(bc.categories || []).map(c => c.categoryId)}
-                    onChange={(e) => {
+                {wrapInput(Select, {
+                    label: "Select Categories*",
+                    name: `brandCategories[${index}].categories`,
+                    multiple: true,
+                    placeholder: "Select Categories",
+                    disabled: !bc.brandId || loading,
+                    value: (bc.categories || []).map(c => c.categoryId),
+                    options: categories.map(c => ({ value: c._id, label: c.name })),
+                    onChange: (e) => {
                         const selectedIds = Array.isArray(e.target.value) ? e.target.value : [e.target.value];
                         const updatedCats = selectedIds.map(id => ({
                             categoryId: id,
                             categoryName: categories.find(cat => cat._id === id)?.name || ''
                         }));
-                        formik.setFieldValue(`brandCategories.${index}.categories`, updatedCats);
-                    }}
-                    options={categories.map(c => ({ value: c._id, label: c.name }))}
-                />
+                        formik.setFieldValue(`brandCategories[${index}].categories`, updatedCats);
+                    }
+                })}
                 {loading && <span className="text-[10px] text-orange-500 animate-pulse">Loading categories...</span>}
             </div>
         </div>
     );
 };
 
-const CustomerRegn = ({ wrapInput, configs, formValues, formik, dispatch, isReadOnlyMode }) => (
-    <div className="space-y-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-            <Input
-                label="Login Email (Prefilled)"
-                name="emailId"
-                value={formik.values.emailId}
-                disabled
-                className="bg-gray-50"
-            />
-            {wrapInput(Input, { label: 'Password*', name: 'customerpassword', type: 'password', placeholder: 'Enter Password' })}
-        </div>
+const CustomerRegn = ({ wrapInput, configs, formValues, formik, dispatch, isReadOnlyMode }) => {
+    const noVerifyWrap = (Component, props) => wrapInput(Component, props, true);
 
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-gray-800 uppercase tracking-tight flex items-center gap-2">
-                    <Icon icon="mdi:tag-multiple" className="text-[#F59E0B]" /> Brand & Category Selection*
-                </h3>
+    return (
+        <div className="space-y-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                <Input
+                    label="Login Email (Prefilled)"
+                    name="emailId"
+                    value={formik.values.emailId}
+                    disabled
+                    className="bg-gray-50"
+                />
+                {noVerifyWrap(Input, { label: 'Password*', name: 'customerpassword', type: 'password', placeholder: 'Enter Password' })}
             </div>
 
-            <FieldArray name="brandCategories">
-                {({ push, remove }) => (
-                    <div className="space-y-4">
-                        {formik.values.brandCategories.map((bc, index) => (
-                            <BrandRow
-                                key={index}
-                                index={index}
-                                bc={bc}
-                                remove={remove}
-                                configs={configs}
-                                formik={formik}
-                                wrapInput={wrapInput}
-                                isReadOnlyMode={isReadOnlyMode}
-                            />
-                        ))}
-                        {!isReadOnlyMode && (
-                            <Button
-                                variant="outlined"
-                                onClick={() => push({ brandId: '', brandName: '', categories: [] })}
-                                className="bg-gray-50 border-dashed border-2 border-gray-200 text-gray-500 hover:border-[#F59E0B] hover:text-[#F59E0B] w-full py-4 rounded-2xl flex items-center justify-center gap-2"
-                            >
-                                <Icon icon="mdi:plus-circle" /> Add Another Brand
-                            </Button>
-                        )}
-                    </div>
-                )}
-            </FieldArray>
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-gray-800 uppercase tracking-tight flex items-center gap-2">
+                        <Icon icon="mdi:tag-multiple" className="text-[#F59E0B]" /> Brand & Category Selection*
+                    </h3>
+                </div>
+
+                <FieldArray name="brandCategories">
+                    {({ push, remove }) => (
+                        <div className="space-y-4">
+                            {formik.values.brandCategories.map((bc, index) => (
+                                <BrandRow
+                                    key={index}
+                                    index={index}
+                                    bc={bc}
+                                    remove={remove}
+                                    configs={configs}
+                                    formik={formik}
+                                    wrapInput={wrapInput}
+                                    isReadOnlyMode={isReadOnlyMode}
+                                />
+                            ))}
+                            {!isReadOnlyMode && (
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => push({ brandId: '', brandName: '', categories: [] })}
+                                    className="bg-gray-50 border-dashed border-2 border-gray-200 text-gray-500 hover:border-[#F59E0B] hover:text-[#F59E0B] w-full py-4 rounded-2xl flex items-center justify-center gap-2"
+                                >
+                                    <Icon icon="mdi:plus-circle" /> Add Another Brand
+                                </Button>
+                            )}
+                        </div>
+                    )}
+                </FieldArray>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                {noVerifyWrap(Select, {
+                    label: 'Zone*',
+                    name: 'zoneRefId',
+                    options: (Array.isArray(configs.zones) ? configs.zones : []).map(z => ({ value: z._id, label: z.zone }))
+                })}
+                {noVerifyWrap(Select, {
+                    label: 'Select Sales Person*',
+                    name: 'salesPersonRefId',
+                    options: (configs.salesPersons || []).map(s => ({ value: s._id, label: s.employeeName }))
+                })}
+                {noVerifyWrap(Select, {
+                    label: 'Specific Lab*',
+                    name: 'specificLabRefId',
+                    options: (configs.specificLabs || []).map(l => ({ value: l._id, label: l.name }))
+                })}
+                {noVerifyWrap(Select, {
+                    label: 'Fitting Centre*',
+                    name: 'fittingCenterRefId',
+                    options: (configs.fittingCenters || []).map(f => ({ value: f._id, label: f.name }))
+                })}
+                {noVerifyWrap(Select, {
+                    label: 'Plant*',
+                    name: 'plantRefId',
+                    options: (configs.plants || []).map(p => ({ value: p._id, label: p.name }))
+                })}
+                {noVerifyWrap(Input, { label: 'Credit Limit*', name: 'creditLimit', placeholder: 'Enter Limit' })}
+                {noVerifyWrap(Select, {
+                    label: 'Credit Days*',
+                    name: 'creditDaysRefId',
+                    options: (configs.creditDays || []).map(d => ({ value: d._id, label: d.days.toString() }))
+                })}
+                {noVerifyWrap(Select, {
+                    label: 'Courier Name*',
+                    name: 'courierNameRefId',
+                    options: (configs.courierNames || []).map(n => ({ value: n._id, label: n.name }))
+                })}
+                {noVerifyWrap(Select, {
+                    label: 'Courier Time*',
+                    name: 'courierTimeRefId',
+                    options: (configs.courierTimes || []).map(t => ({ value: t._id, label: t.time }))
+                })}
+            </div>
         </div>
-
-        {/* <div className="flex justify-center py-4">
-            <button
-                type="button"
-                onClick={() => {
-                    const regFields = ['customerpassword', 'zoneRefId', 'salesPersonRefId', 'specificLabRefId', 'plantRefId', 'fittingCenterRefId', 'creditLimit', 'creditDaysRefId', 'courierNameRefId', 'courierTimeRefId'];
-                    const hasRegFields = regFields.every(field => !!formik.values[field]);
-                    const hasBrands = formik.values.brandCategories && formik.values.brandCategories.length > 0;
-
-                    if (hasRegFields && hasBrands) {
-                        setSearchParams({ step: 3 });
-                    } else {
-                        toast.error('Please fill all required fields and selection before proceeding.');
-                    }
-                }}
-                className="px-10 py-3 rounded-full border-2 border-[#F59E0B] text-[#F59E0B] font-bold uppercase tracking-wide hover:bg-[#F59E0B] hover:text-white transition-all shadow-md active:scale-95"
-            >
-                Create DigiOptics Account
-            </button>
-        </div> */}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-            {wrapInput(Select, {
-                label: 'Zone*',
-                name: 'zoneRefId',
-                options: (Array.isArray(configs.zones) ? configs.zones : []).map(z => ({ value: z._id, label: z.zone }))
-            })}
-            {wrapInput(Select, {
-                label: 'Select Sales Person*',
-                name: 'salesPersonRefId',
-                options: (configs.salesPersons || []).map(s => ({ value: s._id, label: s.employeeName }))
-            })}
-            {wrapInput(Select, {
-                label: 'Specific Lab*',
-                name: 'specificLabRefId',
-                options: (configs.specificLabs || []).map(l => ({ value: l._id, label: l.name }))
-            })}
-            {wrapInput(Select, {
-                label: 'Fitting Centre*',
-                name: 'fittingCenterRefId',
-                options: (configs.fittingCenters || []).map(f => ({ value: f._id, label: f.name }))
-            })}
-            {wrapInput(Select, {
-                label: 'Plant*',
-                name: 'plantRefId',
-                options: (configs.plants || []).map(p => ({ value: p._id, label: p.name }))
-            })}
-            {wrapInput(Input, { label: 'Credit Limit*', name: 'creditLimit', placeholder: 'Enter Limit' })}
-            {wrapInput(Select, {
-                label: 'Credit Days*',
-                name: 'creditDaysRefId',
-                options: (configs.creditDays || []).map(d => ({ value: d._id, label: d.days.toString() }))
-            })}
-            {wrapInput(Select, {
-                label: 'Courier Name*',
-                name: 'courierNameRefId',
-                options: (configs.courierNames || []).map(n => ({ value: n._id, label: n.name }))
-            })}
-            {wrapInput(Select, {
-                label: 'Courier Time*',
-                name: 'courierTimeRefId',
-                options: (configs.courierTimes || []).map(t => ({ value: t._id, label: t.time }))
-            })}
-        </div>
-    </div>
-);
+    );
+};
 
 const DetailItem = ({ label, value }) => (
     <div className="flex flex-col gap-1">

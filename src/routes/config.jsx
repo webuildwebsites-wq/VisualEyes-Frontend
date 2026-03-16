@@ -9,6 +9,7 @@ import DashboardWizard from '../pages/AddStore';
 import OrderWizard from '../pages/OrderWizard';
 import DraftsList from '../pages/DraftsList';
 import ApprovalsList from '../pages/ApprovalsList';
+import CorrectionsList from '../pages/CorrectionsList';
 import PlaceholderPage from '../pages/PlaceholderPage';
 import AuthWrapper from '../components/AuthWrapper';
 import MainLayout from '../components/layout/MainLayout';
@@ -103,6 +104,11 @@ export const routesConfig = [
                         path: PATHS.APPROVALS,
                         element: ApprovalsList,
                         requiredPermission: 'CanManageCustomers'
+                    },
+                    {
+                        path: PATHS.CORRECTIONS,
+                        element: CorrectionsList,
+                        requiredPermission: 'CanCreateCustomers'
                     },
                     ...STAFF_MODULE,
                     ...CUSTOMER_MODULE,
