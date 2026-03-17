@@ -131,7 +131,6 @@ const Registration = () => {
                 phone: draft.phone || '',
                 address: draft.address || '',
                 country: draft.country || 'India',
-                zoneRefId: draft.zoneRefId || draft.region || '',
                 department: draft.Department?.refId || draft.departmentRefId || '',
                 role: draft.subRoles?.[0]?.refId || '',
                 pincode: draft.pincode || '',
@@ -142,7 +141,7 @@ const Registration = () => {
                 state: draft.state || '',
                 city: draft.city || '',
                 username: draft.username || '',
-                zoneRefId: draft.zone?.refId || draft.zoneRefId || ''
+                zoneRefId: draft.zone?.refId || draft.zoneRefId || draft.region || ''
             };
 
             formik.setValues(formValues);

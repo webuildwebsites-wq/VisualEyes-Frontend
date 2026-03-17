@@ -29,101 +29,12 @@ import { uploadImage } from '../services/bucketService';
 import { PATHS } from '../routes/paths';
 import CorrectionRequestModal from '../components/ui/CorrectionRequestModal';
 
-const INITIAL_FORM_VALUES = {
-    shopName: '',
-    ownerName: '',
-    CustomerTypeRefId: '',
-    orderMode: '',
-    mobileNo1: '',
-    mobileNo2: '',
-    landlineNo: '',
-    emailId: '',
-    businessEmail: '',
-    gstType: 'unregistered',
-    gstTypeRefId: '',
-    GSTNumber: '',
-    GSTCertificateImg: '',
-    AadharCard: '',
-    AadharCardImg: '',
-    PANCard: '',
-    PANCardImg: '',
-    address: [
-        { branchAddress: '', contactPerson: '', contactNumber: '', city: '', state: '', country: 'India', billingCurrency: 'Indian Rupees', billingMode: 'Credit', zipCode: '' }
-    ],
-    customerpassword: '',
-    zoneRefId: '',
-    brandCategories: [{ brandId: '', brandName: '', categories: [] }],
-    specificLabRefId: '',
-    salesPersonRefId: '',
-    plantRefId: '',
-    fittingCenterRefId: '',
-    creditLimit: '',
-    creditDaysRefId: '',
-    courierNameRefId: '',
-    courierTimeRefId: ''
-};
-
-const mapCustomerToFormValues = (customer, configs = {}) => {
-    if (!customer) return INITIAL_FORM_VALUES;
-
-    // Helper to find ID by label in a config list
-    const findId = (list, val, labelKey = 'name') => {
-        if (!val) return '';
-        if (!list || !Array.isArray(list)) return val;
-
-        const searchVal = String(val).toLowerCase();
-        const item = list.find(i =>
-            String(i._id).toLowerCase() === searchVal ||
-            String(i[labelKey] || i).toLowerCase() === searchVal
-        );
-        return item?._id || val;
-    };
-
-    // Helper to get Label from object or string
-    const getLabel = (obj, list, labelKey = 'name') => {
-        if (!obj) return '';
-        if (typeof obj === 'string') {
-            // If it's already an ID, try to get the label from list
-            const item = (list || []).find(i => i._id === obj);
-            return item ? (item[labelKey] || item) : obj;
-        }
-        return obj.name || obj.employeeName || obj.zone || obj.days || obj.time || '';
-    };
-
-    const getRefId = (obj, list, labelKey = 'name') => {
-        if (!obj) return '';
-        const baseId = (typeof obj === 'object') ? (obj._id || obj.refId || '') : obj;
-        return findId(list, baseId, labelKey);
-    };
-
-    return {
-        ...INITIAL_FORM_VALUES,
-        ...customer,
-        CustomerType: getLabel(customer.CustomerType, configs.customerTypes),
-        CustomerTypeRefId: getRefId(customer.CustomerType, configs.customerTypes),
-        gstType: getLabel(customer.gstType, configs.gstTypes) || (customer.IsGSTRegistered ? 'Regular' : 'Unregistered'),
-        gstTypeRefId: getRefId(customer.gstType || (customer.IsGSTRegistered ? 'Regular' : 'Unregistered'), configs.gstTypes),
-        zoneRefId: getRefId(customer.zone, configs.zones, 'zone'),
-        salesPersonRefId: getRefId(customer.salesPerson, configs.salesPersons, 'employeeName'),
-        specificLabRefId: getRefId(customer.specificLab, configs.specificLabs),
-        plantRefId: getRefId(customer.plant, configs.plants),
-        fittingCenterRefId: getRefId(customer.fittingCenter, configs.fittingCenters),
-        creditDaysRefId: getRefId(customer.creditDays, configs.creditDays, 'days'),
-        courierNameRefId: getRefId(customer.courierName, configs.courierNames),
-        courierTimeRefId: getRefId(customer.courierTime, configs.courierTimes, 'time'),
-        address: customer.address?.length ? customer.address : INITIAL_FORM_VALUES.address,
-        brandCategories: (customer.brandCategories?.length) ? customer.brandCategories.map(bc => ({
-            brandId: getRefId(bc.brandId, configs.brands),
-            brandName: getLabel(bc.brandId, configs.brands),
-            categories: (bc.categories || []).map(cat => ({
-                categoryId: getRefId(cat.categoryId),
-                categoryName: getLabel(cat.categoryId)
-            }))
-        })) : INITIAL_FORM_VALUES.brandCategories,
-    };
-};
-
-
+import { INITIAL_FORM_VALUES } from '../components/CustomerRegistration/constants';
+import { mapCustomerToFormValues } from '../components/CustomerRegistration/helpers';
+import { CustomerInfo } from '../components/CustomerRegistration/CustomerInfo';
+import { AddressDetails } from '../components/CustomerRegistration/AddressDetails';
+import { CustomerRegn } from '../components/CustomerRegistration/CustomerRegn';
+import { Overview } from '../components/CustomerRegistration/Overview';
 
 export default function RegisterCustomer() {
     const dispatch = useDispatch();
@@ -214,7 +125,9 @@ export default function RegisterCustomer() {
         brands: [],
         specificLabs: [],
         salesPersons: [],
-        gstTypes: []
+        gstTypes: [],
+        plants: [],
+        fittingCenters: []
     });
 
     const [uploading, setUploading] = useState({
@@ -636,10 +549,10 @@ export default function RegisterCustomer() {
         );
     };
 
-    const isStepValid = () => {
+    const isStepValid = (stepIdx = activeStep) => {
         const { values, errors } = formik;
 
-        switch (activeStep) {
+        switch (stepIdx) {
             case 0: // Basic Info
                 const reqFields = ['shopName', 'ownerName', 'CustomerTypeRefId', 'orderMode', 'mobileNo1', 'emailId', 'gstType'];
                 const optFields = ['mobileNo2', 'landlineNo', 'businessEmail'];
@@ -683,8 +596,8 @@ export default function RegisterCustomer() {
         }
     };
 
-    const renderStep = () => {
-        switch (activeStep) {
+    const renderStepContent = (stepIdx) => {
+        switch (stepIdx) {
             case 0: return (
                 <CustomerInfo
                     wrapInput={wrapInput}
@@ -769,122 +682,147 @@ export default function RegisterCustomer() {
                 </div>
             )}
 
-            {/* Tab Navigation */}
-            <div className="flex flex-wrap md:flex-nowrap justify-center gap-2 md:gap-4 mb-6 md:mb-10 overflow-x-auto no-scrollbar py-2 text-center">
-                {steps.map((label, idx) => (
-                    <button
-                        key={idx}
-                        onClick={() => setStep(idx)}
-                        className={`px-4 md:px-8 py-2 rounded-full border-2 transition-all min-w-[120px] md:min-w-[160px] font-semibold whitespace-nowrap text-xs md:text-sm
-                            ${activeStep === idx
-                                ? 'bg-[#F59E0B] text-white border-[#F59E0B] shadow-md'
-                                : 'bg-white text-gray-400 border-gray-200 hover:border-[#F59E0B]/50'
-                            }
-                        `}
-                    >
-                        {label}
-                    </button>
-                ))}
-            </div>
-
-            {/* Main Content Card */}
-            <div className="max-w-6xl mx-auto bg-white/80 backdrop-blur-md rounded-3xl md:rounded-[40px] shadow-2xl p-4 md:p-12 border border-white/50 relative overflow-hidden">
-                <div className="relative z-10">
+            {/* Main Content Card with Accordion */}
+            <div className="max-w-6xl mx-auto">
+                <div className="space-y-6">
                     <FormikProvider value={formik}>
-                        {renderStep()}
+                        {steps.map((label, idx) => {
+                            const isActive = activeStep === idx;
+                            const isCompleted = idx < activeStep;
+
+                            return (
+                                <div
+                                    key={idx}
+                                    className={`bg-white rounded-[2rem] border transition-all duration-300 ${isActive ? 'shadow-2xl ring-1 ring-orange-100 border-orange-200' : 'shadow-sm border-gray-100'}`}
+                                >
+                                    {/* Accordion Header */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setStep(idx)}
+                                        className="w-full flex items-center justify-between p-6 cursor-pointer group"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 ${isActive
+                                                ? 'bg-orange-500 text-white shadow-lg rotate-12 scale-110'
+                                                : isCompleted
+                                                    ? 'bg-green-500 text-white'
+                                                    : 'bg-gray-100 text-gray-400 group-hover:bg-orange-50'
+                                                }`}>
+                                                {isCompleted ? <Icon icon="mdi:check" className="text-xl" /> : <span className="font-black italic text-lg">{idx + 1}</span>}
+                                            </div>
+                                            <div className="text-left">
+                                                <h3 className={`font-black uppercase tracking-widest text-sm transition-colors ${isActive ? 'text-orange-600' : 'text-gray-700'}`}>
+                                                    {label}
+                                                </h3>
+                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                                                    {isActive ? 'Currently Editing' : isCompleted ? 'Verification Complete' : 'Pending Details'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${isActive ? 'bg-orange-50 rotate-180' : 'bg-gray-50'}`}>
+                                            <Icon icon="mdi:chevron-down" className={`text-xl ${isActive ? 'text-orange-500' : 'text-gray-400'}`} />
+                                        </div>
+                                    </button>
+
+                                    {/* Accordion Content */}
+                                    {isActive && (
+                                        <div className="p-8 md:p-12 pt-0 animate-in fade-in slide-in-from-top-4 duration-500">
+                                            <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-100 to-transparent mb-12" />
+                                            {renderStepContent(idx)}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </FormikProvider>
+                </div>
 
-                    {/* Footer Actions */}
-                    <div className="flex flex-col md:flex-row justify-center gap-4 md:gap-6 mt-8 md:mt-16 mx-auto ">
-                        <Button
-                            variant="outlined"
-                            onClick={handleSaveDraft}
-                            disabled={savingDraft || loadingDraftData || isApprovalMode}
-                            className={`w-full md:w-auto ${isApprovalMode ? 'hidden' : ''}`}
-                        >
-                            {draftCustomerId ? 'Update Draft' : 'Save As Draft'}
-                        </Button>
+                {/* Footer Actions */}
+                <div className="flex flex-col md:flex-row justify-center gap-4 md:gap-6 mt-12 mx-auto ">
+                    <Button
+                        variant="outlined"
+                        onClick={handleSaveDraft}
+                        disabled={savingDraft || loadingDraftData || isApprovalMode}
+                        className={`w-full md:w-auto ${isApprovalMode ? 'hidden' : ''}`}
+                    >
+                        {draftCustomerId ? 'Update Draft' : 'Save As Draft'}
+                    </Button>
 
-                        {loadingDraftData && (
+                    {loadingDraftData && (
+                        <div className="flex items-center">
                             <span className="text-orange-500 text-sm animate-pulse flex items-center">
                                 <Icon icon="mdi:loading" className="animate-spin mr-2" />
                                 Loading Details...
                             </span>
-                        )}
+                        </div>
+                    )}
 
-                        {isFinanceUser && isApprovalMode && (
-                            <div className="flex gap-4 ">
-                                {!isVerificationMode ? (
+                    {isFinanceUser && isApprovalMode && (
+                        <div className="flex gap-4">
+                            {!isVerificationMode ? (
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => dispatch(toggleVerificationMode())}
+                                    className="nowrap w-full"
+                                >
+                                    Send Back To Sales
+                                </Button>
+                            ) : (
+                                <>
                                     <Button
                                         variant="outlined"
                                         onClick={() => dispatch(toggleVerificationMode())}
-                                        className="nowrap w-full "
                                     >
-
-                                        Send Back To Sales
+                                        Exit Verification
                                     </Button>
-                                ) : (
-                                    <>
-                                        <Button
-                                            variant="outlined"
-                                            onClick={() => dispatch(toggleVerificationMode())}
-                                        >
-                                            Exit Verification
-                                        </Button>
-                                        <Button
-                                            onClick={() => {
-                                                const fields = Object.keys(rejectedFields).filter(k => rejectedFields[k]);
-                                                if (fields.length === 0) {
-                                                    toast.warning("Please select at least one field to reject");
-                                                    return;
-                                                }
-                                                // Re-use the existing modal logic but as the final submission
-                                                setCorrectionRequest({ fields, remarks: '' });
-                                                setIsCorrectionModalOpen(true);
-                                            }}
-                                            className="bg-red-500 text-white"
-                                        >
-                                            Submit Rejection
-                                        </Button>
-                                    </>
-                                )}
-                            </div>
-                        )}
+                                    <Button
+                                        onClick={() => {
+                                            const fields = Object.keys(rejectedFields).filter(k => rejectedFields[k]);
+                                            if (fields.length === 0) {
+                                                toast.warning("Please select at least one field to reject");
+                                                return;
+                                            }
+                                            setCorrectionRequest({ fields, remarks: '' });
+                                            setIsCorrectionModalOpen(true);
+                                        }}
+                                        className="bg-red-500 text-white"
+                                    >
+                                        Submit Rejection
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    )}
 
-                        <Button
-                            variant="contained"
-                            onClick={async () => {
-                                if (activeStep < steps.length - 1) {
-                                    setStep(activeStep + 1);
-                                } else {
-                                    if (isReadOnlyMode) {
-                                        navigate(PATHS.APPROVALS);
-                                        return;
-                                    }
-                                    const errors = await formik.validateForm();
-                                    if (Object.keys(errors).length > 0) {
-                                        toast.warning('Please fill all required fields correctly before submitting.');
-                                        formik.setTouched(
-                                            Object.keys(errors).reduce((acc, key) => ({ ...acc, [key]: true }), {})
-                                        );
-                                    } else {
-                                        formik.handleSubmit();
-                                    }
+                    <Button
+                        variant="contained"
+                        onClick={async () => {
+                            if (activeStep < steps.length - 1) {
+                                setStep(activeStep + 1);
+                            } else {
+                                if (isReadOnlyMode) {
+                                    navigate(PATHS.APPROVALS);
+                                    return;
                                 }
-                            }}
-                            disabled={(!isReadOnlyMode && !isStepValid()) || isVerificationMode}
-                            className={`w-full md:w-auto ${((!isReadOnlyMode && !isStepValid()) || isVerificationMode) ? "opacity-50 cursor-not-allowed" : ""}`}
-                        >
-                            {activeStep === steps.length - 1
-                                ? (isReadOnlyMode ? 'Close' : (isApprovalMode ? 'Approve' : (correctionCustomerId ? 'Resubmit' : ((user?.EmployeeType === 'SUPERADMIN' || isFinanceUser) ? 'Register' : 'Submit For Approval'))))
-                                : 'Next'}
-                        </Button>
-                    </div>
+                                const errors = await formik.validateForm();
+                                if (Object.keys(errors).length > 0) {
+                                    toast.warning('Please fill all required fields correctly before submitting.');
+                                    formik.setTouched(
+                                        Object.keys(errors).reduce((acc, key) => ({ ...acc, [key]: true }), {})
+                                    );
+                                } else {
+                                    formik.handleSubmit();
+                                }
+                            }
+                        }}
+                        disabled={(!isReadOnlyMode && !isStepValid()) || isVerificationMode}
+                        className={`w-full md:w-auto ${((!isReadOnlyMode && !isStepValid()) || isVerificationMode) ? "opacity-50 cursor-not-allowed" : ""}`}
+                    >
+                        {activeStep === steps.length - 1
+                            ? (isReadOnlyMode ? 'Close' : (isApprovalMode ? 'Approve' : (correctionCustomerId ? 'Resubmit' : ((user?.EmployeeType === 'SUPERADMIN' || isFinanceUser) ? 'Register' : 'Submit For Approval'))))
+                            : 'Next'}
+                    </Button>
                 </div>
-
-                {/* Background decorative circles */}
-                {/* <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-gray-50 rounded-full opacity-50"></div>
-                <div className="absolute bottom-[-5%] left-[-5%] w-48 h-48 bg-gray-50 rounded-full opacity-50"></div> */}
             </div>
 
             <CorrectionRequestModal
@@ -899,561 +837,4 @@ export default function RegisterCustomer() {
     );
 }
 
-const FileUploadField = ({ label, name, placeholder, fileRef, onFileChange, uploading, currentValue, formik, wrapInput, imgFieldName, isReadOnlyMode }) => (
-    <div className="flex flex-col gap-4 p-6 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200 animate-in fade-in slide-in-from-top-2 duration-300">
-        <div className="flex flex-col gap-2">
-            <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider ml-1">{label}</span>
-            {wrapInput(Input, { label: '', name, placeholder, className: "bg-white" })}
-        </div>
 
-        <div className="flex flex-col gap-4">
-            <input type="file" hidden ref={fileRef} onChange={onFileChange} />
-            <Button
-                onClick={() => fileRef.current.click()}
-                disabled={uploading || isReadOnlyMode}
-                className={(uploading || isReadOnlyMode) ? "bg-gray-400 text-white rounded-xl h-[52px] px-6 flex items-center justify-center gap-2 cursor-not-allowed opacity-50" : "bg-[#F59E0B] text-white rounded-xl h-[52px] px-6 flex items-center justify-center gap-2 transition-all hover:bg-[#D97706] shadow-sm font-bold uppercase tracking-tighter text-xs"}
-            >
-                <Icon icon={uploading ? "mdi:loading" : "mdi:cloud-upload"} className={uploading ? "animate-spin text-xl" : "text-xl"} />
-                {uploading ? 'Uploading...' : 'Upload Document'}
-            </Button>
-
-            {currentValue && (
-                <div className="relative group rounded-2xl overflow-hidden border border-gray-100 aspect-video bg-white flex items-center justify-center shadow-inner">
-                    <img src={currentValue} alt={label} className="w-full h-full object-contain" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                        <a href={currentValue} target="_blank" rel="noopener noreferrer" className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30 text-white hover:bg-white/30 transition-all scale-90 group-hover:scale-100 duration-300">
-                            <Icon icon="mdi:eye" className="text-2xl" />
-                        </a>
-                        {!isReadOnlyMode && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (imgFieldName) formik.setFieldValue(imgFieldName, '');
-                                }}
-                                className="bg-red-500/20 backdrop-blur-md p-3 rounded-full border border-red-500/30 text-red-500 hover:bg-red-500/30 transition-all scale-90 group-hover:scale-100 duration-300"
-                            >
-                                <Icon icon="mdi:trash-can-outline" className="text-2xl" />
-                            </button>
-                        )}
-                    </div>
-                </div>
-            )}
-        </div>
-    </div>
-);
-
-const CustomerInfo = ({ wrapInput, configs, formik, aadharRef, panRef, gstRef, handleFileUpload, uploading, isReadOnlyMode }) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-        {wrapInput(Input, { label: 'Shop Name*', name: 'shopName', placeholder: 'Enter Shop Name' })}
-        {wrapInput(Input, { label: "Owner's Name*", name: 'ownerName', placeholder: "Enter Owner's Name" })}
-        {wrapInput(Select, {
-            label: 'Customer Type*',
-            name: 'CustomerTypeRefId',
-            options: configs.customerTypes.map(c => ({ value: c._id, label: c.name }))
-        })}
-        {wrapInput(Select, {
-            label: 'Order Mode*',
-            name: 'orderMode',
-            options: [{ value: 'ONLINE', label: 'Online' }, { value: 'OFFLINE', label: 'Offline' }]
-        })}
-        {wrapInput(Input, { label: 'Mobile No. 1*', name: 'mobileNo1', placeholder: 'Enter Mobile No. 1' })}
-        {wrapInput(Input, { label: 'Mobile No. 2', name: 'mobileNo2', placeholder: 'Enter Mobile No. 2' })}
-        {wrapInput(Input, { label: 'Landline No.', name: 'landlineNo', placeholder: 'Enter Landline No.' })}
-        {wrapInput(Input, { label: 'Email ID*', name: 'emailId', placeholder: 'Enter Email ID' })}
-        {wrapInput(Input, { label: 'Business Email', name: 'businessEmail', placeholder: 'Enter Business Email' })}
-
-        {/* GST Selection */}
-        {wrapInput(Select, {
-            label: 'GST For Invoicing*',
-            name: 'gstTypeRefId',
-            options: (configs.gstTypes || []).map(g => ({ value: g._id, label: g.name })),
-            onChange: (e) => {
-                const selected = configs.gstTypes.find(g => g._id === e.target.value);
-                const prevType = formik.values.gstType?.toLowerCase();
-                const nextType = (selected?.name || '').toLowerCase();
-
-                formik.setFieldValue('gstTypeRefId', e.target.value);
-                formik.setFieldValue('gstType', selected?.name || '');
-
-                // Reset fields if switching context
-                if (prevType !== nextType) {
-                    if (nextType === 'unregistered') {
-                        formik.setFieldValue('GSTNumber', '');
-                        formik.setFieldValue('GSTCertificateImg', '');
-                    } else {
-                        formik.setFieldValue('AadharCard', '');
-                        formik.setFieldValue('AadharCardImg', '');
-                        formik.setFieldValue('PANCard', '');
-                        formik.setFieldValue('PANCardImg', '');
-                    }
-                }
-            }
-        })}
-        {/* Scenario: If unregistered show Aadhar and PAN, else show GST */}
-        {formik.values.gstType?.toLowerCase() === 'unregistered' ? (
-            <>
-                <FileUploadField
-                    label="Aadhar Card No.*"
-                    name="AadharCard"
-                    placeholder="Enter Aadhar No."
-                    fileRef={aadharRef}
-                    onFileChange={(e) => handleFileUpload(e, 'AadharCardImg', 'aadhar')}
-                    uploading={uploading.aadhar}
-                    currentValue={formik.values.AadharCardImg}
-                    formik={formik}
-                    wrapInput={wrapInput}
-                    imgFieldName="AadharCardImg"
-                    isReadOnlyMode={isReadOnlyMode}
-                />
-                <FileUploadField
-                    label="PAN Card No.*"
-                    name="PANCard"
-                    placeholder="Enter PAN No."
-                    fileRef={panRef}
-                    onFileChange={(e) => handleFileUpload(e, 'PANCardImg', 'pan')}
-                    uploading={uploading.pan}
-                    currentValue={formik.values.PANCardImg}
-                    formik={formik}
-                    wrapInput={wrapInput}
-                    imgFieldName="PANCardImg"
-                    isReadOnlyMode={isReadOnlyMode}
-                />
-            </>
-        ) : <FileUploadField
-            label="GST Number*"
-            name="GSTNumber"
-            placeholder="Enter GST No."
-            fileRef={gstRef}
-            onFileChange={(e) => handleFileUpload(e, 'GSTCertificateImg', 'gst')}
-            uploading={uploading.gst}
-            currentValue={formik.values.GSTCertificateImg}
-            formik={formik}
-            wrapInput={wrapInput}
-            imgFieldName="GSTCertificateImg"
-            isReadOnlyMode={isReadOnlyMode}
-        />}
-    </div>
-);
-
-const AddressDetails = ({ formik, wrapInput, configs, isVerificationMode, rejectedFields, dispatch, isReadOnlyMode }) => {
-    useEffect(() => {
-        if (!isReadOnlyMode && formik.values.address.length === 1) {
-            const firstAddr = formik.values.address[0];
-            if (!firstAddr.contactPerson && !firstAddr.contactNumber) {
-                formik.setFieldValue('address[0].contactPerson', formik.values.ownerName || '');
-                formik.setFieldValue('address[0].contactNumber', formik.values.mobileNo1 || '');
-            }
-        }
-    }, [isReadOnlyMode, formik.values.ownerName, formik.values.mobileNo1]);
-
-    return (
-        <div className="space-y-12">
-            <FieldArray name="address">
-                {({ push, remove }) => (
-                    <div className="space-y-12">
-                        {formik.values.address.map((addr, index) => (
-                            <div key={index} className="relative pt-6">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-[#F59E0B] font-bold">Address {index + 1}*</h3>
-                                    {index > 0 && !isReadOnlyMode && <button onClick={() => remove(index)} className="text-red-500 text-sm font-bold flex items-center gap-1"><Icon icon="mdi:delete" /> Remove</button>}
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                                    {wrapInput(Input, {
-                                        label: "Branch Address*",
-                                        name: `address[${index}].branchAddress`,
-                                        value: addr.branchAddress,
-                                        placeholder: "Enter Branch Address"
-                                    })}
-                                    {wrapInput(Input, {
-                                        label: "Contact Person Name*",
-                                        name: `address[${index}].contactPerson`,
-                                        value: addr.contactPerson,
-                                        placeholder: "Enter Contact Person"
-                                    })}
-                                    {wrapInput(Input, {
-                                        label: "Contact Number*",
-                                        name: `address[${index}].contactNumber`,
-                                        value: addr.contactNumber,
-                                        placeholder: "Enter Contact Number"
-                                    })}
-                                    {wrapInput(Input, {
-                                        label: "City*",
-                                        name: `address[${index}].city`,
-                                        value: addr.city,
-                                        placeholder: "Enter City"
-                                    })}
-                                    {wrapInput(Select, {
-                                        label: "State*",
-                                        name: `address[${index}].state`,
-                                        value: addr.state,
-                                        options: (Array.isArray(configs.states) ? configs.states : []).map(z => ({ value: z.name, label: z.name }))
-                                    })}
-                                    {wrapInput(Select, {
-                                        label: "Country*",
-                                        name: `address[${index}].country`,
-                                        value: addr.country,
-                                        options: [{ value: 'India', label: 'India' }]
-                                    })}
-                                    {wrapInput(Select, {
-                                        label: "Billing Currency*",
-                                        name: `address[${index}].billingCurrency`,
-                                        value: addr.billingCurrency,
-                                        options: [{ value: 'Indian Rupees', label: 'Indian Rupees' }]
-                                    })}
-                                    {wrapInput(Select, {
-                                        label: "Billing Mode*",
-                                        name: `address[${index}].billingMode`,
-                                        value: addr.billingMode,
-                                        options: [{ value: 'Credit', label: 'Credit' }, { value: 'Advance', label: 'Advance' }]
-                                    })}
-                                    {wrapInput(Input, {
-                                        label: "Pincode*",
-                                        name: `address[${index}].zipCode`,
-                                        value: addr.zipCode,
-                                        placeholder: "Enter Pincode"
-                                    })}
-                                </div>
-                            </div>
-                        ))}
-                        {!isReadOnlyMode && (
-                            <div className="flex justify-center mt-4">
-                                <Button
-                                    variant="outlined"
-                                    onClick={() => push({
-                                        branchAddress: '',
-                                        contactPerson: formik.values.ownerName || '',
-                                        contactNumber: formik.values.mobileNo1 || '',
-                                        city: '',
-                                        state: '',
-                                        country: 'India',
-                                        billingCurrency: 'Indian Rupees',
-                                        billingMode: 'Credit',
-                                        zipCode: ''
-                                    })}
-                                    className="bg-[#F59E0B] text-white rounded-full px-10 py-3 flex items-center gap-2 w-fit hover:text-black hover:bg-[#D97706]"
-                                >
-                                    <Icon icon="mdi:plus" /> Add Address
-                                </Button>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </FieldArray>
-        </div>
-    );
-};
-
-const BrandRow = ({ index, bc, remove, configs, formik, wrapInput, isReadOnlyMode }) => {
-    const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-        const fetchCats = async () => {
-            if (bc.brandId) {
-                setLoading(true);
-                try {
-                    const data = await getBrandCategories(bc.brandId);
-                    // The API returns { data: { categories: [...] } } or just the array depending on the helper
-                    // getBrandCategories looks like it returns response.data?.data || [] but our previous fetch logic showed categories nested.
-                    // Let's check getBrandCategories implementation again.
-                    setCategories(Array.isArray(data) ? data : data.categories || []);
-                } catch (error) {
-                    console.error('Error fetching categories:', error);
-                    setCategories([]);
-                } finally {
-                    setLoading(false);
-                }
-            } else {
-                setCategories([]);
-            }
-        };
-        fetchCats();
-    }, [bc.brandId]);
-
-
-
-    return (
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative group">
-            {!isReadOnlyMode && (
-                <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    className="absolute -top-2 -right-2 bg-red-50 text-red-500 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity border border-red-100"
-                >
-                    <Icon icon="mdi:close" className="text-lg" />
-                </button>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {wrapInput(Select, {
-                    label: "Select Brand*",
-                    name: `brandCategories[${index}].brandId`,
-                    value: bc.brandId,
-                    options: (configs.brands || []).map(b => ({ value: b._id, label: b.name })),
-                    onChange: (e) => {
-                        const brand = configs.brands.find(b => b._id === e.target.value);
-                        formik.setFieldValue(`brandCategories[${index}].brandId`, e.target.value);
-                        formik.setFieldValue(`brandCategories[${index}].brandName`, brand?.name || '');
-                        formik.setFieldValue(`brandCategories[${index}].categories`, []); // Reset categories
-                    }
-                })}
-
-                {wrapInput(Select, {
-                    label: "Select Categories*",
-                    name: `brandCategories[${index}].categories`,
-                    multiple: true,
-                    placeholder: "Select Categories",
-                    disabled: !bc.brandId || loading,
-                    value: (bc.categories || []).map(c => c.categoryId),
-                    options: categories.map(c => ({ value: c._id, label: c.name })),
-                    onChange: (e) => {
-                        const selectedIds = Array.isArray(e.target.value) ? e.target.value : [e.target.value];
-                        const updatedCats = selectedIds.map(id => ({
-                            categoryId: id,
-                            categoryName: categories.find(cat => cat._id === id)?.name || ''
-                        }));
-                        formik.setFieldValue(`brandCategories[${index}].categories`, updatedCats);
-                    }
-                })}
-                {loading && <span className="text-[10px] text-orange-500 animate-pulse">Loading categories...</span>}
-            </div>
-        </div>
-    );
-};
-
-const CustomerRegn = ({ wrapInput, configs, formValues, formik, dispatch, isReadOnlyMode }) => {
-    const noVerifyWrap = (Component, props) => wrapInput(Component, props, true);
-
-    return (
-        <div className="space-y-12">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                <Input
-                    label="Login Email (Prefilled)"
-                    name="emailId"
-                    value={formik.values.emailId}
-                    disabled
-                    className="bg-gray-50"
-                />
-                {noVerifyWrap(Input, { label: 'Password*', name: 'customerpassword', type: 'password', placeholder: 'Enter Password' })}
-            </div>
-
-            <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-gray-800 uppercase tracking-tight flex items-center gap-2">
-                        <Icon icon="mdi:tag-multiple" className="text-[#F59E0B]" /> Brand & Category Selection*
-                    </h3>
-                </div>
-
-                <FieldArray name="brandCategories">
-                    {({ push, remove }) => (
-                        <div className="space-y-4">
-                            {formik.values.brandCategories.map((bc, index) => (
-                                <BrandRow
-                                    key={index}
-                                    index={index}
-                                    bc={bc}
-                                    remove={remove}
-                                    configs={configs}
-                                    formik={formik}
-                                    wrapInput={wrapInput}
-                                    isReadOnlyMode={isReadOnlyMode}
-                                />
-                            ))}
-                            {!isReadOnlyMode && (
-                                <Button
-                                    variant="outlined"
-                                    onClick={() => push({ brandId: '', brandName: '', categories: [] })}
-                                    className="bg-gray-50 border-dashed border-2 border-gray-200 text-gray-500 hover:border-[#F59E0B] hover:text-[#F59E0B] w-full py-4 rounded-2xl flex items-center justify-center gap-2"
-                                >
-                                    <Icon icon="mdi:plus-circle" /> Add Another Brand
-                                </Button>
-                            )}
-                        </div>
-                    )}
-                </FieldArray>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                {noVerifyWrap(Select, {
-                    label: 'Zone*',
-                    name: 'zoneRefId',
-                    options: (Array.isArray(configs.zones) ? configs.zones : []).map(z => ({ value: z._id, label: z.zone }))
-                })}
-                {noVerifyWrap(Select, {
-                    label: 'Select Sales Person*',
-                    name: 'salesPersonRefId',
-                    options: (configs.salesPersons || []).map(s => ({ value: s._id, label: s.employeeName }))
-                })}
-                {noVerifyWrap(Select, {
-                    label: 'Specific Lab*',
-                    name: 'specificLabRefId',
-                    options: (configs.specificLabs || []).map(l => ({ value: l._id, label: l.name }))
-                })}
-                {noVerifyWrap(Select, {
-                    label: 'Fitting Centre*',
-                    name: 'fittingCenterRefId',
-                    options: (configs.fittingCenters || []).map(f => ({ value: f._id, label: f.name }))
-                })}
-                {noVerifyWrap(Select, {
-                    label: 'Plant*',
-                    name: 'plantRefId',
-                    options: (configs.plants || []).map(p => ({ value: p._id, label: p.name }))
-                })}
-                {noVerifyWrap(Input, { label: 'Credit Limit*', name: 'creditLimit', placeholder: 'Enter Limit' })}
-                {noVerifyWrap(Select, {
-                    label: 'Credit Days*',
-                    name: 'creditDaysRefId',
-                    options: (configs.creditDays || []).map(d => ({ value: d._id, label: d.days.toString() }))
-                })}
-                {noVerifyWrap(Select, {
-                    label: 'Courier Name*',
-                    name: 'courierNameRefId',
-                    options: (configs.courierNames || []).map(n => ({ value: n._id, label: n.name }))
-                })}
-                {noVerifyWrap(Select, {
-                    label: 'Courier Time*',
-                    name: 'courierTimeRefId',
-                    options: (configs.courierTimes || []).map(t => ({ value: t._id, label: t.time }))
-                })}
-            </div>
-        </div>
-    );
-};
-
-const DetailItem = ({ label, value }) => (
-    <div className="flex flex-col gap-1">
-        <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider">{label}</span>
-        <span className="text-gray-700 font-semibold">{value || '---'}</span>
-    </div>
-);
-
-const SummaryCard = ({ title, icon, color = "#F59E0B", children }) => (
-    <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-sm border border-gray-100/50 hover:shadow-md transition-all">
-        <div className="flex items-center gap-3 mb-4 md:mb-8">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: color }}>
-                <Icon icon={icon} className="text-lg md:text-xl" />
-            </div>
-            <h3 className="font-bold text-gray-800 text-sm md:text-base lg:text-lg uppercase tracking-tight">{title}</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 md:gap-x-8 gap-y-4 md:gap-y-6">
-            {children}
-        </div>
-    </div>
-);
-
-const DocPreview = ({ label, src }) => (
-    <div className="flex flex-col gap-2">
-        <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider">{label}</span>
-        {src ? (
-            <div className="relative group overflow-hidden rounded-2xl border border-gray-100 aspect-video bg-gray-50 flex items-center justify-center">
-                <img
-                    src={src}
-                    alt={label}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <a href={src} target="_blank" rel="noopener noreferrer" className="bg-white/20 backdrop-blur-md p-2 rounded-full border border-white/30 text-white">
-                        <Icon icon="mdi:eye" className="text-xl" />
-                    </a>
-                </div>
-            </div>
-        ) : (
-            <div className="rounded-2xl border border-dashed border-gray-200 aspect-video bg-gray-50/50 flex flex-col items-center justify-center text-gray-300">
-                <Icon icon="mdi:image-off" className="text-2xl mb-1" />
-                <span className="text-[10px] font-bold uppercase tracking-tighter">No Document</span>
-            </div>
-        )}
-    </div>
-);
-
-const Overview = ({ formik, configs = {}, isSalesUser }) => {
-    const { values } = formik;
-
-    return (
-        <div className="space-y-6 md:space-y-8 max-h-[500px] md:max-h-[600px] overflow-y-auto pr-2 md:pr-4 custom-scrollbar">
-            <h2 className="text-xl md:text-2xl font-black text-[#F59E0B] mb-4 md:mb-8 flex items-center gap-3">
-                <Icon icon="mdi:file-find-outline" /> Review Application
-            </h2>
-
-            <SummaryCard title="Basic Info" icon="mdi:account-circle">
-                <div className="col-span-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-4">
-                    <DetailItem label="Shop Name" value={values.shopName} />
-                    <DetailItem label="Owner's Name" value={values.ownerName} />
-                    <DetailItem label="Mobile 1" value={values.mobileNo1} />
-                    <DetailItem label="Mobile 2" value={values.mobileNo2} />
-                    <DetailItem label="Landline" value={values.landlineNo} />
-                    {!isSalesUser && <DetailItem label="Email ID" value={values.emailId} />}
-                    <DetailItem label="GST Type" value={values.gstType} />
-                    {(values.gstType === 'Regular' || values.gstType === 'Composition') && <DetailItem label="GST Number" value={values.GSTNumber} />}
-                </div>
-
-                <div className="col-span-full border-t border-gray-50 pt-4 md:pt-6 mt-2">
-                    <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] mb-4">Identity Documents</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
-                        {(values.gstType === 'Regular' || values.gstType === 'Composition') ? (
-                            <DocPreview label="GST Document" src={values.GSTCertificateImg} />
-                        ) : (
-                            <>
-                                <div className="space-y-4">
-                                    <DetailItem label="Aadhar No." value={values.AadharCard} />
-                                    <DocPreview label="Aadhar Card" src={values.AadharCardImg} />
-                                </div>
-                                <div className="space-y-4">
-                                    <DetailItem label="PAN No." value={values.PANCard} />
-                                    <DocPreview label="PAN Card" src={values.PANCardImg} />
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </SummaryCard>
-
-            <div className="space-y-6">
-                {values.address.map((addr, idx) => (
-                    <SummaryCard key={idx} title={`Address ${idx + 1} `} icon="mdi:map-marker">
-                        <DetailItem label="Branch Address" value={addr.branchAddress} />
-                        <DetailItem label="Contact Person" value={addr.contactPerson} />
-                        <DetailItem label="Contact No." value={addr.contactNumber} />
-                        <DetailItem label="City" value={addr.city} />
-                        <DetailItem label="State" value={addr.state} />
-                        <DetailItem label="Currency" value={addr.billingCurrency} />
-                        <DetailItem label="Mode" value={addr.billingMode} />
-                        <DetailItem label="Pincode" value={addr.zipCode} />
-                    </SummaryCard>
-                ))}
-            </div>
-
-            {!isSalesUser && (
-                <SummaryCard title="Registration Details" icon="mdi:cog">
-                    <DetailItem label="Zone" value={configs.zones.find(z => z._id === values.zoneRefId)?.zone} />
-                    <DetailItem label="Sales Person" value={configs.salesPersons.find(s => s._id === values.salesPersonRefId)?.employeeName} />
-                    <DetailItem label="Specific Lab" value={configs.specificLabs.find(l => l._id === values.specificLabRefId)?.name} />
-                    <DetailItem label="Plant" value={configs.plants.find(p => p._id === values.plantRefId)?.name} />
-                    <DetailItem label="Fitting Centre" value={configs.fittingCenters.find(f => f._id === values.fittingCenterRefId)?.name} />
-                    <DetailItem label="Credit Limit" value={values.creditLimit} />
-                    <DetailItem label="Credit Days" value={configs.creditDays.find(d => d._id === values.creditDaysRefId)?.days} />
-                    <DetailItem label="Courier Name" value={configs.courierNames.find(c => c._id === values.courierNameRefId)?.name} />
-                    <DetailItem label="Courier Time" value={configs.courierTimes.find(t => t._id === values.courierTimeRefId)?.time} />
-                </SummaryCard>
-            )}
-
-            {!isSalesUser && (
-                <SummaryCard title="Selected Brands & Categories" icon="mdi:tag-multiple">
-                    <div className="col-span-full space-y-4">
-                        {values.brandCategories.map((bc, idx) => (
-                            <div key={idx} className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                <h4 className="font-bold text-gray-800 mb-2">{bc.brandName || 'Unknown Brand'}</h4>
-                                <div className="flex flex-wrap gap-2">
-                                    {(bc.categories || []).map((cat, cIdx) => (
-                                        <span key={cIdx} className="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs font-semibold text-gray-600">
-                                            {cat.categoryName}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </SummaryCard>
-            )}
-        </div>
-    );
-};

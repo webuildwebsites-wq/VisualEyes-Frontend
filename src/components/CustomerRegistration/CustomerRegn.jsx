@@ -1,0 +1,106 @@
+import React from 'react';
+import { FieldArray } from 'formik';
+import { Icon } from '@iconify/react';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
+import Button from '../ui/Button';
+import { BrandRow } from './BrandRow';
+
+export const CustomerRegn = ({ wrapInput, configs, formValues, formik, dispatch, isReadOnlyMode }) => {
+    const noVerifyWrap = (Component, props) => wrapInput(Component, props, true);
+
+    return (
+        <div className="space-y-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                <Input
+                    label="Login Email (Prefilled)"
+                    name="emailId"
+                    value={formik.values.emailId}
+                    disabled
+                    className="bg-gray-50"
+                />
+                {noVerifyWrap(Input, { label: 'Password*', name: 'customerpassword', type: 'password', placeholder: 'Enter Password' })}
+            </div>
+
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-gray-800 uppercase tracking-tight flex items-center gap-2">
+                        <Icon icon="mdi:tag-multiple" className="text-[#F59E0B]" /> Brand & Category Selection*
+                    </h3>
+                </div>
+
+                <FieldArray name="brandCategories">
+                    {({ push, remove }) => (
+                        <div className="space-y-4">
+                            {formik.values.brandCategories.map((bc, index) => (
+                                <BrandRow
+                                    key={index}
+                                    index={index}
+                                    bc={bc}
+                                    remove={remove}
+                                    configs={configs}
+                                    formik={formik}
+                                    wrapInput={wrapInput}
+                                    isReadOnlyMode={isReadOnlyMode}
+                                />
+                            ))}
+                            {!isReadOnlyMode && (
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => push({ brandId: '', brandName: '', categories: [] })}
+                                    className="bg-gray-50 border-dashed border-2 border-gray-200 text-gray-500 hover:border-[#F59E0B] hover:text-[#F59E0B] w-full py-4 rounded-2xl flex items-center justify-center gap-2"
+                                >
+                                    <Icon icon="mdi:plus-circle" /> Add Another Brand
+                                </Button>
+                            )}
+                        </div>
+                    )}
+                </FieldArray>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                {noVerifyWrap(Select, {
+                    label: 'Zone*',
+                    name: 'zoneRefId',
+                    options: (Array.isArray(configs.zones) ? configs.zones : []).map(z => ({ value: z._id, label: z.zone }))
+                })}
+                {noVerifyWrap(Select, {
+                    label: 'Select Sales Person*',
+                    name: 'salesPersonRefId',
+                    options: (configs.salesPersons || []).map(s => ({ value: s._id, label: s.employeeName }))
+                })}
+                {noVerifyWrap(Select, {
+                    label: 'Specific Lab*',
+                    name: 'specificLabRefId',
+                    options: (configs.specificLabs || []).map(l => ({ value: l._id, label: l.name }))
+                })}
+                {noVerifyWrap(Select, {
+                    label: 'Fitting Centre*',
+                    name: 'fittingCenterRefId',
+                    options: (configs.fittingCenters || []).map(f => ({ value: f._id, label: f.name }))
+                })}
+                {noVerifyWrap(Select, {
+                    label: 'Plant*',
+                    name: 'plantRefId',
+                    options: (configs.plants || []).map(p => ({ value: p._id, label: p.name }))
+                })}
+                {noVerifyWrap(Input, { label: 'Credit Limit*', name: 'creditLimit', placeholder: 'Enter Limit' })}
+                {noVerifyWrap(Select, {
+                    label: 'Credit Days*',
+                    name: 'creditDaysRefId',
+                    options: (configs.creditDays || []).map(d => ({ value: d._id, label: d.days?.toString() || '' }))
+                })}
+                {noVerifyWrap(Select, {
+                    label: 'Courier Name*',
+                    name: 'courierNameRefId',
+                    options: (configs.courierNames || []).map(n => ({ value: n._id, label: n.name }))
+                })}
+                {noVerifyWrap(Select, {
+                    label: 'Courier Time*',
+                    name: 'courierTimeRefId',
+                    options: (configs.courierTimes || []).map(t => ({ value: t._id, label: t.time }))
+                })}
+            </div>
+        </div>
+    );
+};

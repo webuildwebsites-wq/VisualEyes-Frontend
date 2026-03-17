@@ -1,0 +1,33 @@
+export const INITIAL_FORM_VALUES = {
+    shopName: '',
+    ownerName: '',
+    CustomerTypeRefId: '',
+    orderMode: '',
+    mobileNo1: '',
+    mobileNo2: '',
+    landlineNo: '',
+    emailId: '',
+    businessEmail: '',
+    gstType: 'unregistered',
+    gstTypeRefId: '',
+    GSTNumber: '',
+    GSTCertificateImg: '',
+    AadharCard: '',
+    AadharCardImg: '',
+    PANCard: '',
+    PANCardImg: '',
+    address: [
+        { branchAddress: '', contactPerson: '', contactNumber: '', city: '', state: '', country: 'India', billingCurrency: 'Indian Rupees', billingMode: 'Credit', zipCode: '' }
+    ],
+    customerpassword: '',
+    zoneRefId: '',
+    brandCategories: [{ brandId: '', brandName: '', categories: [] }],
+    specificLabRefId: '',
+    salesPersonRefId: '',
+    plantRefId: '',
+    fittingCenterRefId: '',
+    creditLimit: '',
+    creditDaysRefId: '',
+    courierNameRefId: '',
+    courierTimeRefId: ''
+};
