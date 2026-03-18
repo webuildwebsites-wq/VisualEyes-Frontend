@@ -19,6 +19,11 @@ export const INITIAL_FORM_VALUES = {
     address: [
         { branchAddress: '', contactPerson: '', contactNumber: '', city: '', state: '', country: 'India', billingCurrency: 'Indian Rupees', billingMode: 'Credit', zipCode: '' }
     ],
+    yearOfEstablishment: '',
+    proposedDiscount: '',
+    currentlyDealtBrands: '',
+    minSalesValue: '',
+    finalDiscount: '',
     customerpassword: '',
     zoneRefId: '',
     brandCategories: [{ brandId: '', brandName: '', categories: [] }],

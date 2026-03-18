@@ -124,7 +124,7 @@ const EmployeeList = () => {
 
     const handleConfirmDelete = async () => {
         if (!selectedEmployeeForDelete) return;
-        
+
         setDeleteLoading(true);
         try {
             await deleteEmployee(selectedEmployeeForDelete._id);
@@ -208,7 +208,7 @@ const EmployeeList = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:flex lg:flex-wrap items-end gap-3 md:gap-6">
                     {/* Search - Full width on mobile/tablet, flexible on desktop */}
                     <div className="flex flex-col gap-1.5 col-span-1 md:col-span-2 lg:min-w-[300px] lg:flex-1">
-                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Search By Name, Username, Email & Phone</span>
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Search By Name, Username, Employee Code, Email & Phone</span>
                         <FilterInput
                             placeholder="Start typing..."
                             value={searchTerm}
@@ -228,6 +228,7 @@ const EmployeeList = () => {
                             icon="mdi:office-building"
                         />
                     </div>
+                    {console.log('filters.employeeType', configs.employeeTypes)}
 
                     {/* Employee Type */}
                     <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[160px]">
@@ -236,7 +237,7 @@ const EmployeeList = () => {
                             placeholder="All Types"
                             value={filters.EmployeeType}
                             onChange={(e) => setFilters({ ...filters, EmployeeType: e.target.value })}
-                            options={configs.employeeTypes.map(t => ({ label: t.name, value: t.name }))}
+                            options={configs.employeeTypes.map(t => ({ label: t, value: t }))}
                             icon="mdi:account-badge-outline"
                         />
                     </div>
@@ -311,7 +312,7 @@ const EmployeeList = () => {
                         <table className="w-full border-collapse min-w-[1000px]">
                             <thead>
                                 <tr className="bg-amber-500 text-white">
-                                    <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">S.No</th>
+                                    <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Employee Code</th>
                                     <th className="py-4 px-6 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Name</th>
                                     <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Department</th>
                                     <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Type</th>
@@ -329,7 +330,7 @@ const EmployeeList = () => {
                                         >
                                             <td className="px-4 py-2 text-center border-r border-gray-50">
                                                 <span className="text-xs font-black text-amber-600 font-mono tracking-tighter">
-                                                    #{emp.serialNumber || '---'}
+                                                    {emp?.employeeCode || emp.serialNumber || '---'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-2 text-center border-r border-gray-50">
@@ -380,7 +381,7 @@ const EmployeeList = () => {
                                                                 <Icon icon="mdi:pencil" className="text-lg" />
                                                                 Edit
                                                             </button>
-                                                            <button 
+                                                            <button
                                                                 onClick={() => handleDeleteClick(emp)}
                                                                 className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
                                                             >

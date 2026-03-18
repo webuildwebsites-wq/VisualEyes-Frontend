@@ -49,6 +49,11 @@ export const mapCustomerToFormValues = (customer, configs = {}) => {
         courierNameRefId: getRefId(customer.courierName, configs.courierNames),
         courierTimeRefId: getRefId(customer.courierTime, configs.courierTimes, 'time'),
         address: customer.address?.length ? customer.address : INITIAL_FORM_VALUES.address,
+        yearOfEstablishment: customer.yearOfEstablishment || '',
+        proposedDiscount: customer.proposedDiscount || '',
+        currentlyDealtBrands: customer.currentlyDealtBrands || '',
+        minSalesValue: customer.minSalesValue || '',
+        finalDiscount: customer.finalDiscount || '',
         brandCategories: (customer.brandCategories?.length) ? customer.brandCategories.map(bc => ({
             brandId: getRefId(bc.brandId, configs.brands),
             brandName: getLabel(bc.brandId, configs.brands),

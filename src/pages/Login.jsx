@@ -34,7 +34,7 @@ const Login = () => {
         validationSchema: validationSchema,
         onSubmit: async (values) => {
             try {
-                const response = await loginUser({ username: values.loginId, password: values.password });
+                const response = await loginUser({ loginId: values.loginId, password: values.password });
                 console.log('response', response)
                 if (response.success) {
                     dispatch(setCredentials({

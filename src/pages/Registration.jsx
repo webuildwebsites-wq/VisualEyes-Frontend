@@ -246,7 +246,7 @@ const Registration = () => {
                 .required('Phone is required'),
             address: Yup.string().required('Address is required'),
             pincode: Yup.string().required('Pincode is required'),
-            lab: Yup.string().required('Lab is required'),
+            // lab: Yup.string().required('Lab is required'), // Commented out for now
             zoneRefId: Yup.string().when('department', {
                 is: (val) => {
                     const dept = configs.departments.find(d => d._id === val);
@@ -255,13 +255,9 @@ const Registration = () => {
                 then: (schema) => schema.required('Zone is required for Sales department'),
                 otherwise: (schema) => schema.notRequired()
             }),
-            department: Yup.string().when('employeeType', {
-                is: (val) => val?.toUpperCase() !== 'SUPERADMIN',
-                then: (schema) => schema.required('Department is required'),
-                otherwise: (schema) => schema.notRequired()
-            }),
+            department: Yup.string().required('Department is required'),
             role: Yup.string().when('employeeType', {
-                is: (val) => !['SUPERADMIN', 'ADMIN'].includes(val?.toUpperCase()),
+                is: (val) => val?.toUpperCase() !== 'ADMIN',
                 then: (schema) => schema.required('Role is required'),
                 otherwise: (schema) => schema.notRequired()
             }),
@@ -298,7 +294,22 @@ const Registration = () => {
                     country: values.country,
                 };
 
-                // Add documents and department info for non-SUPERADMIN types
+                if (selectedDept) {
+                    payload.department = selectedDept.name;
+                    payload.departmentRefId = selectedDept._id;
+                }
+
+                // Add subRoles for roles other than ADMIN (Supervisor, Teamlead, etc)
+                if (employeeType !== 'ADMIN') {
+                    payload.subRoles = selectedRole ? [
+                        {
+                            name: selectedRole.name,
+                            refId: selectedRole._id
+                        }
+                    ] : [];
+                }
+
+                // Add documents and other info for non-SUPERADMIN types
                 if (employeeType !== 'SUPERADMIN') {
                     payload = {
                         ...payload,
@@ -306,23 +317,8 @@ const Registration = () => {
                         aadharCard: values.aadharCard,
                         panCard: values.panCard,
                         expiry: values.expiry,
-                        lab: values.lab,
+                        // lab: values.lab,
                     };
-
-                    if (selectedDept) {
-                        payload.department = selectedDept.name;
-                        payload.departmentRefId = selectedDept._id;
-                    }
-
-                    // Add subRoles for roles other than ADMIN (Supervisor, Teamlead, etc)
-                    if (employeeType !== 'ADMIN') {
-                        payload.subRoles = selectedRole ? [
-                            {
-                                name: selectedRole.name,
-                                refId: selectedRole._id
-                            }
-                        ] : [];
-                    }
 
                     // Specific handling for SALES zone hierarchy
                     if (isSales) {
@@ -518,8 +514,8 @@ const Registration = () => {
     const selectedDept = configs.departments.find(d => d._id === formik.values.department);
     const isSalesDept = selectedDept?.name?.toUpperCase() === 'SALES';
 
-    const showDeptFields = formik.values.employeeType?.toUpperCase() !== 'SUPERADMIN';
-    const showRoleField = !['SUPERADMIN', 'ADMIN'].includes(formik.values.employeeType?.toUpperCase());
+    const showDeptFields = true;
+    const showRoleField = formik.values.employeeType?.toUpperCase() !== 'ADMIN';
     const showDocumentFields = formik.values.employeeType?.toUpperCase() !== 'SUPERADMIN';
 
     return (
@@ -536,10 +532,7 @@ const Registration = () => {
                             onChange={(e) => {
                                 const newType = e.target.value?.toUpperCase();
                                 formik.handleChange(e);
-                                if (newType === 'SUPERADMIN') {
-                                    formik.setFieldValue('department', '');
-                                }
-                                if (['SUPERADMIN', 'ADMIN'].includes(newType)) {
+                                if (newType === 'ADMIN') {
                                     formik.setFieldValue('role', '');
                                 }
                             }}
@@ -723,7 +716,7 @@ const Registration = () => {
                                 }
                             }}
                         />
-                        <Select
+                        {/* <Select
                             label="Lab *"
                             name="lab"
                             value={formik.values.lab}
@@ -732,7 +725,7 @@ const Registration = () => {
                             placeholder="Select Lab"
                             error={formik.touched.lab && formik.errors.lab ? { message: formik.errors.lab } : null}
                             options={(configs.labs || []).map(lab => ({ value: lab, label: lab }))}
-                        />
+                        /> */}
 
                         {showDocumentFields && (
                             <div className="flex flex-col gap-4 col-span-1 md:col-span-2 mt-4">

@@ -20,6 +20,7 @@ export const CustomerRegn = ({ wrapInput, configs, formValues, formik, dispatch,
                     className="bg-gray-50"
                 />
                 {noVerifyWrap(Input, { label: 'Password*', name: 'customerpassword', type: 'password', placeholder: 'Enter Password' })}
+                {noVerifyWrap(Input, { label: 'Final Discount (%)', name: 'finalDiscount', placeholder: 'Enter Final Discount', type: 'number' })}
             </div>
 
             <div className="space-y-6">

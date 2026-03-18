@@ -388,7 +388,7 @@ const CustomerList = () => {
                         <table className="w-full border-collapse min-w-[1240px]">
                             <thead>
                                 <tr className="bg-amber-500 text-white">
-                                    <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">S.No</th>
+                                    <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Customer Code</th>
                                     <th className="py-4 px-6 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Name / Shop</th>
                                     <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Account Type</th>
                                     <th className="py-4 px-6 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Email / Phone</th>
@@ -408,7 +408,7 @@ const CustomerList = () => {
                                         >
                                             <td className="px-4 py-2 text-center border-r border-gray-50">
                                                 <span className="text-xs font-black text-amber-600 font-mono tracking-tighter">
-                                                    #{cust.serialNumber || '---'}
+                                                    {cust?.customerCode || cust.serialNumber || '---'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-2 text-center border-r border-gray-50">

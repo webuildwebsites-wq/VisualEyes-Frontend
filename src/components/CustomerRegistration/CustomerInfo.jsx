@@ -22,6 +22,10 @@ export const CustomerInfo = ({ wrapInput, configs, formik, aadharRef, panRef, gs
         {wrapInput(Input, { label: 'Landline No.', name: 'landlineNo', placeholder: 'Enter Landline No.' })}
         {wrapInput(Input, { label: 'Email ID*', name: 'emailId', placeholder: 'Enter Email ID' })}
         {wrapInput(Input, { label: 'Business Email', name: 'businessEmail', placeholder: 'Enter Business Email' })}
+        {wrapInput(Input, { label: 'Year of Establishment', name: 'yearOfEstablishment', placeholder: 'Enter Year of Est.' })}
+        {wrapInput(Input, { label: 'Proposed Discount (%)', name: 'proposedDiscount', placeholder: 'Enter Proposed Discount', type: 'number' })}
+        {wrapInput(Input, { label: 'Currently Dealt Brands', name: 'currentlyDealtBrands', placeholder: 'Enter Dealt Brands' })}
+        {wrapInput(Input, { label: 'Min Sales Value', name: 'minSalesValue', placeholder: 'Enter Min Sales Value', type: 'number' })}
 
         {/* GST Selection */}
         {wrapInput(Select, {
