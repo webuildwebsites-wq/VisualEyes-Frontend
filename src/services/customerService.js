@@ -3,7 +3,7 @@ import api from './apiInstance';
 export const getCustomerConfigs = async () => {
     try {
         const endpoints = [
-            '/api/product/customer-types',
+            '/api/product/business-types',
             '/api/product/gst-types',
             '/api/product/plants',
             '/api/product/labs',
@@ -23,7 +23,7 @@ export const getCustomerConfigs = async () => {
         const responses = await Promise.all(endpoints.map(url => api.get(url).catch(err => ({ error: err }))));
 
         return {
-            customerTypes: responses[0]?.data?.data || [],
+            businessTypes: responses[0]?.data?.data || [],
             gstTypes: responses[1]?.data?.data || [],
             plants: responses[2]?.data?.data || [],
             labs: responses[3]?.data?.data || [],
@@ -237,5 +237,50 @@ export const approveCustomerFinance = async (customerId, approvalData) => {
         return response.data;
     } catch (error) {
         throw error.response ? error.response.data : new Error('Failed to approve customer');
+    }
+};
+
+export const salesHeadApproveCustomer = async (customerId, approvalData) => {
+    try {
+        const response = await api.put(`/api/customer/management/${customerId}/sales-head-approve`, approvalData);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed sales-head approval');
+    }
+};
+
+export const financeApproveCustomer = async (customerId, approvalData) => {
+    try {
+        const response = await api.put(`/api/customer/management/${customerId}/finance-approve`, approvalData);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed finance approval');
+    }
+};
+
+export const getPendingStageCustomers = async (stages, page = 1, limit = 10) => {
+    try {
+        const response = await api.get(`/api/customer/management/pending-stage?stage=${stages}&page=${page}&limit=${limit}`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to fetch pending stage customers');
+    }
+};
+
+export const userCustomerLogin = async (credentials) => {
+    try {
+        const response = await api.post('/api/customer/management/login', credentials);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Customer login failed');
+    }
+};
+
+export const acceptTermsConditions = async () => {
+    try {
+        const response = await api.put('/api/customer/management/accept-terms-conditions');
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to accept terms & conditions');
     }
 };

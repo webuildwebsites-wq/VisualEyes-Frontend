@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
-import { getCorrectionRequiredCustomers } from '../services/customerService';
+import { getPendingStageCustomers } from '../services/customerService';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -18,9 +18,27 @@ const CorrectionsList = () => {
     const fetchCorrections = async (page = 1) => {
         setLoading(true);
         try {
-            const response = await getCorrectionRequiredCustomers(page, 10);
+            const isSalesExecutive = user?.Department?.name?.toUpperCase() === 'SALES' && user?.EmployeeType?.toUpperCase() === 'EMPLOYEE';
+            const isSalesHead = user?.Department?.name?.toUpperCase() === 'SALES' && user?.EmployeeType?.toUpperCase() === 'ADMIN';
+            const isFinanceUser = ['FINANCE', 'F&A', 'F&A CFO', 'ACCOUNTING'].includes(user?.Department?.name?.toUpperCase()) || user?.EmployeeType?.toUpperCase() === 'SUPERADMIN';
+            
+            let stages = [];
+            if (isSalesExecutive) stages.push('salesCorrection');
+            if (isFinanceUser) stages.push('financeCorrection');
+            
+            // Default if nothing matched or superadmin
+            if (stages.length === 0) stages = ['salesCorrection', 'financeCorrection'];
+
+            const response = await getPendingStageCustomers(stages.join(','), page, 10);
             if (response.success) {
-                setCorrections(response.data.customers || []);
+                let customers = response.data.customers || [];
+                
+                // For Sales Executives, filter to only show their own
+                if (isSalesExecutive && !user?.EmployeeType === 'SUPERADMIN') {
+                    customers = customers.filter(c => c.createdBy === user._id || c.createdBy?._id === user._id);
+                }
+                
+                setCorrections(customers);
                 setPagination(response.data.pagination || { currentPage: 1, totalPages: 1 });
             }
         } catch (error) {

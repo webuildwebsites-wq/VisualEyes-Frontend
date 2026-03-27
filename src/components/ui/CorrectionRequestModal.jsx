@@ -33,9 +33,10 @@ const ALLOWED_FIELDS = [
     { id: 'salesPerson', label: 'Sales Person' }
 ];
 
-const CorrectionRequestModal = ({ isOpen, onClose, onSubmit, customerName, loading, initialFields = [] }) => {
+const CorrectionRequestModal = ({ isOpen, onClose, onSubmit, customerName, loading, initialFields = [], showTargetRole = false }) => {
     const [selectedFields, setSelectedFields] = useState(initialFields);
     const [remark, setRemark] = useState('');
+    const [targetRole, setTargetRole] = useState('Sales');
 
     React.useEffect(() => {
         if (isOpen && initialFields.length > 0) {
@@ -66,7 +67,7 @@ const CorrectionRequestModal = ({ isOpen, onClose, onSubmit, customerName, loadi
             alert('Please provide a remark for the correction request');
             return;
         }
-        onSubmit({ fieldsToCorrect: initialFields, remark });
+        onSubmit({ fieldsToCorrect: initialFields, remark, targetRole });
     };
 
     return (
@@ -120,6 +121,28 @@ const CorrectionRequestModal = ({ isOpen, onClose, onSubmit, customerName, loadi
                             })}
                         </div>
                     </div>
+
+                    {showTargetRole && (
+                        <div className="mb-6 animate-in slide-in-from-top-2 duration-300">
+                            <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Send Correction To:</h3>
+                            <div className="flex gap-4 p-1 bg-gray-100 rounded-2xl w-fit">
+                                <button
+                                    type="button"
+                                    onClick={() => setTargetRole('Sales')}
+                                    className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${targetRole === 'Sales' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    Sales Executive
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setTargetRole('Finance')}
+                                    className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${targetRole === 'Finance' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    Finance Team
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="space-y-3">
                         <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Detailed Remark</h3>

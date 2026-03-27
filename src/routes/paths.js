@@ -3,6 +3,10 @@ export const PATHS = {
     ROOT: '/',
     LOGIN: '/login',
     WELCOME: '/welcome',
+    
+    // CUSTOMER PORTAL
+    CUSTOMER_LOGIN: '/customer-login',
+    CUSTOMER_PORTAL: '/customer-portal',
 
     // STAFF MODULE
     STAFF: {

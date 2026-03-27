@@ -23,7 +23,10 @@ import {
     getCustomerById,
     resubmitCustomerCorrection,
     approveCustomerFinance,
-    sendCustomerForCorrection
+    sendCustomerForCorrection,
+    salesHeadApproveCustomer,
+    financeApproveCustomer,
+    getPendingStageCustomers
 } from '../services/customerService';
 import { uploadImage } from '../services/bucketService';
 import { PATHS } from '../routes/paths';
@@ -31,26 +34,26 @@ import CorrectionRequestModal from '../components/ui/CorrectionRequestModal';
 
 import { INITIAL_FORM_VALUES } from '../components/CustomerRegistration/constants';
 import { mapCustomerToFormValues } from '../components/CustomerRegistration/helpers';
-import { CustomerInfo } from '../components/CustomerRegistration/CustomerInfo';
+import { FirmCompanyDetails } from '../components/CustomerRegistration/FirmCompanyDetails';
 import { AddressDetails } from '../components/CustomerRegistration/AddressDetails';
-import { CustomerRegn } from '../components/CustomerRegistration/CustomerRegn';
+import { BusinessInformation } from '../components/CustomerRegistration/BusinessInformation';
+import { ContactInformation } from '../components/CustomerRegistration/ContactInformation';
 import { Overview } from '../components/CustomerRegistration/Overview';
 
 export default function RegisterCustomer() {
     const dispatch = useDispatch();
     const navigate = useNavigate();
+
     const [searchParams, setSearchParams] = useSearchParams();
     const user = useSelector((state) => state.auth.user);
-    const isSalesUser = user?.Department?.name?.toUpperCase() === 'SALES';
-    const isFinanceUser = ['FINANCE', 'F&A', 'F&A CFO', 'ACCOUNTING', 'SUPERADMIN', 'ADMIN'].includes(user?.Department?.name?.toUpperCase()) || user?.EmployeeType === 'SUPERADMIN';
+    const isSalesExecutive = user?.Department?.name?.toUpperCase() === 'SALES' && user?.EmployeeType?.toUpperCase() === 'EMPLOYEE';
+    const isSalesHead = user?.Department?.name?.toUpperCase() === 'SALES' && user?.EmployeeType?.toUpperCase() === 'ADMIN';
+    const isSalesUser = isSalesExecutive || isSalesHead;
+    const isFinanceUser = ['FINANCE', 'F&A', 'F&A CFO', 'ACCOUNTING'].includes(user?.Department?.name?.toUpperCase()) || user?.EmployeeType?.toUpperCase() === 'SUPERADMIN';
 
     const steps = useMemo(() => {
-        const baseSteps = ['Customer Info', 'Address Details', 'Customer Regn', 'Overview'];
-        if (isSalesUser) {
-            return baseSteps.filter(step => step !== 'Customer Regn');
-        }
-        return baseSteps;
-    }, [isSalesUser]);
+        return ['Firm/Company Details', 'Address', 'Business Information', 'Contact Information', 'Overview'];
+    }, []);
 
     const activeStep = useMemo(() => {
         const step = parseInt(searchParams.get('step'));
@@ -58,65 +61,79 @@ export default function RegisterCustomer() {
     }, [searchParams, steps]);
 
     const validationSchema = useMemo(() => Yup.object().shape({
-        shopName: Yup.string().required('Shop Name is required'),
-        ownerName: Yup.string().required('Owner Name is required'),
-        CustomerTypeRefId: Yup.string().required('Customer Type is required'),
-        mobileNo1: Yup.string().matches(/^\d{10}$/, 'Mobile No. must be 10 digits').required('Mobile No. 1 is required'),
-        mobileNo2: Yup.string().matches(/^\d{10}$/, 'Mobile No. must be 10 digits').nullable(),
-        landlineNo: Yup.string().matches(/^\d{8,12}$/, 'Landline No. must be between 8 and 12 digits').nullable(),
-        emailId: Yup.string().email('Invalid email').required('Email ID is required'),
-        businessEmail: Yup.string().email('Invalid business email').nullable(),
         gstType: Yup.string().required('GST Type is required'),
-        GSTNumber: Yup.string().when('gstType', {
-            is: (val) => val?.toLowerCase() !== 'unregistered',
+        firmName: Yup.string().when('gstType', {
+            is: (val) => val?.toLowerCase() !== 'un-registered' && val?.toLowerCase() !== 'unregistered',
+            then: (schema) => schema.required('Firm Name is required'),
+            otherwise: (schema) => schema.notRequired()
+        }),
+        shopName: Yup.string().when('gstType', {
+            is: (val) => val?.toLowerCase() === 'un-registered' || val?.toLowerCase() === 'unregistered',
+            then: (schema) => schema.required('Shop Name is required'),
+            otherwise: (schema) => schema.notRequired()
+        }),
+        gstNumber: Yup.string().when('gstType', {
+            is: (val) => val?.toLowerCase() !== 'un-registered' && val?.toLowerCase() !== 'unregistered',
             then: (schema) => schema.required('GST Number is required'),
             otherwise: (schema) => schema.notRequired()
         }),
-        address: Yup.array().of(
-            Yup.object().shape({
-                branchAddress: Yup.string().required('Branch Address is required'),
-                city: Yup.string().required('City is required'),
-                state: Yup.string().required('State is required'),
-                contactNumber: Yup.string().required('Contact Number is required'),
-                zipCode: Yup.string().required('Pincode is required'),
-            })
-        ),
-        customerpassword: isSalesUser ? Yup.string().notRequired() : Yup.string().required('Password is required'),
-        AadharCard: Yup.string().when('gstType', {
-            is: (val) => val?.toLowerCase() === 'unregistered',
+        aadharCard: Yup.string().when('gstType', {
+            is: (val) => val?.toLowerCase() === 'un-registered' || val?.toLowerCase() === 'unregistered',
             then: (schema) => schema.matches(/^\d{12}$/, 'Aadhar No. must be 12 digits').required('Aadhar Card No. is required'),
             otherwise: (schema) => schema.notRequired()
         }),
-        PANCard: Yup.string().when('gstType', {
-            is: (val) => val?.toLowerCase() === 'unregistered',
+        panCard: Yup.string().when('gstType', {
+            is: (val) => val?.toLowerCase() === 'un-registered' || val?.toLowerCase() === 'unregistered',
             then: (schema) => schema.matches(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format (e.g., ABCDE1234F)').required('PAN Card No. is required'),
             otherwise: (schema) => schema.notRequired()
         }),
-        brandCategories: isSalesUser ? Yup.array().notRequired() : Yup.array().of(
+        billToAddress: Yup.object().shape({
+            branchName: Yup.string().required('Branch Name is required'),
+            contactPerson: Yup.string().required('Contact Person is required'),
+            contactNumber: Yup.string().matches(/^\d{10}$/, 'Contact No. must be exactly 10 digits').required('Contact Number is required'),
+            address: Yup.string().required('Address is required'),
+            city: Yup.string().required('City is required'),
+            state: Yup.string().required('State is required'),
+            zipCode: Yup.string().required('Pincode is required'),
+            country: Yup.string().required('Country is required'),
+            billingCurrency: Yup.string().required('Currency is required'),
+            billingMode: Yup.string().required('Billing Mode is required'),
+        }),
+        customerShipToDetails: Yup.array().of(
             Yup.object().shape({
-                brandId: Yup.string().required('Brand is required'),
-                categories: Yup.array().of(
-                    Yup.object().shape({
-                        categoryId: Yup.string().required('Category is required')
-                    })
-                ).min(1, 'At least one category is required')
+                branchName: Yup.string().required('Branch Name is required'),
+                contactPerson: Yup.string().required('Contact Person is required'),
+                contactNumber: Yup.string().matches(/^\d{10}$/, 'Contact No. must be exactly 10 digits').required('Contact Number is required'),
+                address: Yup.string().required('Address is required'),
+                city: Yup.string().required('City is required'),
+                state: Yup.string().required('State is required'),
+                zipCode: Yup.string().required('Pincode is required'),
+                country: Yup.string().required('Country is required'),
+                billingCurrency: Yup.string().required('Currency is required'),
+                billingMode: Yup.string().required('Billing Mode is required'),
             })
-        ).min(1, 'At least one brand is required')
-    }), [isSalesUser]);
+        ).min(1, 'At least one shipping address is required'),
+        ownerName: Yup.string().required('Proprietor/Partner Name is required'),
+        mobileNo1: Yup.string().matches(/^\d{10}$/, 'Mobile No. must be 10 digits').required('Mobile No. 1 is required'),
+        mobileNo2: Yup.string().matches(/^\d{10}$/, 'Mobile No. must be 10 digits').nullable(),
+        businessEmail: Yup.string().email('Invalid email').nullable(),
+        zoneRefId: Yup.string().required('Zone is required'),
+        salesPersonRefId: Yup.string().required('Sales Person is required'),
+    }), []);
 
     const setStep = (step) => {
-        setSearchParams({ step: step.toString() });
+        const params = new URLSearchParams(searchParams);
+        params.set('step', step.toString());
+        setSearchParams(params);
     };
 
     const isVerificationMode = useSelector((state) => state.customerRegistration.isVerificationMode);
     const rejectedFields = useSelector((state) => state.customerRegistration.rejectedFields);
 
-    const aadharInputRef = useRef(null);
-    const panInputRef = useRef(null);
-    const gstInputRef = useRef(null);
+
 
     const [configs, setConfigs] = useState({
-        customerTypes: [],
+        businessTypes: [],
         creditDays: [],
         courierNames: [],
         courierTimes: [],
@@ -136,7 +153,14 @@ export default function RegisterCustomer() {
         gst: false
     });
 
+    const configsLoadedRef = useRef(false);
+    const hasInitializedRef = useRef(false);
+
     const [savingDraft, setSavingDraft] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const lastLoadedIdRef = useRef(null);
+    const configsRef = useRef(configs);
+    const formikRef = useRef(null);
     const [loadingDraftData, setLoadingDraftData] = useState(false);
     const [draftCustomerId, setDraftCustomerId] = useState('');
     const [correctionCustomerId, setCorrectionCustomerId] = useState('');
@@ -144,45 +168,8 @@ export default function RegisterCustomer() {
     const [correctionRequest, setCorrectionRequest] = useState(null);
     const [isApprovalMode, setIsApprovalMode] = useState(false);
     const [isReadOnlyMode, setIsReadOnlyMode] = useState(false);
-
-    useEffect(() => {
-        const fetchConfigs = async () => {
-            try {
-                const [data, zoneRes] = await Promise.all([
-                    getCustomerConfigs(),
-                    locationService.getAllZones()
-                ]);
-
-                // Robustly extract zones array
-                let zones = zoneRes?.data || zoneRes || [];
-                if (!Array.isArray(zones) && zones && typeof zones === 'object') {
-                    zones = zones.locations || zones.data || Object.values(zones).find(Array.isArray) || [];
-                }
-
-                // Robustly extract all arrays from data (handles nested objects like salesPersons)
-                Object.keys(data).forEach(key => {
-                    if (data[key] && !Array.isArray(data[key]) && typeof data[key] === 'object') {
-                        data[key] = data[key][key] || Object.values(data[key]).find(Array.isArray) || [];
-                    }
-                });
-
-                setConfigs(prev => {
-                    const next = { ...prev, ...data };
-                    next.zones = Array.isArray(zones) ? zones : [];
-                    // Ensure everything is an array
-                    Object.keys(next).forEach(key => {
-                        if (key !== 'cities' && !Array.isArray(next[key])) {
-                            next[key] = [];
-                        }
-                    });
-                    return next;
-                });
-            } catch {
-                toast.error('Failed to load form configurations');
-            }
-        };
-        fetchConfigs();
-    }, []);
+    const [configsLoaded, setConfigsLoaded] = useState(false);
+    const [currentStage, setCurrentStage] = useState('');
     const formik = useFormik({
         initialValues: INITIAL_FORM_VALUES,
         validationSchema,
@@ -198,25 +185,37 @@ export default function RegisterCustomer() {
             const payload = {
                 ...values,
                 draftEmployeeId: draftCustomerId || undefined,
-                CustomerType: getLabel(configs.customerTypes, values.CustomerTypeRefId),
+                businessType: getLabel(configs.businessTypes || [], values.businessTypeRefId),
                 salesPerson: getLabel(configs.salesPersons, values.salesPersonRefId, 'employeeName'),
                 gstType: getLabel(configs.gstTypes, values.gstTypeRefId),
+                gstNumber: values.gstNumber,
+                gstCertificateImg: values.gstCertificateImg,
+                aadharCard: values.aadharCard,
+                aadharCardImg: values.aadharCardImg,
+                panCard: values.panCard,
+                panCardImg: values.panCardImg,
                 zone: getLabel(configs.zones, values.zoneRefId, 'zone'),
                 specificLab: getLabel(configs.specificLabs, values.specificLabRefId),
                 plant: getLabel(configs.plants, values.plantRefId),
                 fittingCenter: getLabel(configs.fittingCenters, values.fittingCenterRefId),
-                creditDays: getLabel(configs.creditDays, values.creditDaysRefId, 'days').toString(),
+                creditDays: getLabel(configs.creditDays, values.creditDaysRefId, 'days')?.toString(),
                 courierName: getLabel(configs.courierNames, values.courierNameRefId),
                 courierTime: getLabel(configs.courierTimes, values.courierTimeRefId, 'time'),
                 creditLimit: Number(values.creditLimit) || 0,
-                IsGSTRegistered: values.gstType !== 'Unregistered',
-                brandCategories: values.brandCategories.map(bc => ({
-                    brandId: bc.brandId,
-                    brandName: getLabel(configs.brands, bc.brandId),
-                    categories: bc.categories.map(cat => ({
-                        categoryId: cat.categoryId,
-                        categoryName: cat.categoryName
-                    }))
+                finalDiscount: Number(values.finalDiscount) || 0,
+                IsGSTRegistered: values.gstType?.toLowerCase() !== 'un-registered' && values.gstType?.toLowerCase() !== 'unregistered',
+                isGSTRegistered: values.gstType?.toLowerCase() !== 'un-registered' && values.gstType?.toLowerCase() !== 'unregistered',
+                proprietorName: values.proprietorName || values.ownerName,
+                currentlyDealtBrands: values.currentlyDealtBrands || '',
+                billToAddress: values.billToAddress ? {
+                    ...values.billToAddress,
+                    customerContactName: values.billToAddress.contactPerson,
+                    customerContactNumber: values.billToAddress.contactNumber
+                } : null,
+                customerShipToDetails: (values.customerShipToDetails || []).map(addr => ({
+                    ...addr,
+                    customerContactName: addr.contactPerson,
+                    customerContactNumber: addr.contactNumber
                 }))
             };
 
@@ -233,7 +232,7 @@ export default function RegisterCustomer() {
                 finalPayload = {
                     ...payload,
                     password: values.customerpassword,
-                    CustomerType: getObj(configs.customerTypes, values.CustomerTypeRefId),
+                    businessType: getObj(configs.businessTypes || [], values.businessTypeRefId),
                     salesPerson: getObj(configs.salesPersons, values.salesPersonRefId, 'employeeName'),
                     gstType: getObj(configs.gstTypes, values.gstTypeRefId),
                     zone: getObj(configs.zones, values.zoneRefId, 'zone'),
@@ -245,7 +244,7 @@ export default function RegisterCustomer() {
                     courierTime: getObj(configs.courierTimes, values.courierTimeRefId, 'time'),
                 };
                 delete finalPayload.customerpassword;
-                delete finalPayload.CustomerTypeRefId;
+                delete finalPayload.businessTypeRefId;
                 delete finalPayload.salesPersonRefId;
                 delete finalPayload.gstTypeRefId;
                 delete finalPayload.zoneRefId;
@@ -277,7 +276,7 @@ export default function RegisterCustomer() {
 
                     // Relationship mapping: if RefId is rejected, ensure Label is sent, and vice-versa
                     const mappings = [
-                        { id: 'CustomerTypeRefId', label: 'CustomerType' },
+                        { id: 'businessTypeRefId', label: 'Business Category' },
                         { id: 'salesPersonRefId', label: 'salesPerson' },
                         { id: 'gstTypeRefId', label: 'gstType' },
                         { id: 'zoneRefId', label: 'zone' },
@@ -306,13 +305,55 @@ export default function RegisterCustomer() {
                         filteredPayload.IsGSTRegistered = payload.IsGSTRegistered;
                     }
 
-                    await toast.promise(
-                        resubmitCustomerCorrection(correctionCustomerId, filteredPayload),
-                        {
-                            pending: 'Resubmitting corrections...',
-                            success: 'Corrections resubmitted successfully! 👌',
-                        }
-                    );
+                    if (currentStage === 'salesCorrection') {
+                        await toast.promise(
+                            resubmitCustomerCorrection(correctionCustomerId, filteredPayload), // resubmit-correction endpoint
+                            {
+                                pending: 'Resubmitting corrections...',
+                                success: 'Corrections resubmitted successfully! 👌',
+                            }
+                        );
+                    } else {
+                        await toast.promise(
+                            resubmitCustomerCorrection(correctionCustomerId, filteredPayload),
+                            {
+                                pending: 'Resubmitting corrections...',
+                                success: 'Corrections resubmitted successfully! 👌',
+                            }
+                        );
+                    }
+                } else if (isApprovalMode) {
+                    const approvalPayload = {
+                        action: 'APPROVE',
+                        remark: 'Done from ' + (isSalesHead ? 'Sales Head' : 'Finance') + ' team',
+                        ...finalPayload
+                    };
+                    if (currentStage === 'salesHead') {
+                        await toast.promise(
+                            salesHeadApproveCustomer(approvalId, approvalPayload),
+                            {
+                                pending: 'Sales Head Approving...',
+                                success: 'Customer approved by Sales Head! 👌',
+                            }
+                        );
+                    } else if (currentStage === 'finance') {
+                        await toast.promise(
+                            financeApproveCustomer(approvalId, approvalPayload),
+                            {
+                                pending: 'Finance Approving...',
+                                success: 'Customer approved by Finance! 👌',
+                            }
+                        );
+                    } else {
+                        // Fallback to existing logic if stage mismatch
+                        await toast.promise(
+                            approveCustomerFinance(approvalId, finalPayload),
+                            {
+                                pending: 'Approving...',
+                                success: 'Customer approved! 👌',
+                            }
+                        );
+                    }
                 } else {
                     await toast.promise(
                         registerCustomer(finalPayload),
@@ -330,85 +371,341 @@ export default function RegisterCustomer() {
         }
     });
 
-    const loadDraftDataById = useCallback(async (draftId) => {
+    // Sync refs synchronously during render to avoid lag in memoized callbacks
+    formikRef.current = formik;
+    configsRef.current = configs;
+    const loadDraftDataById = useCallback(async (id, manualConfigs = null) => {
         setLoadingDraftData(true);
         try {
-            const response = await getDraftCustomerById(draftId);
-            const draft = response.data || response;
-            const draftData = draft.data || draft;
-            const formValues = mapCustomerToFormValues(draftData, configs);
+            const response = await getDraftCustomerById(id);
+            const customer = response.data?.customer || response.data || response;
+            const currentConfigs = manualConfigs || configsRef.current;
+            const formValues = mapCustomerToFormValues(customer, currentConfigs);
 
-            formik.setValues(formValues, false);
-            setDraftCustomerId(draftId);
-            toast.success('Draft loaded successfully');
+            formikRef.current.setValues(formValues, false);
+            setDraftCustomerId(id);
+            lastLoadedIdRef.current = id;
+            setIsApprovalMode(false);
+            setIsReadOnlyMode(false);
+            setCorrectionRequest(null);
+            setCurrentStage(customer.stage || '');
+            toast.info('Draft data loaded');
         } catch (error) {
             console.error('Error loading draft data:', error);
             toast.error('Failed to load draft data');
         } finally {
             setLoadingDraftData(false);
         }
-    }, [formik.setValues, configs]);
+    }, []);
+
+    const fetchCorrectionData = useCallback(async (id, manualConfigs = null) => {
+        setLoadingDraftData(true);
+        setIsApprovalMode(false);
+        setIsReadOnlyMode(false);
+        try {
+            const response = await getCustomerById(id);
+            const customer = response.data?.customer || response.data || response;
+            const currentConfigs = manualConfigs || configsRef.current;
+            const formValues = mapCustomerToFormValues(customer, currentConfigs);
+
+            formikRef.current.setValues(formValues, false);
+            setCorrectionCustomerId(id);
+            lastLoadedIdRef.current = id;
+            setCorrectionRequest(customer.correctionRequest || null);
+
+            // Derive stage if missing
+            let stage = customer.stage;
+            if (!stage && customer.approvalWorkflow) {
+                if (customer.approvalWorkflow.salesHeadApprovalStatus === 'REJECTED') stage = 'salesCorrection';
+                else if (customer.approvalWorkflow.financeApprovalStatus === 'REJECTED') stage = 'financeCorrection';
+                else if (customer.approvalWorkflow.salesHeadApprovalStatus === 'PENDING') stage = 'salesHead';
+                else if (customer.approvalWorkflow.financeApprovalStatus === 'PENDING') stage = 'finance';
+            }
+            setCurrentStage(stage || '');
+            toast.info('Correction details loaded. Please update the highlighted fields.');
+        } catch (error) {
+            console.error('Error loading correction data:', error);
+            toast.error('Failed to load correction data');
+        } finally {
+            setLoadingDraftData(false);
+        }
+    }, []);
+
+    const fetchApprovalData = useCallback(async (id, manualConfigs = null) => {
+        setLoadingDraftData(true);
+        setIsApprovalMode(false);
+        setIsReadOnlyMode(false);
+        try {
+            const response = await getCustomerById(id);
+            const customer = response.data?.customer || response.data || response;
+            const currentConfigs = manualConfigs || configsRef.current;
+            const formValues = mapCustomerToFormValues(customer, currentConfigs);
+
+            formikRef.current.setValues(formValues, false);
+            setApprovalId(id);
+            lastLoadedIdRef.current = id;
+
+            // Derive stage and check permissions
+            const workflow = customer.approvalWorkflow || {};
+            let stage = customer.stage;
+            let canApprove = false;
+
+            if (isSalesHead && workflow.salesHeadApprovalStatus === 'PENDING') {
+                canApprove = true;
+                stage = 'salesHead';
+            } else if (isFinanceUser && workflow.financeApprovalStatus === 'PENDING') {
+                canApprove = true;
+                stage = 'finance';
+            } else if (!stage && workflow) {
+                // Fallback derivation for UI labels if user can't approve
+                if (workflow.salesHeadApprovalStatus === 'PENDING') stage = 'salesHead';
+                else if (workflow.financeApprovalStatus === 'PENDING') stage = 'finance';
+            }
+
+            setCurrentStage(stage || '');
+
+            if (canApprove) {
+                setIsApprovalMode(true);
+                setIsReadOnlyMode(false);
+            } else {
+                setIsApprovalMode(false);
+                setIsReadOnlyMode(true);
+            }
+            toast.info(canApprove ? 'Approval data loaded. Please complete the registration.' : 'Application details loaded (View Only).');
+        } catch (error) {
+            console.error('Error loading approval data:', error);
+            toast.error('Failed to load approval data');
+        } finally {
+            setLoadingDraftData(false);
+        }
+    }, [isFinanceUser, isSalesHead]);
 
     useEffect(() => {
-        const draftId = searchParams.get('draftId');
-        if (draftId) {
-            loadDraftDataById(draftId);
-        }
+        const fetchConfigs = async () => {
+            try {
+                const [data, zoneRes] = await Promise.all([
+                    getCustomerConfigs(),
+                    locationService.getAllZones()
+                ]);
 
-        const correctionId = searchParams.get('correctionId');
-        if (correctionId) {
-            const fetchCorrectionData = async () => {
-                setLoadingDraftData(true);
-                try {
-                    const response = await getCustomerById(correctionId);
-                    const customer = response.data?.customer || response.data || response;
-                    const formValues = mapCustomerToFormValues(customer, configs);
-
-                    formik.setValues(formValues, false);
-                    setCorrectionCustomerId(correctionId);
-                    setCorrectionRequest(customer.correctionRequest);
-                    toast.info('Correction details loaded. Please update the highlighted fields.');
-                } catch (error) {
-                    console.error('Error loading correction data:', error);
-                    toast.error('Failed to load correction data');
-                } finally {
-                    setLoadingDraftData(false);
+                let zones = zoneRes?.data || zoneRes || [];
+                if (!Array.isArray(zones) && zones && typeof zones === 'object') {
+                    zones = zones.locations || zones.data || Object.values(zones).find(Array.isArray) || [];
                 }
-            };
-            fetchCorrectionData();
-        }
 
-        const approvalIdFromUrl = searchParams.get('approvalId');
-        if (approvalIdFromUrl) {
-            const fetchApprovalData = async () => {
-                setLoadingDraftData(true);
-                try {
-                    const response = await getCustomerById(approvalIdFromUrl);
-                    const customer = response.data?.customer || response.data || response;
-
-                    const formValues = mapCustomerToFormValues(customer, configs);
-                    // Ensure password is reset for finance to fill
-                    formValues.customerpassword = '';
-
-                    formik.setValues(formValues, false);
-
-                    setApprovalId(approvalIdFromUrl);
-                    if (isFinanceUser) {
-                        setIsApprovalMode(true);
-                    } else {
-                        setIsReadOnlyMode(true);
+                Object.keys(data).forEach(key => {
+                    if (data[key] && !Array.isArray(data[key]) && typeof data[key] === 'object') {
+                        data[key] = data[key][key] || Object.values(data[key]).find(Array.isArray) || [];
                     }
-                    toast.info(isFinanceUser ? 'Approval data loaded. Please complete the registration.' : 'Application details loaded (View Only).');
-                } catch (error) {
-                    console.error('Error loading approval data:', error);
-                    toast.error('Failed to load approval data');
-                } finally {
-                    setLoadingDraftData(false);
-                }
-            };
-            fetchApprovalData();
+                });
+
+                setConfigs(prev => {
+                    const next = { ...prev, ...data };
+                    next.zones = Array.isArray(zones) ? zones : [];
+                    Object.keys(next).forEach(key => {
+                        if (key !== 'cities' && !Array.isArray(next[key])) {
+                            next[key] = [];
+                        }
+                    });
+
+                    const draftId = searchParams.get('draftId');
+                    const correctionId = searchParams.get('correctionId');
+                    const approvalId = searchParams.get('approvalId');
+
+                    // Initialization moved to separate effect
+
+                    return next;
+                });
+                setConfigsLoaded(true);
+                configsLoadedRef.current = true;
+            } catch (err) {
+                console.error('Config load error:', err);
+                toast.error('Failed to load form configurations');
+            }
+        };
+        fetchConfigs();
+    }, []); // Empty dependencies to run only ONCE on mount and prevent loops
+
+    // Data Loading Effect - Responds to URL param changes
+    useEffect(() => {
+        if (!configsLoaded) return;
+
+        const aId = searchParams.get('approvalId');
+        const cId = searchParams.get('correctionId');
+        const dId = searchParams.get('draftId');
+        // Prioritize workflow IDs over draft IDs to avoid context switching after saves
+        const currentId = aId || cId || dId;
+
+        // If we have an ID from URL, only fetch if it's different from what we last loaded
+        if (currentId) {
+            if (lastLoadedIdRef.current === currentId) return;
+
+            lastLoadedIdRef.current = currentId;
+
+            if (dId) loadDraftDataById(dId);
+            else if (cId) fetchCorrectionData(cId);
+            else if (aId) fetchApprovalData(aId);
+        } else {
+            // New Registration - Reset all modes ONLY if we were previously in a mode
+            if (lastLoadedIdRef.current || draftCustomerId || correctionCustomerId || approvalId) {
+                lastLoadedIdRef.current = null;
+                setDraftCustomerId('');
+                setCorrectionCustomerId('');
+                setApprovalId('');
+                setIsApprovalMode(false);
+                setIsReadOnlyMode(false);
+                setCorrectionRequest(null);
+                setCurrentStage('');
+                formik.resetForm();
+            }
         }
-    }, [searchParams, loadDraftDataById, configs, isFinanceUser]);
+    }, [searchParams, configsLoaded, loadDraftDataById, fetchCorrectionData, fetchApprovalData]);
+
+
+
+    const handleMainAction = async () => {
+        // Utility to flatten errors and get field names
+        const getFlatErrors = (obj, prefix = '') => {
+            let errors = [];
+            if (!obj) return errors;
+
+            for (const key in obj) {
+                const value = obj[key];
+                if (!value) continue;
+
+                const path = prefix ? `${prefix}.${key}` : key;
+
+                if (Array.isArray(value)) {
+                    value.forEach((item, idx) => {
+                        if (item && typeof item === 'object') {
+                            errors = [...errors, ...getFlatErrors(item, `${path}[${idx}]`)];
+                        } else if (item) {
+                            errors.push({ path: `${path}[${idx}]`, message: item });
+                        }
+                    });
+                } else if (typeof value === 'object') {
+                    errors = [...errors, ...getFlatErrors(value, path)];
+                } else {
+                    errors.push({ path, message: value });
+                }
+            }
+            return errors;
+        };
+
+        const formatLabel = (path) => {
+            return path
+                .split('.')
+                .pop()
+                .replace(/\[\d+\]/g, '') // Remove [0] etc
+                .replace(/([A-Z])/g, ' $1')
+                .replace(/^./, str => str.toUpperCase())
+                .trim();
+        };
+
+        if (activeStep < steps.length - 1) {
+            if (isStepValid(activeStep)) {
+                setStep(activeStep + 1);
+            } else {
+                const errors = await formik.validateForm();
+                const flatErrors = getFlatErrors(errors);
+                const labels = [...new Set(flatErrors.map(e => formatLabel(e.path)))];
+
+                if (labels.length > 0) {
+                    toast.warning(`Please fix the following fields in ${steps[activeStep]}: ${labels.join(', ')}`);
+                }
+
+                // Mark all invalid fields as touched deeply
+                const touched = {};
+                flatErrors.forEach(e => {
+                    // Deep set touched for Formik
+                    const parts = e.path.split(/[.[\]]+/).filter(Boolean);
+                    let current = touched;
+                    parts.forEach((part, i) => {
+                        if (i === parts.length - 1) {
+                            current[part] = true;
+                        } else {
+                            current[part] = current[part] || {};
+                            current = current[part];
+                        }
+                    });
+                });
+                formik.setTouched(touched);
+            }
+        } else {
+            if (isReadOnlyMode) {
+                navigate(PATHS.APPROVALS);
+                return;
+            }
+            
+            if (isApprovalMode) {
+                const getObj = (list, refId, labelKey = 'name') => {
+                    if (!refId) return undefined;
+                    const item = (list || []).find(i => i._id === refId);
+                    return {
+                        name: item ? (item[labelKey] || item) : refId,
+                        refId: refId
+                    };
+                };
+
+                const finnalPayload = {
+                    finalDiscount: Number(formik.values.finalDiscount) || 0,
+                    creditLimit: Number(formik.values.creditLimit) || 0,
+                    creditDays: getObj(configsRef.current.creditDays, formik.values.creditDaysRefId, 'days'),
+                    proposedDiscount: Number(formik.values.proposedDiscount) || 0,
+                    yearOfEstablishment: formik.values.yearOfEstablishment || ''
+                };
+
+                let serviceCall;
+                const approvalPayload = {
+                    action: 'APPROVE',
+                    remark: 'Done from ' + (isSalesHead ? 'Sales Head' : 'Finance') + ' team',
+                    finnalPayload: finnalPayload
+                };
+
+                if (currentStage === 'salesHead') {
+                    serviceCall = salesHeadApproveCustomer(approvalId, approvalPayload);
+                } else {
+                    serviceCall = financeApproveCustomer(approvalId, approvalPayload);
+                }
+
+                await toast.promise(
+                    serviceCall,
+                    {
+                        pending: 'Approving details...',
+                        success: 'Successfully approved registration!',
+                        error: 'Failed to approve registration'
+                    }
+                );
+                navigate(PATHS.APPROVALS);
+                return;
+            }
+
+            const errors = await formik.validateForm();
+            const flatErrors = getFlatErrors(errors);
+            if (flatErrors.length > 0) {
+                const labels = [...new Set(flatErrors.map(e => formatLabel(e.path)))];
+                toast.warning(`Missing/Invalid fields: ${labels.join(', ')}`);
+
+                const touched = {};
+                flatErrors.forEach(e => {
+                    const parts = e.path.split(/[.[\]]+/).filter(Boolean);
+                    let current = touched;
+                    parts.forEach((part, i) => {
+                        if (i === parts.length - 1) {
+                            current[part] = true;
+                        } else {
+                            current[part] = current[part] || {};
+                            current = current[part];
+                        }
+                    });
+                });
+                formik.setTouched(touched);
+            } else {
+                formik.handleSubmit();
+            }
+        }
+    };
+
 
     const handleSaveDraft = useCallback(async () => {
         setSavingDraft(true);
@@ -424,25 +721,31 @@ export default function RegisterCustomer() {
             const draftPayload = {
                 ...values,
                 draftEmployeeId: draftCustomerId || undefined,
-                CustomerType: getLabel(configs.customerTypes, values.CustomerTypeRefId),
+                businessType: getLabel(configs.businessTypes || [], values.businessTypeRefId),
                 salesPerson: getLabel(configs.salesPersons, values.salesPersonRefId, 'employeeName'),
                 gstType: getLabel(configs.gstTypes, values.gstTypeRefId),
                 zone: getLabel(configs.zones, values.zoneRefId, 'zone'),
                 specificLab: getLabel(configs.specificLabs, values.specificLabRefId),
                 plant: getLabel(configs.plants, values.plantRefId),
                 fittingCenter: getLabel(configs.fittingCenters, values.fittingCenterRefId),
-                creditDays: getLabel(configs.creditDays, values.creditDaysRefId, 'days'),
+                creditDays: getLabel(configs.creditDays, values.creditDaysRefId, 'days')?.toString(),
                 courierName: getLabel(configs.courierNames, values.courierNameRefId),
                 courierTime: getLabel(configs.courierTimes, values.courierTimeRefId, 'time'),
                 creditLimit: Number(values.creditLimit) || 0,
-                IsGSTRegistered: values.gstType !== 'Unregistered',
-                brandCategories: values.brandCategories.map(bc => ({
-                    brandId: bc.brandId,
-                    brandName: getLabel(configs.brands, bc.brandId),
-                    categories: bc.categories.map(cat => ({
-                        categoryId: cat.categoryId,
-                        categoryName: cat.categoryName
-                    }))
+                finalDiscount: Number(values.finalDiscount) || 0,
+                IsGSTRegistered: values.gstType?.toLowerCase() !== 'un-registered' && values.gstType?.toLowerCase() !== 'unregistered',
+                isGSTRegistered: values.gstType?.toLowerCase() !== 'un-registered' && values.gstType?.toLowerCase() !== 'unregistered',
+                proprietorName: values.proprietorName || values.ownerName,
+                currentlyDealtBrands: values.currentlyDealtBrands || '',
+                billToAddress: values.billToAddress ? {
+                    ...values.billToAddress,
+                    customerContactName: values.billToAddress.contactPerson,
+                    customerContactNumber: values.billToAddress.contactNumber
+                } : null,
+                customerShipToDetails: (values.customerShipToDetails || []).map(addr => ({
+                    ...addr,
+                    customerContactName: addr.contactPerson,
+                    customerContactNumber: addr.contactNumber
                 }))
             };
 
@@ -457,9 +760,15 @@ export default function RegisterCustomer() {
                 }
             );
 
-            if (response.success && !draftCustomerId) {
-                const newId = response.data?._id || response.data?.customer?._id;
-                if (newId) setDraftCustomerId(newId);
+            if (response.success) {
+                const newId = response.data?._id || response.data?.customer?._id || response.data?.draft?._id;
+                if (newId) {
+                    lastLoadedIdRef.current = newId;
+                    setDraftCustomerId(newId);
+                    const params = new URLSearchParams(searchParams);
+                    params.set('draftId', newId);
+                    setSearchParams(params);
+                }
             }
         } catch (error) {
             console.error('Draft error:', error);
@@ -471,9 +780,35 @@ export default function RegisterCustomer() {
 
     const handleSendForCorrection = async (correctionData) => {
         if (!approvalId) return;
+        setSaving(true);
         try {
+            const { targetRole, ...rest } = correctionData;
+
+            // Determine the target stage based on requested target role
+            let targetStage = 'salesCorrection'; // Default
+            if (isSalesHead && targetRole === 'Finance') {
+                targetStage = 'financeCorrection';
+            } else if (isFinanceUser) {
+                targetStage = 'financeCorrection';
+            }
+
+            const payload = {
+                action: 'REQUEST_MODIFICATION',
+                targetStage,
+                ...rest
+            };
+
+            let serviceCall;
+            if (currentStage === 'salesHead') {
+                serviceCall = salesHeadApproveCustomer(approvalId, payload);
+            } else if (currentStage === 'finance') {
+                serviceCall = financeApproveCustomer(approvalId, payload);
+            } else {
+                serviceCall = sendCustomerForCorrection(approvalId, payload);
+            }
+
             await toast.promise(
-                sendCustomerForCorrection(approvalId, correctionData),
+                serviceCall,
                 {
                     pending: 'Sending for correction...',
                     success: 'Customer sent back for correction! 📝',
@@ -483,6 +818,8 @@ export default function RegisterCustomer() {
         } catch (error) {
             console.error('Correction error:', error);
             toast.error(error.message || "Failed to send for correction");
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -509,6 +846,23 @@ export default function RegisterCustomer() {
         const { onChange: customOnChange, disabled: customDisabled, ...rest } = props;
         const isCorrectionField = correctionRequest?.fieldsToCorrect?.includes(props.name);
 
+        const allowedApprovalFields = [
+            'finalDiscount',
+            'creditLimit',
+            'creditDaysRefId',
+            'proposedDiscount',
+            'yearOfEstablishment'
+        ];
+
+        // Disable field if it's read only, or custom disabled. 
+        // BUT if we are in approval mode, ONLY the allowed fields are enabled (overriding customDisabled).
+        let isFieldDisabled;
+        if (isApprovalMode) {
+            isFieldDisabled = !allowedApprovalFields.includes(props.name);
+        } else {
+            isFieldDisabled = isReadOnlyMode || customDisabled;
+        }
+
         const getIn = (obj, path) => {
             if (!obj || !path) return undefined;
             const keys = path.split(/[.[\]]+/).filter(Boolean);
@@ -528,7 +882,7 @@ export default function RegisterCustomer() {
             <div className={`relative ${isCorrectionField ? 'p-1 rounded-2xl bg-red-50/50 border border-red-100 ring-2 ring-red-500/20' : ''}`}>
                 <Component
                     {...rest}
-                    disabled={isReadOnlyMode || customDisabled}
+                    disabled={isFieldDisabled}
                     isVerificationMode={hideVerify ? false : isVerificationMode}
                     isRejected={rejectedFields[props.name]}
                     onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
@@ -538,7 +892,7 @@ export default function RegisterCustomer() {
                         else formik.handleChange(e);
                     }}
                     onBlur={formik.handleBlur}
-                    value={fieldValue ?? ''}
+                    value={rest.value !== undefined ? rest.value : (fieldValue ?? '')}
                 />
                 {isCorrectionField && (
                     <div className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg animate-bounce z-20">
@@ -553,45 +907,37 @@ export default function RegisterCustomer() {
         const { values, errors } = formik;
 
         switch (stepIdx) {
-            case 0: // Basic Info
-                const reqFields = ['shopName', 'ownerName', 'CustomerTypeRefId', 'orderMode', 'mobileNo1', 'emailId', 'gstType'];
-                const optFields = ['mobileNo2', 'landlineNo', 'businessEmail'];
-                const hasReqFields = reqFields.every(field => !!values[field]);
-                const hasErrors = [...reqFields, ...optFields].some(field => !!errors[field]);
-
-                if (!hasReqFields || hasErrors) return false;
-
-                if (values.gstType?.toLowerCase() !== 'unregistered') {
-                    return !!values.GSTNumber && !!values.GSTCertificateImg && !errors.GSTNumber;
-                } else {
-                    return !!values.AadharCard && !!values.AadharCardImg && !!values.PANCard && !!values.PANCardImg && !errors.AadharCard && !errors.PANCard;
+            case 0: // Firm/Company Details
+                const st0Req = ['gstType'];
+                const hasSt0Req = st0Req.every(f => !!values[f]);
+                if (!hasSt0Req) return false;
+                if (values.gstType?.toLowerCase() !== 'un-registered' && values.gstType?.toLowerCase() !== 'unregistered') {
+                    return !!values.firmName && !!values.gstNumber && !!values.gstCertificateImg && !errors.firmName && !errors.gstNumber;
                 }
+                return !!values.shopName && !!values.aadharCard && !!values.aadharCardImg && !!values.panCard && !!values.panCardImg && !errors.shopName && !errors.aadharCard && !errors.panCard;
 
             case 1: // Address Details
-                if (!values.address || values.address.length === 0) return false;
-                const addrFields = ['branchAddress', 'contactPerson', 'contactNumber', 'city', 'state', 'zipCode'];
-                return values.address.every((addr, idx) => {
-                    const hasFields = addrFields.every(f => !!addr[f]);
-                    const hasErrors = errors.address?.[idx] && addrFields.some(f => !!errors.address[idx][f]);
+                const billFields = ['branchName', 'contactPerson', 'contactNumber', 'city', 'state', 'zipCode'];
+                const billValid = billFields.every(f => !!values.billToAddress?.[f]) && !errors.billToAddress;
+                const shipValid = values.customerShipToDetails?.length > 0 && values.customerShipToDetails.every((addr, idx) => {
+                    const hasFields = billFields.every(f => !!addr[f]);
+                    const hasErrors = errors.customerShipToDetails?.[idx] && billFields.some(f => !!errors.customerShipToDetails[idx][f]);
                     return hasFields && !hasErrors;
                 });
+                return billValid && shipValid;
 
-            case 2: // Customer Regn (or Overview for Sales)
-                if (isSalesUser) return true;
-                const regFields = ['customerpassword', 'zoneRefId', 'salesPersonRefId', 'specificLabRefId', 'plantRefId', 'fittingCenterRefId', 'creditLimit', 'creditDaysRefId', 'courierNameRefId', 'courierTimeRefId'];
-                const hasRegFields = regFields.every(field => !!values[field]);
-                const regErrors = regFields.some(field => !!errors[field]);
-                const hasBrands = values.brandCategories && values.brandCategories.length > 0;
-                const brandsValid = hasBrands && values.brandCategories.every((bc, idx) => {
-                    const hasId = !!bc.brandId;
-                    const hasCats = bc.categories && bc.categories.length > 0;
-                    const catsValid = hasCats && bc.categories.every(cat => !!cat.categoryId);
-                    return hasId && catsValid;
-                });
-                return hasRegFields && !regErrors && brandsValid;
+            case 2: // Business Information
+                const bizFields = ['minSalesValue', 'creditDaysRefId'];
+                const bizValid = bizFields.every(f => !!values[f]) && !errors.minSalesValue && !errors.creditDaysRefId;
+                return bizValid;
 
-            case 3:
+            case 3: // Contact Information
+                const contactFields = ['ownerName', 'mobileNo1', 'zoneRefId', 'salesPersonRefId'];
+                return contactFields.every(f => !!values[f]) && !errors.ownerName && !errors.mobileNo1 && !errors.zoneRefId && !errors.salesPersonRefId;
+
+            case 4: // Overview
                 return true;
+
             default: return false;
         }
     };
@@ -599,23 +945,29 @@ export default function RegisterCustomer() {
     const renderStepContent = (stepIdx) => {
         switch (stepIdx) {
             case 0: return (
-                <CustomerInfo
+                <FirmCompanyDetails
                     wrapInput={wrapInput}
                     configs={configs}
                     formik={formik}
-                    aadharRef={aadharInputRef}
-                    panRef={panInputRef}
-                    gstRef={gstInputRef}
                     handleFileUpload={handleFileUpload}
                     uploading={uploading}
                     isReadOnlyMode={isReadOnlyMode}
                 />
             );
-            case 1: return <AddressDetails formik={formik} wrapInput={wrapInput} configs={configs} isVerificationMode={isVerificationMode} rejectedFields={rejectedFields} dispatch={dispatch} isReadOnlyMode={isReadOnlyMode} />;
-            case 2:
-                if (isSalesUser) return <Overview formik={formik} configs={configs} isSalesUser={isSalesUser} />;
-                return <CustomerRegn wrapInput={wrapInput} configs={configs} formValues={formik.values} formik={formik} dispatch={dispatch} isReadOnlyMode={isReadOnlyMode} />;
-            case 3: return <Overview formik={formik} configs={configs} isSalesUser={isSalesUser} />;
+            case 1: return <AddressDetails formik={formik} wrapInput={wrapInput} configs={configs} isReadOnlyMode={isReadOnlyMode} />;
+            case 2: return (
+                <BusinessInformation
+                    formik={formik}
+                    wrapInput={wrapInput}
+                    configs={configs}
+                    isReadOnlyMode={isReadOnlyMode}
+                    isApprovalMode={isApprovalMode}
+                    handleFileUpload={handleFileUpload}
+                    uploading={uploading}
+                />
+            );
+            case 3: return <ContactInformation wrapInput={wrapInput} configs={configs} />;
+            case 4: return <Overview formik={formik} configs={configs} isSalesUser={isSalesUser} />;
             default: return null;
         }
     };
@@ -623,10 +975,12 @@ export default function RegisterCustomer() {
     const customerName = formik.values.shopName || 'this customer';
 
     return (
-        <div className="min-h-screen p-6">
+        <div className="min-h-screen p-6 bg-gray-50/50">
+            {/* Refined Minimal Header */}
+
             {/* Correction Header */}
             {correctionRequest && (
-                <div className="max-w-6xl mx-auto mb-8 bg-red-50 border border-red-100 rounded-[2rem] p-8 flex items-start gap-6 animate-in slide-in-from-top-4 duration-500 shadow-sm">
+                <div className="max-w-6xl mx-auto mb-8 bg-red-50/50 border border-red-100 rounded-2xl p-6 flex items-start gap-6 animate-in slide-in-from-top-4 duration-500 shadow-sm">
                     <div className="w-12 h-12 rounded-2xl bg-red-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-red-500/20">
                         <Icon icon="mdi:comment-alert" className="text-2xl" />
                     </div>
@@ -642,41 +996,48 @@ export default function RegisterCustomer() {
 
             {/* Approval Mode Banner */}
             {isApprovalMode && (
-                <div className="max-w-6xl mx-auto mb-8 bg-amber-50 border border-amber-100 rounded-[2rem] p-8 flex items-start gap-6 animate-in slide-in-from-top-4 duration-500 shadow-sm">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20">
+                <div className="max-w-6xl mx-auto mb-8 bg-[#fe9a00]/5/50 border border-[#fe9a00]/10 rounded-2xl p-6 flex items-start gap-6 animate-in slide-in-from-top-4 duration-500 shadow-sm">
+                    <div className="w-12 h-12 rounded-2xl bg-[#fe9a00] text-white flex items-center justify-center shrink-0 shadow-lg shadow-[#fe9a00]/20">
                         <Icon icon="mdi:shield-check" className="text-2xl" />
                     </div>
                     <div className="flex-1">
-                        <h4 className="text-amber-800 font-black uppercase tracking-widest text-xs mb-1">Finance Approval Mode</h4>
-                        <p className="text-amber-700 font-bold text-sm leading-relaxed">
-                            You are reviewing a customer registration submitted by Sales. Please verify all details, provide the mandatory <span className="underline">Login Details</span>, and click Approve to finalize.
+                        <h4 className="text-amber-800 font-black uppercase tracking-widest text-xs mb-1">
+                            {currentStage === 'salesHead' ? 'Sales Head Approval Mode' : 'Finance Approval Mode'}
+                        </h4>
+                        <p className="text-[#fe9a00] font-bold text-sm leading-relaxed">
+                            {currentStage === 'salesHead'
+                                ? 'You are reviewing a customer registration as Sales Head. Please verify all details and Approve or Request Redirection.'
+                                : 'You are reviewing a customer registration submitted by Sales. Please verify all details, provide the mandatory Login Details, and click Approve to finalize.'}
                         </p>
                     </div>
-                    {isFinanceUser && (activeStep === 0 || activeStep === 1 || activeStep === steps.length - 1) && (
+                    {(isFinanceUser || isSalesHead) && (activeStep === 0 || activeStep === 1 || activeStep === steps.length - 1) && (
                         <Button
                             variant="outlined"
-                            className="bg-white border-amber-200 text-amber-700 hover:bg-amber-100 flex gap-2 align-center justify-center"
-                            onClick={() => setIsCorrectionModalOpen(true)}
+                            className="bg-white border-[#fe9a00]/20 text-[#fe9a00] hover:bg-[#fe9a00]/10 flex gap-2 align-center justify-center"
+                            onClick={() => {
+                                dispatch(toggleVerificationMode());
+                                // We don't necessarily need to open the modal immediately, 
+                                // the user can click "Needs Correction" at the bottom too.
+                            }}
                         >
-                            {/* <Icon icon="mdi:keyboard-backspace" className="mr-2" /> */}
-                            Send for Correction
+                            {isVerificationMode ? 'Cancel Selection' : 'Send for Correction'}
                         </Button>
                     )}
                 </div>
             )}
 
             {isReadOnlyMode && (
-                <div className="max-w-6xl mx-auto mb-8 bg-gray-50 border border-gray-100 rounded-[2rem] p-8 flex items-start gap-6 animate-in slide-in-from-top-4 duration-500 shadow-sm">
+                <div className="max-w-6xl mx-auto mb-8 bg-gray-50 border border-gray-100 rounded-2xl p-6 flex items-start gap-6 animate-in slide-in-from-top-4 duration-500 shadow-sm">
                     <div className="w-12 h-12 rounded-2xl bg-gray-400 text-white flex items-center justify-center shrink-0 shadow-lg shadow-gray-400/20">
                         <Icon icon="mdi:eye" className="text-2xl" />
                     </div>
                     <div className="flex-1">
                         <h4 className="text-gray-800 font-black uppercase tracking-widest text-xs mb-1">View Only Mode</h4>
                         <p className="text-gray-600 font-bold text-sm leading-relaxed">
-                            This registration is currently <span className="text-amber-600">Pending Finance Approval</span>. You can review the submitted details, but modifications are restricted at this stage.
+                            This registration is currently <span className="text-[#fe9a00]">Pending {currentStage === 'salesHead' ? 'Sales Head' : 'Finance'} Approval</span>. You can review the submitted details, but modifications are restricted at this stage.
                         </p>
                     </div>
-                    <div className="px-4 py-2 bg-amber-50 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-amber-100">
+                    <div className="px-4 py-2 bg-[#fe9a00]/5 text-[#fe9a00] rounded-xl text-[10px] font-black uppercase tracking-widest border border-[#fe9a00]/10">
                         READ ONLY
                     </div>
                 </div>
@@ -685,153 +1046,197 @@ export default function RegisterCustomer() {
             {/* Main Content Card with Accordion */}
             <div className="max-w-6xl mx-auto">
                 <div className="space-y-6">
-                    <FormikProvider value={formik}>
-                        {steps.map((label, idx) => {
-                            const isActive = activeStep === idx;
-                            const isCompleted = idx < activeStep;
+                    {!configsLoaded || loadingDraftData ? (
+                        <div className="flex flex-col items-center justify-center p-20 bg-white rounded-3xl border border-gray-100 shadow-sm animate-in fade-in zoom-in duration-500">
+                            <div className="relative">
+                                <div className="w-16 h-16 rounded-full border-4 border-[#fe9a00]/10 border-t-[#fe9a00] animate-spin" />
+                                <Icon icon="mdi:account-details" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-2xl text-[#fe9a00]" />
+                            </div>
+                            <p className="mt-6 text-gray-400 font-black uppercase tracking-[0.2em] text-[10px] animate-pulse">Initializing Application...</p>
+                        </div>
+                    ) : (
+                        <FormikProvider value={formik}>
+                            {steps.map((label, idx) => {
+                                const isActive = activeStep === idx;
+                                const isValid = isStepValid(idx);
+                                const isCompleted = idx < activeStep && isValid;
+                                const hasError = !isValid && (idx < activeStep || formik.submitCount > 0);
 
-                            return (
-                                <div
-                                    key={idx}
-                                    className={`bg-white rounded-[2rem] border transition-all duration-300 ${isActive ? 'shadow-2xl ring-1 ring-orange-100 border-orange-200' : 'shadow-sm border-gray-100'}`}
-                                >
-                                    {/* Accordion Header */}
-                                    <button
-                                        type="button"
-                                        onClick={() => setStep(idx)}
-                                        className="w-full flex items-center justify-between p-6 cursor-pointer group"
+                                return (
+                                    <div
+                                        key={idx}
+                                        className={`bg-white rounded-2xl border transition-all duration-300 ${hasError
+                                            ? 'border-red-200 bg-red-50/10 shadow-lg ring-1 ring-red-100'
+                                            : isActive
+                                                ? 'shadow-2xl ring-1 ring-[#fe9a00]/10 border-[#fe9a00]/20'
+                                                : 'shadow-sm border-gray-100'
+                                            }`}
                                     >
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 ${isActive
-                                                ? 'bg-orange-500 text-white shadow-lg rotate-12 scale-110'
-                                                : isCompleted
-                                                    ? 'bg-green-500 text-white'
-                                                    : 'bg-gray-100 text-gray-400 group-hover:bg-orange-50'
-                                                }`}>
-                                                {isCompleted ? <Icon icon="mdi:check" className="text-xl" /> : <span className="font-black italic text-lg">{idx + 1}</span>}
+                                        {/* Accordion Header */}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (idx <= activeStep || isStepValid(activeStep) || isReadOnlyMode || isApprovalMode) {
+                                                    setStep(idx);
+                                                } else {
+                                                    toast.warning(`Please complete the current step first.`);
+                                                }
+                                            }}
+                                            className="w-full flex items-center justify-between p-6 cursor-pointer group"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 ${hasError
+                                                    ? 'bg-red-500 text-white shadow-lg scale-110'
+                                                    : isActive
+                                                        ? 'bg-[#fe9a00] text-white shadow-lg rotate-12 scale-110'
+                                                        : isCompleted
+                                                            ? 'bg-green-500 text-white'
+                                                            : 'bg-gray-100 text-gray-400 group-hover:bg-orange-50'
+                                                    }`}>
+                                                    {hasError ? <Icon icon="mdi:alert-circle" className="text-xl" /> : (isCompleted ? <Icon icon="mdi:check" className="text-xl" /> : <span className="font-black italic text-lg">{idx + 1}</span>)}
+                                                </div>
+                                                <div className="text-left">
+                                                    <h3 className={`font-black uppercase tracking-widest text-sm transition-colors ${hasError
+                                                        ? 'text-red-600'
+                                                        : isActive
+                                                            ? 'text-[#fe9a00]'
+                                                            : 'text-gray-700'
+                                                        }`}>
+                                                        {label}
+                                                    </h3>
+                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                                                        {hasError ? 'Attention Required' : (isActive ? 'Currently Editing' : isCompleted ? 'Verification Complete' : 'Pending Details')}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="text-left">
-                                                <h3 className={`font-black uppercase tracking-widest text-sm transition-colors ${isActive ? 'text-orange-600' : 'text-gray-700'}`}>
-                                                    {label}
-                                                </h3>
-                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                                                    {isActive ? 'Currently Editing' : isCompleted ? 'Verification Complete' : 'Pending Details'}
-                                                </p>
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${isActive ? (hasError ? 'bg-red-50 rotate-180' : 'bg-orange-50 rotate-180') : 'bg-gray-50'}`}>
+                                                <Icon icon="mdi:chevron-down" className={`text-xl ${isActive ? (hasError ? 'text-red-500' : 'text-[#fe9a00]') : 'text-gray-400'}`} />
                                             </div>
-                                        </div>
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${isActive ? 'bg-orange-50 rotate-180' : 'bg-gray-50'}`}>
-                                            <Icon icon="mdi:chevron-down" className={`text-xl ${isActive ? 'text-orange-500' : 'text-gray-400'}`} />
-                                        </div>
-                                    </button>
+                                        </button>
 
-                                    {/* Accordion Content */}
-                                    {isActive && (
-                                        <div className="p-8 md:p-12 pt-0 animate-in fade-in slide-in-from-top-4 duration-500">
-                                            <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-100 to-transparent mb-12" />
-                                            {renderStepContent(idx)}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </FormikProvider>
+                                        {/* Accordion Content */}
+                                        {isActive && (
+                                            <div className="p-8 md:p-12 pt-0 animate-in fade-in slide-in-from-top-4 duration-500">
+                                                <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-100 to-transparent mb-12" />
+                                                {renderStepContent(idx)}
+
+                                                {/* Step Footer Navigation */}
+                                                {!isReadOnlyMode && (
+                                                    <div className="mt-12 pt-8 border-t border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-6">
+                                                        <div className="flex items-center gap-3">
+                                                            {!isApprovalMode && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleSaveDraft}
+                                                                    disabled={savingDraft || loadingDraftData}
+                                                                    className="flex items-center px-6 py-3 bg-white border border-gray-200 text-gray-600 text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-95 disabled:opacity-50 shadow-sm"
+                                                                >
+                                                                    <Icon icon={draftCustomerId ? "mdi:cloud-check" : "mdi:content-save"} className="mr-2 text-base text-gray-400" />
+                                                                    {draftCustomerId ? 'Update Draft' : 'Save Draft'}
+                                                                </button>
+                                                            )}
+
+                                                            {activeStep > 0 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setStep(activeStep - 1)}
+                                                                    className="flex items-center px-6 py-3 bg-gray-100 text-gray-600 text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-all active:scale-95 shadow-sm"
+                                                                >
+                                                                    <Icon icon="mdi:chevron-left" className="mr-1 text-base" />
+                                                                    Back
+                                                                </button>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                                                            {(isFinanceUser || isSalesHead) && isApprovalMode && (
+                                                                <div className="flex gap-2 w-full sm:w-auto">
+                                                                    {!isVerificationMode ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => dispatch(toggleVerificationMode())}
+                                                                            className="flex-1 sm:flex-none flex items-center justify-center px-6 py-3 bg-[#fe9a00]/5 border border-[#fe9a00]/20 text-[#fe9a00] text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-[#fe9a00]/10 transition-all shadow-sm"
+                                                                        >
+                                                                            Needs Correction
+                                                                        </button>
+                                                                    ) : (
+                                                                        <>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => dispatch(toggleVerificationMode())}
+                                                                                className="flex-1 sm:flex-none px-6 py-3 bg-gray-100 text-gray-600 text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-all shadow-sm"
+                                                                            >
+                                                                                Cancel
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const fields = Object.keys(rejectedFields).filter(k => rejectedFields[k]);
+                                                                                    if (fields.length === 0) {
+                                                                                        toast.warning("Please select fields to reject");
+                                                                                        return;
+                                                                                    }
+                                                                                    setCorrectionRequest({ fields, remarks: '' });
+                                                                                    setIsCorrectionModalOpen(true);
+                                                                                }}
+                                                                                className="flex-1 sm:flex-none px-6 py-3 bg-red-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/20 transition-all"
+                                                                            >
+                                                                                Confirm Rejection
+                                                                            </button>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
+                                                            <button
+                                                                type="button"
+                                                                disabled={isVerificationMode}
+                                                                onClick={handleMainAction}
+                                                                className={`flex-1 sm:flex-none flex items-center justify-center px-10 py-3 bg-[#fe9a00] text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 active:scale-95 gap-2 shadow-lg shadow-[#fe9a00]/20 ${isVerificationMode ? 'opacity-30 cursor-not-allowed grayscale' : 'hover:bg-[#fe9a00] hover:-translate-y-0.5'}`}
+                                                            >
+                                                                <span>
+                                                                    {activeStep === steps.length - 1
+                                                                        ? (isApprovalMode ? 'Approve' : (correctionCustomerId ? 'Resubmit' : ((user?.EmployeeType === 'SUPERADMIN' || isFinanceUser || isSalesHead) ? 'Register' : 'Submit')))
+                                                                        : 'Next Step'}
+                                                                </span>
+                                                                <Icon icon={activeStep === steps.length - 1 ? "mdi:check-decagram" : "mdi:arrow-right-circle"} className="text-base" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {isReadOnlyMode && activeStep === steps.length - 1 && (
+                                                    <div className="mt-12 pt-8 border-t border-gray-50 flex justify-end">
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleMainAction}
+                                                            className="px-10 py-3 bg-gray-800 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-900 transition-all active:scale-95 shadow-lg shadow-gray-800/20"
+                                                        >
+                                                            Close Review
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </FormikProvider>
+                    )}
                 </div>
 
-                {/* Footer Actions */}
-                <div className="flex flex-col md:flex-row justify-center gap-4 md:gap-6 mt-12 mx-auto ">
-                    <Button
-                        variant="outlined"
-                        onClick={handleSaveDraft}
-                        disabled={savingDraft || loadingDraftData || isApprovalMode}
-                        className={`w-full md:w-auto ${isApprovalMode ? 'hidden' : ''}`}
-                    >
-                        {draftCustomerId ? 'Update Draft' : 'Save As Draft'}
-                    </Button>
-
-                    {loadingDraftData && (
-                        <div className="flex items-center">
-                            <span className="text-orange-500 text-sm animate-pulse flex items-center">
-                                <Icon icon="mdi:loading" className="animate-spin mr-2" />
-                                Loading Details...
-                            </span>
-                        </div>
-                    )}
-
-                    {isFinanceUser && isApprovalMode && (
-                        <div className="flex gap-4">
-                            {!isVerificationMode ? (
-                                <Button
-                                    variant="outlined"
-                                    onClick={() => dispatch(toggleVerificationMode())}
-                                    className="nowrap w-full"
-                                >
-                                    Send Back To Sales
-                                </Button>
-                            ) : (
-                                <>
-                                    <Button
-                                        variant="outlined"
-                                        onClick={() => dispatch(toggleVerificationMode())}
-                                    >
-                                        Exit Verification
-                                    </Button>
-                                    <Button
-                                        onClick={() => {
-                                            const fields = Object.keys(rejectedFields).filter(k => rejectedFields[k]);
-                                            if (fields.length === 0) {
-                                                toast.warning("Please select at least one field to reject");
-                                                return;
-                                            }
-                                            setCorrectionRequest({ fields, remarks: '' });
-                                            setIsCorrectionModalOpen(true);
-                                        }}
-                                        className="bg-red-500 text-white"
-                                    >
-                                        Submit Rejection
-                                    </Button>
-                                </>
-                            )}
-                        </div>
-                    )}
-
-                    <Button
-                        variant="contained"
-                        onClick={async () => {
-                            if (activeStep < steps.length - 1) {
-                                setStep(activeStep + 1);
-                            } else {
-                                if (isReadOnlyMode) {
-                                    navigate(PATHS.APPROVALS);
-                                    return;
-                                }
-                                const errors = await formik.validateForm();
-                                if (Object.keys(errors).length > 0) {
-                                    toast.warning('Please fill all required fields correctly before submitting.');
-                                    formik.setTouched(
-                                        Object.keys(errors).reduce((acc, key) => ({ ...acc, [key]: true }), {})
-                                    );
-                                } else {
-                                    formik.handleSubmit();
-                                }
-                            }
-                        }}
-                        disabled={(!isReadOnlyMode && !isStepValid()) || isVerificationMode}
-                        className={`w-full md:w-auto ${((!isReadOnlyMode && !isStepValid()) || isVerificationMode) ? "opacity-50 cursor-not-allowed" : ""}`}
-                    >
-                        {activeStep === steps.length - 1
-                            ? (isReadOnlyMode ? 'Close' : (isApprovalMode ? 'Approve' : (correctionCustomerId ? 'Resubmit' : ((user?.EmployeeType === 'SUPERADMIN' || isFinanceUser) ? 'Register' : 'Submit For Approval'))))
-                            : 'Next'}
-                    </Button>
-                </div>
+                {/* Footer removed and moved to top header */}
+                <div className="h-32" />
             </div>
 
             <CorrectionRequestModal
                 isOpen={isCorrectionModalOpen}
                 onClose={() => setIsCorrectionModalOpen(false)}
                 onSubmit={handleSendForCorrection}
-                customerName={formik.values.shopName}
+                customerName={formik.values.shopName || formik.values.ownerName}
                 initialFields={correctionRequest?.fields || correctionRequest?.fieldsToCorrect || []}
-                loading={false}
+                loading={saving}
+                showTargetRole={isSalesHead}
             />
         </div>
     );

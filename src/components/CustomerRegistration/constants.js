@@ -1,38 +1,70 @@
 export const INITIAL_FORM_VALUES = {
-    shopName: '',
-    ownerName: '',
-    CustomerTypeRefId: '',
-    orderMode: '',
+    // 1. Firm/Company Details
+    firmName: '', // Company/ Firm Name as per GST*
+    shopName: '', // Shop Name
+    yearOfEstablishment: '',
+    gstType: 'Un-Registered',
+    gstTypeRefId: '',
+    isGSTRegistered: false,
+    gstNumber: '',
+    gstCertificateImg: '',
+    aadharCard: '',
+    aadharCardImg: '',
+    panCard: '',
+    panCardImg: '',
+
+    // 2. Address
+    billToAddress: {
+        branchName: '', contactPerson: '', contactNumber: '', address: '', 
+        city: '', state: '', country: 'India', zipCode: '', 
+        billingCurrency: 'INR', billingMode: 'Credit'
+    },
+    customerShipToDetails: [
+        {
+            branchName: '', contactPerson: '', contactNumber: '', address: '', 
+            city: '', state: '', country: 'India', zipCode: '', 
+            billingCurrency: 'INR', billingMode: 'Credit'
+        }
+    ],
+
+    // 3. Business Information
+    businessType: '', // Business Category
+    businessTypeRefId: '',
+    proposedDiscount: '',
+    finalDiscount: '',
+    discountPercent: '',
+    minSalesValue: '',
+    currentlyDealtBrands: '',
+    creditLimit: '',
+    creditDays: '',
+    creditDaysRefId: '',
+    billingCycle: '7_days', // 7_days, 15_days, end_of_month
+    billingMode: 'Direct', // Direct, DC
+    chequeDetails: [
+        { chequeImage: '', chequeNumber: '' },
+        { chequeImage: '', chequeNumber: '' },
+        { chequeImage: '', chequeNumber: '' }
+    ],
+    chequeRemark: '', // If not submitted
+
+    // 4. Contact Information
+    ownerName: '', // Name Of Proprietor/Partner*
     mobileNo1: '',
     mobileNo2: '',
-    landlineNo: '',
-    emailId: '',
-    businessEmail: '',
-    gstType: 'unregistered',
-    gstTypeRefId: '',
-    GSTNumber: '',
-    GSTCertificateImg: '',
-    AadharCard: '',
-    AadharCardImg: '',
-    PANCard: '',
-    PANCardImg: '',
-    address: [
-        { branchAddress: '', contactPerson: '', contactNumber: '', city: '', state: '', country: 'India', billingCurrency: 'Indian Rupees', billingMode: 'Credit', zipCode: '' }
-    ],
-    yearOfEstablishment: '',
-    proposedDiscount: '',
-    currentlyDealtBrands: '',
-    minSalesValue: '',
-    finalDiscount: '',
-    customerpassword: '',
+    businessEmail: '', // Official Email
+    zone: '',
     zoneRefId: '',
-    brandCategories: [{ brandId: '', brandName: '', categories: [] }],
-    specificLabRefId: '',
+    salesPerson: '',
     salesPersonRefId: '',
+
+    // System / Other necessary defaults based on old logic if retained
+    emailId: '',
+
+    specificLabRefId: '',
     plantRefId: '',
     fittingCenterRefId: '',
-    creditLimit: '',
-    creditDaysRefId: '',
     courierNameRefId: '',
-    courierTimeRefId: ''
+    courierTimeRefId: '',
+
+    orderMode: ''
 };

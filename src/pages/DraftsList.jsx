@@ -160,7 +160,7 @@ const DraftsList = () => {
                                     </h3>
                                     <div className="flex items-center gap-2 mt-1">
                                         <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
-                                            {activeTab === 'customers' ? (draft.data?.CustomerType || 'Customer') : 'Staff'}
+                                            {activeTab === 'customers' ? (draft.data?.businessType?.name || draft.data?.businessType || draft.data?.CustomerType || 'Customer') : 'Staff'}
                                         </span>
                                         <span className="text-gray-400 text-[10px] font-bold">
                                             Updated: {new Date(draft.updatedAt || draft.createdAt).toLocaleDateString()}

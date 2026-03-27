@@ -5,11 +5,13 @@ import { useDispatch, useSelector } from 'react-redux';
 const Topbar = () => {
     const dispatch = useDispatch()
     const user = useSelector((state) => state.auth.user)
-    console.log('user', user)
+    console.log('user', user.subRoles[0].name)
     return (
         <div className="w-full bg-amber-500 text-white shadow-md p-3 md:p-4 md:px-8 rounded-b-2xl md:rounded-lg flex justify-between items-center transition-all">
-            <div className="font-semibold text-sm md:text-lg flex items-center gap-2">
+            <div className="font-semibold text-sm md:text-lg flex items-center gap-2 flex-wrap">
                 <span className="truncate max-w-[200px] md:max-w-none">{user?.employeeName} | {user?.Department?.name}</span>
+                {/* <span className="hidden md:inline-flex text-[10px] font-black bg-white/20 px-2.5 py-0.5 rounded-full tracking-wider uppercase">{user?.SubRoles[0]?.name || user?.SubRole || '---'}</span> */}
+                <span className="hidden md:inline-flex text-[10px] font-black bg-white/20 px-2.5 py-0.5 rounded-full tracking-wider uppercase">{user?.EmployeeType?.name || user?.EmployeeType || '---'}</span>
             </div>
             <div className="relative cursor-pointer shrink-0">
                 <Icon icon="mdi:bell" className="w-5 h-5 md:w-6 md:h-6" />

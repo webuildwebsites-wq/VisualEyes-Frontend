@@ -5,6 +5,7 @@ import { getAllZones } from '../services/locationService';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import CorrectionRequestModal from '../components/ui/CorrectionRequestModal';
 import { useSelector } from 'react-redux';
+import { selectCurrentUser } from '../store/slices/authSlice';
 import { toast } from 'react-toastify';
 import { PATHS } from '../routes/paths';
 import { useNavigate } from 'react-router-dom';
@@ -43,10 +44,11 @@ const datePickerStyles = {
 
 const CustomerList = () => {
     const navigate = useNavigate();
+    const currentUser = useSelector(selectCurrentUser);
     const [customers, setCustomers] = useState([]);
     console.log(customers, "customers")
     const [loading, setLoading] = useState(true);
-    const [configs, setConfigs] = useState({ customerTypes: [], zones: [] });
+    const [configs, setConfigs] = useState({ businessTypes: [], zones: [] });
     const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [viewLoading, setViewLoading] = useState(false);
@@ -236,7 +238,7 @@ const CustomerList = () => {
         setSearchTerm('');
         setFilters({
             search: '',
-            customerType: '',
+            businessType: '',
             status: '',
             createdByDepartment: '',
             zone: '',
@@ -249,6 +251,29 @@ const CustomerList = () => {
 
     return (
         <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto p-4">
+            {/* Logged-in User Info Strip */}
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-5 py-3 rounded-2xl border border-indigo-100/60 flex flex-wrap items-center gap-4 text-[11px]">
+                <div className="flex items-center gap-1.5">
+                    <Icon icon="mdi:account-circle" className="text-indigo-400 text-base" />
+                    <span className="font-black text-gray-400 uppercase tracking-wider">Logged in as:</span>
+                    <span className="font-extrabold text-indigo-700">{currentUser?.name || currentUser?.Name || '---'}</span>
+                </div>
+                <span className="text-gray-200">|</span>
+                <div className="flex items-center gap-1.5">
+                    <span className="font-black text-gray-400 uppercase tracking-wider">SubRole:</span>
+                    <span className="font-extrabold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">{currentUser?.SubRole?.name || currentUser?.SubRole || '---'}</span>
+                </div>
+                <span className="text-gray-200">|</span>
+                <div className="flex items-center gap-1.5">
+                    <span className="font-black text-gray-400 uppercase tracking-wider">Type:</span>
+                    <span className="font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{currentUser?.EmployeeType?.name || currentUser?.EmployeeType || '---'}</span>
+                </div>
+                <span className="text-gray-200">|</span>
+                <div className="flex items-center gap-1.5">
+                    <span className="font-black text-gray-400 uppercase tracking-wider">Dept:</span>
+                    <span className="font-extrabold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full">{currentUser?.Department?.name || currentUser?.Department || '---'}</span>
+                </div>
+            </div>
             {/* Filter Bar */}
             <div className="bg-white p-4 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm border border-gray-100/80 flex flex-col gap-4 md:gap-6 ">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:flex lg:flex-wrap items-end gap-3 md:gap-6">
@@ -263,14 +288,14 @@ const CustomerList = () => {
                         />
                     </div>
 
-                    {/* Customer Type */}
+                    {/* Business Category */}
                     <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[160px]">
-                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Customer Type</span>
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Business Category</span>
                         <FilterSelect
-                            placeholder="All Types"
-                            value={filters.customerType}
-                            onChange={(e) => setFilters({ ...filters, customerType: e.target.value })}
-                            options={configs.customerTypes.map(c => ({ label: c.name, value: c._id }))}
+                            placeholder="All Categories"
+                            value={filters.businessType}
+                            onChange={(e) => setFilters({ ...filters, businessType: e.target.value })}
+                            options={configs.businessTypes?.map(c => ({ label: c.name, value: c._id })) || []}
                             icon="mdi:account-group"
                         />
                     </div>
@@ -419,24 +444,24 @@ const CustomerList = () => {
                                             </td>
                                             <td className="px-4 py-2 text-center border-r border-gray-50">
                                                 <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md text-[9px] font-black uppercase tracking-widest border border-gray-200">
-                                                    {cust?.CustomerType?.name || cust?.CustomerType || '---'}
+                                                    {cust?.businessType?.name || cust?.businessType || cust?.CustomerType?.name || cust?.CustomerType || '---'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-2 text-center border-r border-gray-50">
                                                 <div className="flex flex-col">
-                                                    <span className="text-xs font-semibold text-gray-600">{cust.emailId || '---'}</span>
-                                                    <span className="text-[10px] font-bold text-amber-600 mt-0.5">{cust.mobileNo1 || '---'}</span>
+                                                    <span className="text-xs font-semibold text-gray-600">{cust?.businessEmail || cust?.emailId || '---'}</span>
+                                                    <span className="text-[10px] font-bold text-amber-600 mt-0.5">{cust?.mobileNo1 || '---'}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-2 text-center border-r border-gray-50">
                                                 <div className="flex flex-col">
-                                                    <span className="text-xs font-bold text-gray-700">{cust.address?.[0]?.city || '---'}</span>
-                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">{cust.address?.[0]?.country || 'India'}</span>
+                                                    <span className="text-xs font-bold text-gray-700">{cust?.billToAddress?.city || cust?.address?.[0]?.city || '---'}</span>
+                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">{cust?.billToAddress?.country || cust?.address?.[0]?.country || 'India'}</span>
                                                 </div>
                                             </td>
                                             <td className="px-4 py-2 text-center border-r border-gray-50">
-                                                <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${cust.Status?.isActive || cust.status?.toLowerCase() === 'active' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
-                                                    {cust.Status?.isActive ? 'ACTIVE' : (cust.status || 'ACTIVE')}
+                                                <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${cust?.status?.isActive || cust?.Status?.isActive || cust?.status?.toLowerCase?.() === 'active' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
+                                                    {cust?.status?.isActive !== undefined ? (cust.status.isActive ? 'ACTIVE' : 'INACTIVE') : (cust?.Status?.isActive ? 'ACTIVE' : (cust?.status || 'ACTIVE'))}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-2 text-center border-r border-gray-50">
@@ -516,7 +541,7 @@ const CustomerList = () => {
                                                                     <DetailItem label="User ID (Click to Copy)" value={cust.username || cust._id} />
                                                                     <Icon icon="mdi:content-copy" className="text-amber-400 opacity-0 group-hover/id:opacity-100 transition-opacity mt-4" />
                                                                 </div> */}
-                                                                <DetailItem label="Registration Type" value={cust.CustomerType?.name || cust.CustomerType} />
+                                                                <DetailItem label="Business Type" value={cust.businessType?.name || cust.businessType || cust.CustomerType?.name || cust.CustomerType} />
                                                                 <DetailItem label="Order Mode" value={cust.orderMode} />
                                                             </div>
 
@@ -538,54 +563,94 @@ const CustomerList = () => {
 
                                                             <div className="space-y-6">
                                                                 <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2">Account Status</h4>
-                                                                <DetailItem label="Credit Limit" value={`₹${cust.creditLimit?.toLocaleString()}`} />
-                                                                <DetailItem label="Credit Days" value={cust.creditDays?.name || cust.creditDays} />
-                                                                <DetailItem label="GST Registered" value={cust.IsGSTRegistered ? 'YES' : 'NO'} />
-                                                                {cust.IsGSTRegistered ? (
-                                                                    <DetailItem label="GST Number" value={cust.GSTNumber} />
+                                                                <DetailItem label="Credit Limit" value={cust?.creditLimit ? `₹${cust.creditLimit.toLocaleString()}` : '---'} />
+                                                                <DetailItem label="Credit Days" value={cust?.creditDays?.name || cust?.creditDays} />
+                                                                <DetailItem label="GST Registered" value={cust?.isGSTRegistered || cust?.IsGSTRegistered ? 'YES' : 'NO'} />
+                                                                {(cust?.isGSTRegistered || cust?.IsGSTRegistered) ? (
+                                                                    <DetailItem label="GST Number" value={cust?.gstNumber || cust?.GSTNumber} />
                                                                 ) : (
                                                                     <>
-                                                                        <DetailItem label="Aadhar Card No." value={cust.AadharCard} />
-                                                                        <DetailItem label="PAN Card No." value={cust.PANCard} />
+                                                                        <DetailItem label="Aadhar Card No." value={cust?.aadharCard || cust?.AadharCard} />
+                                                                        <DetailItem label="PAN Card No." value={cust?.panCard || cust?.PANCard} />
                                                                     </>
                                                                 )}
                                                             </div>
 
-                                                            {/* Full Width Section for Addresses */}
+                                                            {/* Bill To Address */}
+                                                            {cust?.billToAddress && (
                                                             <div className="md:col-span-4 mt-4">
-                                                                <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2 mb-6">Registered Branches / Addresses</h4>
+                                                                <h4 className="text-[11px] font-black text-blue-600 uppercase tracking-widest border-b border-blue-100 pb-2 mb-6">Bill To Address</h4>
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                                    {cust.address?.map((addr, idx) => (
-                                                                        <div key={idx} className="bg-white p-5 rounded-[2rem] border border-amber-100 shadow-sm hover:shadow-md transition-shadow">
+                                                                    <div className="bg-blue-50/40 p-5 rounded-[2rem] border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
+                                                                        <div className="flex items-center gap-3 mb-4">
+                                                                            <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-black">
+                                                                                1
+                                                                            </div>
+                                                                            <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Bill To</span>
+                                                                        </div>
+                                                                        <p className="text-[10px] font-bold text-gray-500 mb-1">{cust?.billToAddress?.branchName || '---'}</p>
+                                                                        <p className="text-xs font-semibold text-gray-700 leading-relaxed mb-4">{cust?.billToAddress?.address || '---'}</p>
+                                                                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-blue-50">
+                                                                            <div>
+                                                                                <p className="text-[9px] font-black text-gray-300 uppercase">Contact</p>
+                                                                                <p className="text-xs font-semibold text-gray-700">{cust?.billToAddress?.customerContactName || '---'}</p>
+                                                                            </div>
+                                                                            <div>
+                                                                                <p className="text-[9px] font-black text-gray-300 uppercase">Phone</p>
+                                                                                <p className="text-xs font-semibold text-gray-700">{cust?.billToAddress?.customerContactNumber || '---'}</p>
+                                                                            </div>
+                                                                            <div>
+                                                                                <p className="text-[9px] font-black text-gray-300 uppercase">Currency</p>
+                                                                                <p className="text-[10px] font-bold text-blue-600">{cust?.billToAddress?.billingCurrency || '---'}</p>
+                                                                            </div>
+                                                                            <div>
+                                                                                <p className="text-[9px] font-black text-gray-300 uppercase">Billing Mode</p>
+                                                                                <p className="text-[10px] font-bold text-blue-600">{cust?.billToAddress?.billingMode || '---'}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            )}
+
+                                                            {/* Ship To Addresses */}
+                                                            {cust?.customerShipToDetails?.length > 0 && (
+                                                            <div className="md:col-span-4 mt-4">
+                                                                <h4 className="text-[11px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-100 pb-2 mb-6">Ship To Addresses</h4>
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                                    {cust?.customerShipToDetails?.map((addr, idx) => (
+                                                                        <div key={idx} className="bg-emerald-50/40 p-5 rounded-[2rem] border border-emerald-100 shadow-sm hover:shadow-md transition-shadow">
                                                                             <div className="flex items-center gap-3 mb-4">
-                                                                                <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-black">
+                                                                                <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black">
                                                                                     {idx + 1}
                                                                                 </div>
-                                                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Branch Location</span>
+                                                                                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Ship To</span>
                                                                             </div>
-                                                                            <p className="text-xs font-semibold text-gray-700 leading-relaxed mb-4">{addr.branchAddress || addr.address1}</p>
-                                                                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50">
+                                                                            <p className="text-[10px] font-bold text-gray-500 mb-1">{addr?.branchName || '---'}</p>
+                                                                            <p className="text-xs font-semibold text-gray-700 leading-relaxed mb-4">{addr?.address || addr?.branchAddress || '---'}</p>
+                                                                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-emerald-50">
                                                                                 <div>
                                                                                     <p className="text-[9px] font-black text-gray-300 uppercase">Contact</p>
-                                                                                    <p className="text-[10px] font-bold text-gray-600">{addr.contactPerson}</p>
+                                                                                    <p className="text-xs font-semibold text-gray-700">{addr?.contactPerson || '---'}</p>
                                                                                 </div>
                                                                                 <div>
-                                                                                    <p className="text-[9px] font-black text-gray-300 uppercase">Currency</p>
-                                                                                    <p className="text-[10px] font-bold text-amber-600">{addr.billingCurrency}</p>
+                                                                                    <p className="text-[9px] font-black text-gray-300 uppercase">Phone</p>
+                                                                                    <p className="text-xs font-semibold text-gray-700">{addr?.mobileNo || '---'}</p>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
                                                                     ))}
                                                                 </div>
                                                             </div>
+                                                            )}
 
                                                             {/* Documents */}
                                                             <div className="md:col-span-4 mt-6">
                                                                 <h4 className="text-[11px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2 mb-6">Verification Documents</h4>
                                                                 <div className="flex flex-wrap gap-8">
-                                                                    <DocumentChip label="GST Certificate" url={cust.GSTCertificateImg} />
-                                                                    <DocumentChip label="Aadhar Card" url={cust.AadharCardImg || cust.aadharImage} />
-                                                                    <DocumentChip label="PAN Card" url={cust.PANCardImg || cust.panImage} />
+                                                                    <DocumentChip label="GST Certificate" url={cust?.gstCertificateImg || cust?.GSTCertificateImg} />
+                                                                    <DocumentChip label="Aadhar Card" url={cust?.aadharCardImg || cust?.AadharCardImg || cust?.aadharImage} />
+                                                                    <DocumentChip label="PAN Card" url={cust?.panCardImg || cust?.PANCardImg || cust?.panImage} />
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -653,14 +718,14 @@ const CustomerList = () => {
                                 <div className="space-y-4 md:col-span-3">
                                     <h3 className="text-amber-500 font-bold uppercase text-xs tracking-widest border-b pb-2">Basic Information</h3>
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                        <DetailItem label="Shop Name" value={selectedCustomer.shopName} />
-                                        <DetailItem label="Owner Name" value={selectedCustomer.ownerName} />
-                                        <DetailItem label="Customer Type" value={selectedCustomer.CustomerType} />
-                                        <DetailItem label="Order Mode" value={selectedCustomer.orderMode} />
-                                        <DetailItem label="Email" value={selectedCustomer.emailId} />
-                                        <DetailItem label="Mobile 1" value={selectedCustomer.mobileNo1} />
-                                        <DetailItem label="Mobile 2" value={selectedCustomer.mobileNo2} />
-                                        <DetailItem label="Landline" value={selectedCustomer.landlineNo} />
+                                        <DetailItem label="Shop Name" value={selectedCustomer?.shopName} />
+                                        <DetailItem label="Owner Name" value={selectedCustomer?.ownerName || selectedCustomer?.proprietorName} />
+                                        <DetailItem label="Business Type" value={selectedCustomer?.businessType?.name || selectedCustomer?.businessType || selectedCustomer?.CustomerType} />
+                                        <DetailItem label="Order Mode" value={selectedCustomer?.orderMode} />
+                                        <DetailItem label="Email" value={selectedCustomer?.businessEmail || selectedCustomer?.emailId} />
+                                        <DetailItem label="Mobile 1" value={selectedCustomer?.mobileNo1} />
+                                        <DetailItem label="Mobile 2" value={selectedCustomer?.mobileNo2} />
+                                        <DetailItem label="Landline" value={selectedCustomer?.landlineNo} />
                                     </div>
                                 </div>
 
@@ -668,17 +733,17 @@ const CustomerList = () => {
                                 <div className="space-y-4 md:col-span-3">
                                     <h3 className="text-amber-500 font-bold uppercase text-xs tracking-widest border-b pb-2">Configuration & Logistics</h3>
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                        <DetailItem label="Username" value={selectedCustomer.username} />
-                                        <DetailItem label="Zone" value={selectedCustomer.zone} />
-                                        <DetailItem label="Flat Fitting" value={selectedCustomer.hasFlatFitting ? 'YES' : 'NO'} />
-                                        <DetailItem label="Sales Person" value={selectedCustomer.salesPerson} />
-                                        <DetailItem label="Plant" value={selectedCustomer.plant} />
-                                        <DetailItem label="Lab" value={selectedCustomer.lab} />
-                                        <DetailItem label="Fitting Centre" value={selectedCustomer.fittingCenter} />
-                                        <DetailItem label="Credit Limit" value={selectedCustomer.creditLimit} />
-                                        <DetailItem label="Credit Days" value={selectedCustomer.creditDays} />
-                                        <DetailItem label="Courier" value={selectedCustomer.courierName} />
-                                        <DetailItem label="Courier Time" value={selectedCustomer.courierTime} />
+                                        <DetailItem label="Username" value={selectedCustomer?.username} />
+                                        <DetailItem label="Zone" value={selectedCustomer?.zone?.name || selectedCustomer?.zone} />
+                                        <DetailItem label="Flat Fitting" value={selectedCustomer?.hasFlatFitting ? 'YES' : 'NO'} />
+                                        <DetailItem label="Sales Person" value={selectedCustomer?.salesPerson?.name || selectedCustomer?.salesPerson} />
+                                        <DetailItem label="Plant" value={selectedCustomer?.plant?.name || selectedCustomer?.plant} />
+                                        <DetailItem label="Lab" value={selectedCustomer?.specificLab?.name || selectedCustomer?.lab} />
+                                        <DetailItem label="Fitting Centre" value={selectedCustomer?.fittingCenter?.name || selectedCustomer?.fittingCenter} />
+                                        <DetailItem label="Credit Limit" value={selectedCustomer?.creditLimit} />
+                                        <DetailItem label="Credit Days" value={selectedCustomer?.creditDays?.name || selectedCustomer?.creditDays} />
+                                        <DetailItem label="Courier" value={selectedCustomer?.courierName?.name || selectedCustomer?.courierName} />
+                                        <DetailItem label="Courier Time" value={selectedCustomer?.courierTime?.name || selectedCustomer?.courierTime} />
                                     </div>
                                 </div>
 
@@ -686,14 +751,14 @@ const CustomerList = () => {
                                 <div className="space-y-4 md:col-span-3">
                                     <h3 className="text-amber-500 font-bold uppercase text-xs tracking-widest border-b pb-2">Registered Addresses</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {selectedCustomer.address?.map((addr, idx) => (
+                                        {([selectedCustomer?.billToAddress, ...(selectedCustomer?.customerShipToDetails || selectedCustomer?.address || [])].filter(Boolean)).map((addr, idx) => (
                                             <div key={idx} className="bg-amber-50/50 p-4 rounded-2xl border border-amber-100">
                                                 <p className="font-bold text-gray-800 text-sm mb-2 italic">Address {idx + 1}</p>
-                                                <p className="text-xs text-gray-600 mb-1">{addr.address1 || addr.branchAddress}</p>
-                                                <p className="text-xs text-gray-600 mb-2">{addr.city}, {addr.state}, {addr.country} - {addr.zipCode}</p>
+                                                <p className="text-xs text-gray-600 mb-1">{addr?.address || addr?.address1 || addr?.branchAddress}</p>
+                                                <p className="text-xs text-gray-600 mb-2">{addr?.city}, {addr?.state}, {addr?.country} - {addr?.zipCode}</p>
                                                 <div className="flex justify-between text-[10px] font-bold text-amber-600">
-                                                    <span>Contact: {addr.contactPerson}</span>
-                                                    <span>{addr.billingCurrency}</span>
+                                                    <span>Contact: {addr?.customerContactName || addr?.contactPerson}</span>
+                                                    <span>{addr?.billingCurrency}</span>
                                                 </div>
                                             </div>
                                         ))}
@@ -701,12 +766,12 @@ const CustomerList = () => {
                                 </div>
 
                                 {/* Section: Identity Details (Aadhar/PAN) - Only if not GST registered */}
-                                {!selectedCustomer.IsGSTRegistered && (
+                                {!(selectedCustomer?.isGSTRegistered || selectedCustomer?.IsGSTRegistered) && (
                                     <div className="space-y-4 md:col-span-3">
                                         <h3 className="text-amber-500 font-bold uppercase text-xs tracking-widest border-b pb-2">Identity Details (Non-GST)</h3>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                            <DetailItem label="Aadhar Card No." value={selectedCustomer.AadharCard} />
-                                            <DetailItem label="PAN Card No." value={selectedCustomer.PANCard} />
+                                            <DetailItem label="Aadhar Card No." value={selectedCustomer?.aadharCard || selectedCustomer?.AadharCard} />
+                                            <DetailItem label="PAN Card No." value={selectedCustomer?.panCard || selectedCustomer?.PANCard} />
                                         </div>
                                     </div>
                                 )}
@@ -715,9 +780,9 @@ const CustomerList = () => {
                                 <div className="space-y-4 md:col-span-3">
                                     <h3 className="text-amber-500 font-bold uppercase text-xs tracking-widest border-b pb-2">Verification Documents</h3>
                                     <div className="flex flex-wrap gap-8">
-                                        <DocumentChip label="GST Certificate" url={selectedCustomer.GSTCertificateImg} />
-                                        <DocumentChip label="Aadhar Card" url={selectedCustomer.AadharCardImg || selectedCustomer.aadharImage} />
-                                        <DocumentChip label="PAN Card" url={selectedCustomer.PANCardImg || selectedCustomer.panImage} />
+                                        <DocumentChip label="GST Certificate" url={selectedCustomer?.gstCertificateImg || selectedCustomer?.GSTCertificateImg} />
+                                        <DocumentChip label="Aadhar Card" url={selectedCustomer?.aadharCardImg || selectedCustomer?.AadharCardImg || selectedCustomer?.aadharImage} />
+                                        <DocumentChip label="PAN Card" url={selectedCustomer?.panCardImg || selectedCustomer?.PANCardImg || selectedCustomer?.panImage} />
                                     </div>
                                 </div>
                             </div>

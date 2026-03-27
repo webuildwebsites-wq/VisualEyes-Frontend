@@ -36,31 +36,44 @@ export const mapCustomerToFormValues = (customer, configs = {}) => {
     return {
         ...INITIAL_FORM_VALUES,
         ...customer,
-        CustomerType: getLabel(customer.CustomerType, configs.customerTypes),
-        CustomerTypeRefId: getRefId(customer.CustomerType, configs.customerTypes),
-        gstType: getLabel(customer.gstType, configs.gstTypes) || (customer.IsGSTRegistered ? 'Regular' : 'Unregistered'),
-        gstTypeRefId: getRefId(customer.gstType || (customer.IsGSTRegistered ? 'Regular' : 'Unregistered'), configs.gstTypes),
-        zoneRefId: getRefId(customer.zone, configs.zones, 'zone'),
-        salesPersonRefId: getRefId(customer.salesPerson, configs.salesPersons, 'employeeName'),
+
+        gstType: getLabel(customer.gstType, configs.gstTypes) || (customer.IsGSTRegistered || customer.isGSTRegistered ? 'Registered' : 'Un-Registered'),
+        gstTypeRefId: getRefId(customer.gstType || (customer.IsGSTRegistered || customer.isGSTRegistered ? 'Registered' : 'Un-Registered'), configs.gstTypes),
+        isGSTRegistered: customer.IsGSTRegistered ?? customer.isGSTRegistered ?? false,
+        zoneRefId: getRefId(customer.zone || customer.zoneRefId, configs.zones, 'zone'),
+        salesPersonRefId: getRefId(customer.salesPerson || customer.salesPersonRefId, configs.salesPersons, 'employeeName'),
         specificLabRefId: getRefId(customer.specificLab, configs.specificLabs),
         plantRefId: getRefId(customer.plant, configs.plants),
         fittingCenterRefId: getRefId(customer.fittingCenter, configs.fittingCenters),
-        creditDaysRefId: getRefId(customer.creditDays, configs.creditDays, 'days'),
+        creditDaysRefId: getRefId(customer.creditDays || customer.creditDaysRefId, configs.creditDays, 'days'),
+        businessTypeRefId: getRefId(customer.businessType || customer.businessTypeRefId, configs.businessTypes || []),
         courierNameRefId: getRefId(customer.courierName, configs.courierNames),
         courierTimeRefId: getRefId(customer.courierTime, configs.courierTimes, 'time'),
-        address: customer.address?.length ? customer.address : INITIAL_FORM_VALUES.address,
+        
+        billToAddress: customer.billToAddress ? {
+            ...customer.billToAddress,
+            contactPerson: customer.billToAddress.customerContactName || customer.billToAddress.contactPerson || '',
+            contactNumber: customer.billToAddress.customerContactNumber || customer.billToAddress.contactNumber || ''
+        } : INITIAL_FORM_VALUES.billToAddress,
+        customerShipToDetails: customer.customerShipToDetails?.length ? customer.customerShipToDetails.map(addr => ({
+            ...addr,
+            contactPerson: addr.customerContactName || addr.contactPerson || '',
+            contactNumber: addr.customerContactNumber || addr.contactNumber || ''
+        })) : INITIAL_FORM_VALUES.customerShipToDetails,
+        chequeDetails: customer.chequeDetails?.length === 3 ? customer.chequeDetails : INITIAL_FORM_VALUES.chequeDetails,
+        chequeRemark: customer.chequeRemark || '',
+        
+        gstNumber: customer.gstNumber || customer.GSTNumber || '',
+        gstCertificateImg: customer.gstCertificateImg || customer.GSTCertificateImg || '',
+        aadharCard: customer.aadharCard || customer.AadharCard || '',
+        aadharCardImg: customer.aadharCardImg || customer.AadharCardImg || '',
+        panCard: customer.panCard || customer.PANCard || '',
+        panCardImg: customer.panCardImg || customer.PANCardImg || '',
+        
         yearOfEstablishment: customer.yearOfEstablishment || '',
         proposedDiscount: customer.proposedDiscount || '',
-        currentlyDealtBrands: customer.currentlyDealtBrands || '',
+        finalDiscount: customer.finalDiscount || customer.discountPercent || '',
         minSalesValue: customer.minSalesValue || '',
-        finalDiscount: customer.finalDiscount || '',
-        brandCategories: (customer.brandCategories?.length) ? customer.brandCategories.map(bc => ({
-            brandId: getRefId(bc.brandId, configs.brands),
-            brandName: getLabel(bc.brandId, configs.brands),
-            categories: (bc.categories || []).map(cat => ({
-                categoryId: getRefId(cat.categoryId),
-                categoryName: getLabel(cat.categoryId)
-            }))
-        })) : INITIAL_FORM_VALUES.brandCategories,
+        creditLimit: customer.creditLimit || '',
     };
 };

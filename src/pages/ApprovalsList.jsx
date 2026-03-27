@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
-import { getPendingFinanceApprovals } from '../services/customerService';
+import { getPendingStageCustomers } from '../services/customerService';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -18,15 +18,31 @@ const ApprovalsList = () => {
     const fetchApprovals = async (page = 1) => {
         setLoading(true);
         try {
-            const response = await getPendingFinanceApprovals(page, 10);
+            const isSalesHead = user?.Department?.name?.toUpperCase() === 'SALES' && user?.EmployeeType?.toUpperCase() === 'ADMIN';
+            const isFinanceUser = ['FINANCE', 'F&A', 'F&A CFO', 'ACCOUNTING'].includes(user?.Department?.name?.toUpperCase()) || user?.EmployeeType?.toUpperCase() === 'SUPERADMIN';
+            const isSalesExecutive = user?.Department?.name?.toUpperCase() === 'SALES' && user?.EmployeeType?.toUpperCase() === 'EMPLOYEE';
+            console.log(user?.Department, user?.EmployeeType, 'isSalesExecutive');
+
+            let stages = [];
+            if (isSalesHead) stages.push('salesHead');
+            if (isFinanceUser) stages.push('finance');
+
+            // Per user request: Sales Executive checks approval pending at 'finance' stage
+            if (isSalesExecutive && stages.length === 0) stages.push('finance');
+
+            // If still empty and superadmin, show both
+            if (stages.length === 0 && user?.EmployeeType === 'SUPERADMIN') {
+                stages = ['salesHead', 'finance'];
+            }
+
+            const response = await getPendingStageCustomers(stages.join(','), page, 10);
             if (response.success) {
                 let customers = response.data.customers || [];
 
-                // If Sales user, only show their own submissions
-                const isSalesUser = user?.Department?.name?.toUpperCase() === 'SALES';
-                if (isSalesUser) {
-                    customers = customers.filter(c => c.createdBy === user._id || c.createdBy?._id === user._id);
-                }
+                // If regular Sales user, only show their own submissions
+                // if (isSalesExecutive) {
+                //     customers = customers.filter(c => c.createdBy === user._id || c.createdBy?._id === user._id);
+                // }
 
                 setApprovals(customers);
                 setPagination(response.data.pagination || { currentPage: 1, totalPages: 1 });
@@ -132,7 +148,7 @@ const ApprovalsList = () => {
                                         </td>
                                         <td className="p-6">
                                             <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-[10px] font-black uppercase tracking-widest">
-                                                {approval.CustomerType?.name || approval.CustomerType || 'N/A'}
+                                                {approval.businessType?.name || approval.businessType || approval.CustomerType?.name || approval.CustomerType || 'N/A'}
                                             </span>
                                         </td>
                                         <td className="p-6">

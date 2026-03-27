@@ -2,7 +2,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import { useSelector } from 'react-redux';
-import { selectIsAuthenticated } from './store/slices/authSlice';
+import { selectIsAuthenticated, selectCurrentUser } from './store/slices/authSlice';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
@@ -15,6 +15,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
 function App() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
+  const user = useSelector(selectCurrentUser);
 
   // Dynamic Route Renderer
   const renderRoutes = (routes) => {
@@ -32,11 +33,11 @@ function App() {
       let element = <Component {...props} />;
 
       // Authentication logic for public routes (e.g., redirect from Login if already logged in)
-      if (isPublic && path === PATHS.LOGIN) {
+      if (isPublic && (path === PATHS.LOGIN || path === PATHS.CUSTOMER_LOGIN)) {
         element = !isAuthenticated ? (
           <Component />
         ) : (
-          <Navigate to={PATHS.WELCOME} state={{ from: 'login' }} replace />
+          <Navigate to={user?.EmployeeType === 'CUSTOMER' ? PATHS.CUSTOMER_PORTAL : PATHS.WELCOME} state={{ from: 'login' }} replace />
         );
       } else if (requiredPermission) {
         // Enforce permission checks for protected routes

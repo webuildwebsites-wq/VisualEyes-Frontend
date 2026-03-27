@@ -14,6 +14,10 @@ import PlaceholderPage from '../pages/PlaceholderPage';
 import AuthWrapper from '../components/AuthWrapper';
 import MainLayout from '../components/layout/MainLayout';
 
+import CustomerLogin from '../pages/CustomerLogin';
+import CustomerLayout from '../components/layout/CustomerLayout';
+import CustomerDashboard from '../pages/CustomerDashboard';
+
 import { PATHS } from './paths';
 
 export { PATHS };
@@ -80,9 +84,21 @@ export const routesConfig = [
         isPublic: true
     },
     {
+        path: PATHS.CUSTOMER_LOGIN,
+        element: CustomerLogin,
+        isPublic: true
+    },
+    {
         element: AuthWrapper,
         isProtected: true,
         children: [
+            {
+                path: PATHS.CUSTOMER_PORTAL,
+                element: CustomerLayout,
+                children: [
+                    { index: true, element: CustomerDashboard }
+                ]
+            },
             {
                 path: PATHS.WELCOME,
                 element: Welcome

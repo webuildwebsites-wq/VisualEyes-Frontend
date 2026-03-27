@@ -5,104 +5,127 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 
-export const AddressDetails = ({ formik, wrapInput, configs, isVerificationMode, rejectedFields, dispatch, isReadOnlyMode }) => {
-    useEffect(() => {
-        if (!isReadOnlyMode && formik.values.address.length === 1) {
-            const firstAddr = formik.values.address[0];
-            if (!firstAddr.contactPerson && !firstAddr.contactNumber) {
-                formik.setFieldValue('address[0].contactPerson', formik.values.ownerName || '');
-                formik.setFieldValue('address[0].contactNumber', formik.values.mobileNo1 || '');
-            }
+export const AddressDetails = ({ formik, wrapInput, configs, isReadOnlyMode }) => {
+
+    const handleCopyToShipTo = () => {
+        const billTo = formik.values.billToAddress;
+        if (formik.values.customerShipToDetails?.length > 0) {
+            formik.setFieldValue('customerShipToDetails[0]', { ...billTo });
+        } else {
+            formik.setFieldValue('customerShipToDetails', [{ ...billTo }]);
         }
-    }, [isReadOnlyMode, formik.values.ownerName, formik.values.mobileNo1]);
+    };
+
+    const renderAddressFields = (prefix, idx = null) => {
+        const namePrefix = idx !== null ? `${prefix}[${idx}]` : prefix;
+
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8 mt-4">
+                {wrapInput(Input, {
+                    label: "Branch Name*",
+                    name: `${namePrefix}.branchName`,
+                    placeholder: "Enter Branch Name"
+                })}
+                {wrapInput(Input, {
+                    label: "Contact Person Name*",
+                    name: `${namePrefix}.contactPerson`,
+                    placeholder: "Enter Contact Person"
+                })}
+                {wrapInput(Input, {
+                    label: "Contact Number*",
+                    name: `${namePrefix}.contactNumber`,
+                    placeholder: "Enter Contact Number",
+                    maxLength: 10
+                })}
+                {wrapInput(Input, {
+                    label: "Address (Street/Locality)*",
+                    name: `${namePrefix}.address`,
+                    placeholder: "Enter Full Address"
+                })}
+                {wrapInput(Input, {
+                    label: "City*",
+                    name: `${namePrefix}.city`,
+                    placeholder: "Enter City"
+                })}
+                {wrapInput(Select, {
+                    label: "State*",
+                    name: `${namePrefix}.state`,
+                    options: (Array.isArray(configs.states) ? configs.states : []).map(z => ({ value: z.name, label: z.name }))
+                })}
+                {wrapInput(Select, {
+                    label: "Country*",
+                    name: `${namePrefix}.country`,
+                    options: [{ value: 'India', label: 'India' }]
+                })}
+                {wrapInput(Select, {
+                    label: "Billing Currency*",
+                    name: `${namePrefix}.billingCurrency`,
+                    options: [{ value: 'INR', label: 'INR' }, { value: 'USD', label: 'USD' }]
+                })}
+                {wrapInput(Select, {
+                    label: "Billing Mode*",
+                    name: `${namePrefix}.billingMode`,
+                    options: [{ value: 'Credit', label: 'Credit' }, { value: 'Advance', label: 'Advance' }]
+                })}
+                {wrapInput(Input, {
+                    label: "Pincode*",
+                    name: `${namePrefix}.zipCode`,
+                    placeholder: "Enter Pincode"
+                })}
+            </div>
+        );
+    };
 
     return (
         <div className="space-y-12">
-            <FieldArray name="address">
+            {/* Bill To Section */}
+            <div className="space-y-6">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-[#F59E0B] font-bold text-lg">Bill To Address*</h3>
+                </div>
+                {renderAddressFields('billToAddress')}
+            </div>
+
+            <div className="w-full h-px bg-gray-200 my-8"></div>
+
+            {/* Ship To Section */}
+            <FieldArray name="customerShipToDetails">
                 {({ push, remove }) => (
                     <div className="space-y-12">
-                        {formik.values.address.map((addr, index) => (
+                        {formik.values.customerShipToDetails.map((addr, index) => (
                             <div key={index} className="relative pt-6">
                                 <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-[#F59E0B] font-bold">Address {index + 1}*</h3>
-                                    {index > 0 && !isReadOnlyMode && <button onClick={() => remove(index)} className="text-red-500 text-sm font-bold flex items-center gap-1"><Icon icon="mdi:delete" /> Remove</button>}
+                                    <h3 className="text-[#10B981] font-bold text-lg">Ship To Address {index + 1}*</h3>
+                                    <div className="flex gap-4 items-center">
+                                        {index === 0 && !isReadOnlyMode && (
+                                            <button type="button" onClick={handleCopyToShipTo} className="text-blue-500 text-sm font-bold flex items-center gap-1 hover:underline">
+                                                <Icon icon="mdi:content-copy" /> Copy from Bill To
+                                            </button>
+                                        )}
+                                        {index > 0 && !isReadOnlyMode && (
+                                            <button type="button" onClick={() => remove(index)} className="text-red-500 text-sm font-bold flex items-center gap-1 hover:underline">
+                                                <Icon icon="mdi:delete" /> Remove
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                                    {wrapInput(Input, {
-                                        label: "Branch Address*",
-                                        name: `address[${index}].branchAddress`,
-                                        value: addr.branchAddress,
-                                        placeholder: "Enter Branch Address"
-                                    })}
-                                    {wrapInput(Input, {
-                                        label: "Contact Person Name*",
-                                        name: `address[${index}].contactPerson`,
-                                        value: addr.contactPerson,
-                                        placeholder: "Enter Contact Person"
-                                    })}
-                                    {wrapInput(Input, {
-                                        label: "Contact Number*",
-                                        name: `address[${index}].contactNumber`,
-                                        value: addr.contactNumber,
-                                        placeholder: "Enter Contact Number"
-                                    })}
-                                    {wrapInput(Input, {
-                                        label: "City*",
-                                        name: `address[${index}].city`,
-                                        value: addr.city,
-                                        placeholder: "Enter City"
-                                    })}
-                                    {wrapInput(Select, {
-                                        label: "State*",
-                                        name: `address[${index}].state`,
-                                        value: addr.state,
-                                        options: (Array.isArray(configs.states) ? configs.states : []).map(z => ({ value: z.name, label: z.name }))
-                                    })}
-                                    {wrapInput(Select, {
-                                        label: "Country*",
-                                        name: `address[${index}].country`,
-                                        value: addr.country,
-                                        options: [{ value: 'India', label: 'India' }]
-                                    })}
-                                    {wrapInput(Select, {
-                                        label: "Billing Currency*",
-                                        name: `address[${index}].billingCurrency`,
-                                        value: addr.billingCurrency,
-                                        options: [{ value: 'Indian Rupees', label: 'Indian Rupees' }]
-                                    })}
-                                    {wrapInput(Select, {
-                                        label: "Billing Mode*",
-                                        name: `address[${index}].billingMode`,
-                                        value: addr.billingMode,
-                                        options: [{ value: 'Credit', label: 'Credit' }, { value: 'Advance', label: 'Advance' }]
-                                    })}
-                                    {wrapInput(Input, {
-                                        label: "Pincode*",
-                                        name: `address[${index}].zipCode`,
-                                        value: addr.zipCode,
-                                        placeholder: "Enter Pincode"
-                                    })}
-                                </div>
+                                {renderAddressFields('customerShipToDetails', index)}
                             </div>
                         ))}
+
                         {!isReadOnlyMode && (
                             <div className="flex justify-center mt-4">
                                 <Button
+                                    type="button"
                                     variant="outlined"
                                     onClick={() => push({
-                                        branchAddress: '',
-                                        contactPerson: formik.values.ownerName || '',
-                                        contactNumber: formik.values.mobileNo1 || '',
-                                        city: '',
-                                        state: '',
-                                        country: 'India',
-                                        billingCurrency: 'Indian Rupees',
-                                        billingMode: 'Credit',
-                                        zipCode: ''
+                                        branchName: '', contactPerson: '', contactNumber: '', address: '',
+                                        city: '', state: '', country: 'India', zipCode: '',
+                                        billingCurrency: 'INR', billingMode: 'Credit'
                                     })}
-                                    className="bg-[#F59E0B] text-white rounded-full px-10 py-3 flex items-center gap-2 w-fit hover:text-black hover:bg-[#D97706]"
+                                    className="text-yellow rounded-full px-10 py-3 flex items-center gap-2 w-fit hover:text-black hover:bg-[#059669]"
                                 >
-                                    <Icon icon="mdi:plus" /> Add Address
+                                    <Icon icon="mdi:plus" /> Add Ship To Address
                                 </Button>
                             </div>
                         )}
