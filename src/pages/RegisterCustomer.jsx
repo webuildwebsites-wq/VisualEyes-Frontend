@@ -26,7 +26,8 @@ import {
     sendCustomerForCorrection,
     salesHeadApproveCustomer,
     financeApproveCustomer,
-    getPendingStageCustomers
+    getPendingStageCustomers,
+    resubmitCustomerCorrectionFinance
 } from '../services/customerService';
 import { uploadImage } from '../services/bucketService';
 import { PATHS } from '../routes/paths';
@@ -305,6 +306,7 @@ export default function RegisterCustomer() {
                         filteredPayload.IsGSTRegistered = payload.IsGSTRegistered;
                     }
 
+
                     if (currentStage === 'salesCorrection') {
                         await toast.promise(
                             resubmitCustomerCorrection(correctionCustomerId, filteredPayload), // resubmit-correction endpoint
@@ -315,7 +317,7 @@ export default function RegisterCustomer() {
                         );
                     } else {
                         await toast.promise(
-                            resubmitCustomerCorrection(correctionCustomerId, filteredPayload),
+                            resubmitCustomerCorrectionFinance(correctionCustomerId, filteredPayload),
                             {
                                 pending: 'Resubmitting corrections...',
                                 success: 'Corrections resubmitted successfully! 👌',
@@ -636,7 +638,7 @@ export default function RegisterCustomer() {
                 navigate(PATHS.APPROVALS);
                 return;
             }
-            
+
             if (isApprovalMode) {
                 const getObj = (list, refId, labelKey = 'name') => {
                     if (!refId) return undefined;

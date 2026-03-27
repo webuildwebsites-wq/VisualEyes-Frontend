@@ -252,7 +252,7 @@ const CustomerList = () => {
     return (
         <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto p-4">
             {/* Logged-in User Info Strip */}
-            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-5 py-3 rounded-2xl border border-indigo-100/60 flex flex-wrap items-center gap-4 text-[11px]">
+            {/* <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-5 py-3 rounded-2xl border border-indigo-100/60 flex flex-wrap items-center gap-4 text-[11px]">
                 <div className="flex items-center gap-1.5">
                     <Icon icon="mdi:account-circle" className="text-indigo-400 text-base" />
                     <span className="font-black text-gray-400 uppercase tracking-wider">Logged in as:</span>
@@ -273,7 +273,7 @@ const CustomerList = () => {
                     <span className="font-black text-gray-400 uppercase tracking-wider">Dept:</span>
                     <span className="font-extrabold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full">{currentUser?.Department?.name || currentUser?.Department || '---'}</span>
                 </div>
-            </div>
+            </div> */}
             {/* Filter Bar */}
             <div className="bg-white p-4 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm border border-gray-100/80 flex flex-col gap-4 md:gap-6 ">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:flex lg:flex-wrap items-end gap-3 md:gap-6">
@@ -294,7 +294,7 @@ const CustomerList = () => {
                         <FilterSelect
                             placeholder="All Categories"
                             value={filters.businessType}
-                            onChange={(e) => setFilters({ ...filters, businessType: e.target.value })}
+                            onChange={(e) => setFilters({ ...filters, customerType: e.target.value })}
                             options={configs.businessTypes?.map(c => ({ label: c.name, value: c._id })) || []}
                             icon="mdi:account-group"
                         />
@@ -578,70 +578,70 @@ const CustomerList = () => {
 
                                                             {/* Bill To Address */}
                                                             {cust?.billToAddress && (
-                                                            <div className="md:col-span-4 mt-4">
-                                                                <h4 className="text-[11px] font-black text-blue-600 uppercase tracking-widest border-b border-blue-100 pb-2 mb-6">Bill To Address</h4>
-                                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                                    <div className="bg-blue-50/40 p-5 rounded-[2rem] border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
-                                                                        <div className="flex items-center gap-3 mb-4">
-                                                                            <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-black">
-                                                                                1
+                                                                <div className="md:col-span-4 mt-4">
+                                                                    <h4 className="text-[11px] font-black text-blue-600 uppercase tracking-widest border-b border-blue-100 pb-2 mb-6">Bill To Address</h4>
+                                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                                        <div className="bg-blue-50/40 p-5 rounded-[2rem] border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
+                                                                            <div className="flex items-center gap-3 mb-4">
+                                                                                <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-black">
+                                                                                    1
+                                                                                </div>
+                                                                                <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Bill To</span>
                                                                             </div>
-                                                                            <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Bill To</span>
-                                                                        </div>
-                                                                        <p className="text-[10px] font-bold text-gray-500 mb-1">{cust?.billToAddress?.branchName || '---'}</p>
-                                                                        <p className="text-xs font-semibold text-gray-700 leading-relaxed mb-4">{cust?.billToAddress?.address || '---'}</p>
-                                                                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-blue-50">
-                                                                            <div>
-                                                                                <p className="text-[9px] font-black text-gray-300 uppercase">Contact</p>
-                                                                                <p className="text-xs font-semibold text-gray-700">{cust?.billToAddress?.customerContactName || '---'}</p>
-                                                                            </div>
-                                                                            <div>
-                                                                                <p className="text-[9px] font-black text-gray-300 uppercase">Phone</p>
-                                                                                <p className="text-xs font-semibold text-gray-700">{cust?.billToAddress?.customerContactNumber || '---'}</p>
-                                                                            </div>
-                                                                            <div>
-                                                                                <p className="text-[9px] font-black text-gray-300 uppercase">Currency</p>
-                                                                                <p className="text-[10px] font-bold text-blue-600">{cust?.billToAddress?.billingCurrency || '---'}</p>
-                                                                            </div>
-                                                                            <div>
-                                                                                <p className="text-[9px] font-black text-gray-300 uppercase">Billing Mode</p>
-                                                                                <p className="text-[10px] font-bold text-blue-600">{cust?.billToAddress?.billingMode || '---'}</p>
+                                                                            <p className="text-[10px] font-bold text-gray-500 mb-1">{cust?.billToAddress?.branchName || '---'}</p>
+                                                                            <p className="text-xs font-semibold text-gray-700 leading-relaxed mb-4">{cust?.billToAddress?.address || '---'}</p>
+                                                                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-blue-50">
+                                                                                <div>
+                                                                                    <p className="text-[9px] font-black text-gray-300 uppercase">Contact</p>
+                                                                                    <p className="text-xs font-semibold text-gray-700">{cust?.billToAddress?.customerContactName || '---'}</p>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-[9px] font-black text-gray-300 uppercase">Phone</p>
+                                                                                    <p className="text-xs font-semibold text-gray-700">{cust?.billToAddress?.customerContactNumber || '---'}</p>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-[9px] font-black text-gray-300 uppercase">Currency</p>
+                                                                                    <p className="text-[10px] font-bold text-blue-600">{cust?.billToAddress?.billingCurrency || '---'}</p>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-[9px] font-black text-gray-300 uppercase">Billing Mode</p>
+                                                                                    <p className="text-[10px] font-bold text-blue-600">{cust?.billToAddress?.billingMode || '---'}</p>
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
                                                             )}
 
                                                             {/* Ship To Addresses */}
                                                             {cust?.customerShipToDetails?.length > 0 && (
-                                                            <div className="md:col-span-4 mt-4">
-                                                                <h4 className="text-[11px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-100 pb-2 mb-6">Ship To Addresses</h4>
-                                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                                    {cust?.customerShipToDetails?.map((addr, idx) => (
-                                                                        <div key={idx} className="bg-emerald-50/40 p-5 rounded-[2rem] border border-emerald-100 shadow-sm hover:shadow-md transition-shadow">
-                                                                            <div className="flex items-center gap-3 mb-4">
-                                                                                <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black">
-                                                                                    {idx + 1}
+                                                                <div className="md:col-span-4 mt-4">
+                                                                    <h4 className="text-[11px] font-black text-emerald-600 uppercase tracking-widest border-b border-emerald-100 pb-2 mb-6">Ship To Addresses</h4>
+                                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                                        {cust?.customerShipToDetails?.map((addr, idx) => (
+                                                                            <div key={idx} className="bg-emerald-50/40 p-5 rounded-[2rem] border border-emerald-100 shadow-sm hover:shadow-md transition-shadow">
+                                                                                <div className="flex items-center gap-3 mb-4">
+                                                                                    <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black">
+                                                                                        {idx + 1}
+                                                                                    </div>
+                                                                                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Ship To</span>
                                                                                 </div>
-                                                                                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Ship To</span>
+                                                                                <p className="text-[10px] font-bold text-gray-500 mb-1">{addr?.branchName || '---'}</p>
+                                                                                <p className="text-xs font-semibold text-gray-700 leading-relaxed mb-4">{addr?.address || addr?.branchAddress || '---'}</p>
+                                                                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-emerald-50">
+                                                                                    <div>
+                                                                                        <p className="text-[9px] font-black text-gray-300 uppercase">Contact</p>
+                                                                                        <p className="text-xs font-semibold text-gray-700">{addr?.contactPerson || '---'}</p>
+                                                                                    </div>
+                                                                                    <div>
+                                                                                        <p className="text-[9px] font-black text-gray-300 uppercase">Phone</p>
+                                                                                        <p className="text-xs font-semibold text-gray-700">{addr?.mobileNo || '---'}</p>
+                                                                                    </div>
+                                                                                </div>
                                                                             </div>
-                                                                            <p className="text-[10px] font-bold text-gray-500 mb-1">{addr?.branchName || '---'}</p>
-                                                                            <p className="text-xs font-semibold text-gray-700 leading-relaxed mb-4">{addr?.address || addr?.branchAddress || '---'}</p>
-                                                                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-emerald-50">
-                                                                                <div>
-                                                                                    <p className="text-[9px] font-black text-gray-300 uppercase">Contact</p>
-                                                                                    <p className="text-xs font-semibold text-gray-700">{addr?.contactPerson || '---'}</p>
-                                                                                </div>
-                                                                                <div>
-                                                                                    <p className="text-[9px] font-black text-gray-300 uppercase">Phone</p>
-                                                                                    <p className="text-xs font-semibold text-gray-700">{addr?.mobileNo || '---'}</p>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
+                                                                        ))}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
                                                             )}
 
                                                             {/* Documents */}

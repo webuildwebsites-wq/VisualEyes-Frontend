@@ -231,6 +231,15 @@ export const resubmitCustomerCorrection = async (customerId, correctionData) => 
     }
 };
 
+export const resubmitCustomerCorrectionFinance = async (customerId, correctionData) => {
+    try {
+        const response = await api.put(`/api/customer/management/${customerId}/finance-resubmit`, correctionData);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to resubmit customer correction');
+    }
+};
+
 export const approveCustomerFinance = async (customerId, approvalData) => {
     try {
         const response = await api.put(`/api/customer/management/${customerId}/finance-complete`, approvalData);

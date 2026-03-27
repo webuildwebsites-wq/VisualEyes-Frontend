@@ -47,9 +47,9 @@ const CorrectionRequestModal = ({ isOpen, onClose, onSubmit, customerName, loadi
     if (!isOpen) return null;
 
     const toggleField = (fieldId) => {
-        setSelectedFields(prev => 
-            prev.includes(fieldId) 
-                ? prev.filter(id => id !== fieldId) 
+        setSelectedFields(prev =>
+            prev.includes(fieldId)
+                ? prev.filter(id => id !== fieldId)
                 : [...prev, fieldId]
         );
     };
@@ -72,7 +72,7 @@ const CorrectionRequestModal = ({ isOpen, onClose, onSubmit, customerName, loadi
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div 
+            <div
                 className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-100 flex flex-col max-h-[90vh]"
                 onClick={(e) => e.stopPropagation()}
             >
@@ -95,14 +95,14 @@ const CorrectionRequestModal = ({ isOpen, onClose, onSubmit, customerName, loadi
                             {initialFields.map((fieldId) => {
                                 const field = ALLOWED_FIELDS.find(f => f.id === fieldId);
                                 let label = field ? field.label : fieldId;
-                                
+
                                 if (!field) {
                                     // Strip RefId and format PascalCase/camelCase to labels
                                     label = fieldId.replace(/RefId$/, '')
-                                                 .replace(/([A-Z])/g, ' $1')
-                                                 .trim()
-                                                 .replace(/^./, str => str.toUpperCase());
-                                    
+                                        .replace(/([A-Z])/g, ' $1')
+                                        .trim()
+                                        .replace(/^./, str => str.toUpperCase());
+
                                     if (fieldId.includes('.') || fieldId.includes('[')) {
                                         // Handle both formats: address.0.branchAddress or address[0].branchAddress
                                         const parts = fieldId.split(/[.[\]]+/).filter(Boolean);
@@ -122,7 +122,7 @@ const CorrectionRequestModal = ({ isOpen, onClose, onSubmit, customerName, loadi
                         </div>
                     </div>
 
-                    {showTargetRole && (
+                    {/* {showTargetRole && (
                         <div className="mb-6 animate-in slide-in-from-top-2 duration-300">
                             <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Send Correction To:</h3>
                             <div className="flex gap-4 p-1 bg-gray-100 rounded-2xl w-fit">
@@ -142,7 +142,7 @@ const CorrectionRequestModal = ({ isOpen, onClose, onSubmit, customerName, loadi
                                 </button>
                             </div>
                         </div>
-                    )}
+                    )} */}
 
                     <div className="space-y-3">
                         <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Detailed Remark</h3>
@@ -157,8 +157,8 @@ const CorrectionRequestModal = ({ isOpen, onClose, onSubmit, customerName, loadi
 
                 {/* Footer */}
                 <div className="p-8 pt-4 flex gap-4 border-t border-gray-50 bg-gray-50/30">
-                    <Button 
-                        variant="outlined" 
+                    <Button
+                        variant="outlined"
                         onClick={onClose}
                         disabled={loading}
                         className="rounded-2xl border-gray-200 text-gray-500 hover:bg-white"
