@@ -9,12 +9,12 @@ const CustomerDashboard = () => {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Welcome Banner */}
-            <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-[2.5rem] p-8 md:p-12 text-white shadow-xl relative overflow-hidden">
+            <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-[2.5rem] p-8 md:p-12 text-white shadow-xl relative overflow-hidden flex flex-col items-center">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -translate-y-1/2 translate-x-1/3"></div>
                 <div className="absolute bottom-0 left-0 w-40 h-40 bg-black opacity-10 rounded-full translate-y-1/3 -translate-x-1/2"></div>
-                
-                <div className="relative z-10 max-w-3xl">
-                    <h1 className="text-3xl md:text-5xl font-black tracking-tight mb-4">Welcome back, {user?.shopName || user?.ownerName || 'Valued Partner'}! 👋</h1>
+
+                <div className="relative z-10 max-w-3xl flex flex-col items-center">
+                    <h1 className="text-3xl md:text-5xl font-black tracking-tight mb-4 ">Welcome back, {user?.shopName || user?.ownerName || 'Valued Partner'}! 👋</h1>
                     <p className="text-amber-100 text-lg font-medium opacity-90 max-w-xl">
                         Manage your orders, view account details, and track your recent activity from your dedicated Customer Portal.
                     </p>
@@ -53,7 +53,7 @@ const CustomerDashboard = () => {
                     </div>
                 </div>
             </div>
-            
+
             {/* Account Information Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                 <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100">
