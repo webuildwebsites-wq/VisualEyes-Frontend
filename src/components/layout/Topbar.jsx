@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 const Topbar = () => {
     const dispatch = useDispatch()
     const user = useSelector((state) => state.auth.user)
-    console.log('user', user.subRoles[0].name)
+    // console.log('user', user.subRoles[0].name)
     return (
         <div className="w-full bg-amber-500 text-white shadow-md p-3 md:p-4 md:px-8 rounded-b-2xl md:rounded-lg flex justify-between items-center transition-all">
             <div className="font-semibold text-sm md:text-lg flex items-center gap-2 flex-wrap">
