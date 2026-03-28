@@ -1,477 +1,392 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useFormik, FieldArray, FormikProvider } from 'formik';
 import * as Yup from 'yup';
 import { Icon } from '@iconify/react';
+import { toast } from 'react-toastify';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import SearchableSelect from '../components/ui/SearchableSelect';
 import Select from '../components/ui/Select';
-import { toast } from 'react-toastify';
-import { getAllCustomers, addShipTo, getAllRegions, getCitiesByRegion } from '../services/customerService';
-import { uploadImage } from '../services/bucketService';
+import {
+    getAllCustomers,
+    getCustomerById,
+    updateShipToDetails,
+    getCustomerConfigs
+} from '../services/customerService';
+import { getStatesByZone, getCitiesByState } from '../services/locationService';
 
 const ShipTo = () => {
-    const [activeTab, setActiveTab] = useState('basic'); // 'basic' or 'docs'
     const [customers, setCustomers] = useState([]);
-    const [regions, setRegions] = useState([]);
-    console.log(regions, "regions");
-    const [cities, setCities] = useState({}); // { regionId: [cities] }
-    const [uploading, setUploading] = useState({ aadhar: false, pan: false });
-    const [previews, setPreviews] = useState({ aadhar: null, pan: null });
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [configs, setConfigs] = useState({ states: [], billingCurrencies: [] });
+    const [loading, setLoading] = useState(false);
+    const [fetchingCustomer, setFetchingCustomer] = useState(false);
 
-    const aadharInputRef = useRef(null);
-    const panInputRef = useRef(null);
-
+    // Load initial data
     useEffect(() => {
         const fetchInitialData = async () => {
+            setLoading(true);
             try {
-                const [custRes, regionRes] = await Promise.all([
-                    getAllCustomers(1, 100),
-                    getAllRegions()
+                const [custRes, configRes] = await Promise.all([
+                    getAllCustomers(1, 1000), // Get a large list for search
+                    getCustomerConfigs()
                 ]);
-                if (custRes.success) setCustomers(custRes.data.customers || []);
-                setRegions(regionRes || []);
+                if (custRes.success) {
+                    setCustomers(custRes.data.customers || []);
+                }
+                setConfigs(configRes);
             } catch (error) {
-                console.error('Failed to load data:', error);
+                console.error('Failed to load initial data:', error);
+                toast.error('Failed to load customers list');
+            } finally {
+                setLoading(false);
             }
         };
         fetchInitialData();
     }, []);
 
-    const fetchCities = async (regionId) => {
-        if (!regionId || cities[regionId]) return;
-        try {
-            const data = await getCitiesByRegion(regionId);
-            setCities(prev => ({ ...prev, [regionId]: data }));
-        } catch {
-            toast.error('Failed to load cities');
-        }
-    };
-
     const formik = useFormik({
         initialValues: {
             customerId: '',
-            shipToCustomerName: '',
-            emailId: '',
-            contactNo: '',
-            branches: [
-                {
-                    billingAddress: '',
-                    shipToAddress: '',
-                    city: '',
-                    state: '',
-                    stateRefId: '',
-                    zipCode: '',
-                }
-            ],
-            // Docs tab
-            selectedAddressIndex: 0,
-            docName: '',
-            docContact: '',
-            aadharNo: '',
-            aadharImage: '',
-            panNo: '',
-            panImage: ''
+            shipToDetails: []
         },
         validationSchema: Yup.object({
-            customerId: Yup.string().required('Customer is required'),
-            shipToCustomerName: Yup.string().required('Required'),
-            emailId: Yup.string().email('Invalid email').required('Required'),
-            contactNo: Yup.string().required('Required'),
-            branches: Yup.array().of(
+            customerId: Yup.string().required('Please select a customer'),
+            shipToDetails: Yup.array().of(
                 Yup.object().shape({
-                    billingAddress: Yup.string().required('Required'),
-                    shipToAddress: Yup.string().required('Required'),
+                    branchName: Yup.string().required('Required'),
+                    customerContactName: Yup.string().required('Required'),
+                    customerContactNumber: Yup.string()
+                        .matches(/^[0-9]{10}$/, 'Must be 10 digits')
+                        .required('Required'),
+                    address: Yup.string().required('Required'),
                     city: Yup.string().required('Required'),
-                    stateRefId: Yup.string().required('Required'),
+                    state: Yup.string().required('Required'),
                     zipCode: Yup.string().required('Required'),
                 })
-            ),
-            // Docs tab validation
-            docName: Yup.string().when('activeTabValue', {
-                is: 'docs',
-                then: () => Yup.string().required('Required')
-            }),
-            docContact: Yup.string().when('activeTabValue', {
-                is: 'docs',
-                then: () => Yup.string().required('Required')
-            }),
+            )
         }),
         onSubmit: async (values) => {
             try {
-                const response = await addShipTo(values);
+                const response = await updateShipToDetails(values.customerId, {
+                    shipToDetails: values.shipToDetails
+                });
                 if (response.success) {
-                    toast.success('Ship To details added successfully!');
-                    formik.resetForm();
-                    setPreviews({ aadhar: null, pan: null });
+                    toast.success('Ship-to details updated successfully');
+                    // Refresh data
+                    handleCustomerChange(values.customerId);
                 }
-            } catch {
-                toast.error('Failed to submit details');
+            } catch (error) {
+                toast.error(error.message || 'Failed to update details');
             }
         }
     });
 
-    // Helper to bypass yup "when" restriction with external state
-    formik.values.activeTabValue = activeTab;
-
-    const handleFileChange = async (e, type) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        // Set preview
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setPreviews(prev => ({ ...prev, [type]: reader.result }));
-        };
-        reader.readAsDataURL(file);
-
-        // Upload
-        setUploading(prev => ({ ...prev, [type]: true }));
-        try {
-            const response = await uploadImage(file);
-            const imageUrl = response.data?.url || response.url || response;
-            formik.setFieldValue(`${type}Image`, imageUrl);
-            toast.success(`${type.toUpperCase()} image uploaded`);
-        } catch {
-            toast.error(`Failed to upload ${type} image`);
-        } finally {
-            setUploading(prev => ({ ...prev, [type]: false }));
-        }
-    };
-
-    const handleNext = async () => {
-        const basicFields = ['customerId', 'shipToCustomerName', 'emailId', 'contactNo', 'branches'];
-        const touched = {};
-        basicFields.forEach(field => {
-            touched[field] = true;
-            if (field === 'branches') {
-                formik.values.branches.forEach((_, i) => {
-                    touched[`branches[${i}].billingAddress`] = true;
-                    touched[`branches[${i}].shipToAddress`] = true;
-                    touched[`branches[${i}].city`] = true;
-                    touched[`branches[${i}].state`] = true;
-                    touched[`branches[${i}].zipCode`] = true;
-                });
-            }
-        });
-        formik.setTouched(touched);
-        const errors = await formik.validateForm();
-        const hasBasicErrors = basicFields.some(key => errors[key]);
-
-        if (hasBasicErrors) {
-            toast.error('Please fix errors in Basic Details');
+    const handleCustomerChange = async (customerId) => {
+        if (!customerId) {
+            setSelectedCustomer(null);
+            formik.setFieldValue('shipToDetails', []);
+            formik.setFieldValue('customerId', '');
             return;
         }
-        setActiveTab('docs');
+
+        setFetchingCustomer(true);
+        formik.setFieldValue('customerId', customerId);
+        try {
+            const res = await getCustomerById(customerId);
+            if (res.success) {
+                const customer = res.data;
+                setSelectedCustomer(customer);
+
+                // Map existing ship-to details
+                const existingShipTo = (customer.customerShipToDetails || []).map(addr => ({
+                    _id: addr._id,
+                    branchName: addr.branchName || '',
+                    customerContactName: addr.customerContactName || addr.contactPerson || '',
+                    customerContactNumber: addr.customerContactNumber || addr.contactNumber || '',
+                    address: addr.address || '',
+                    city: addr.city || '',
+                    state: addr.state || '',
+                    country: addr.country || 'India',
+                    billingCurrency: addr.billingCurrency || 'INR',
+                    billingMode: addr.billingMode || 'Credit',
+                    zipCode: addr.zipCode || addr.pincode || '',
+                }));
+
+                formik.setFieldValue('shipToDetails', existingShipTo.length > 0 ? existingShipTo : [{
+                    branchName: '',
+                    customerContactName: '',
+                    customerContactNumber: '',
+                    address: '',
+                    city: '',
+                    state: '',
+                    country: 'India',
+                    billingCurrency: 'INR',
+                    billingMode: 'Credit',
+                    zipCode: '',
+                }]);
+            }
+        } catch (error) {
+            toast.error('Failed to fetch customer details');
+        } finally {
+            setFetchingCustomer(false);
+        }
     };
 
+    const handleCopyFromBillTo = () => {
+        if (!selectedCustomer?.billToAddress) {
+            toast.warning('No Bill-To address found for this customer');
+            return;
+        }
+        const billTo = selectedCustomer.billToAddress;
+        const newShipTo = {
+            branchName: billTo.branchName || '',
+            customerContactName: billTo.customerContactName || billTo.contactPerson || '',
+            customerContactNumber: billTo.customerContactNumber || billTo.contactNumber || '',
+            address: billTo.address || '',
+            city: billTo.city || '',
+            state: billTo.state || '',
+            country: billTo.country || 'India',
+            billingCurrency: billTo.billingCurrency || 'INR',
+            billingMode: billTo.billingMode || 'Credit',
+            zipCode: billTo.zipCode || billTo.pincode || '',
+        };
+
+        // Add to the list
+        formik.setFieldValue('shipToDetails', [...formik.values.shipToDetails, newShipTo]);
+        toast.info('Copied from Bill-To address');
+    };
+
+    const customerOptions = useMemo(() =>
+        customers.map(c => ({
+            value: c._id,
+            label: `${c.shopName} (${c.customerCode || 'N/A'})`
+        }))
+        , [customers]);
+
     return (
-        <div className="flex flex-col items-center py-8">
-            {/* Tabs */}
-            <div className="flex gap-6 mb-10">
-                <button
-                    type="button"
-                    onClick={() => setActiveTab('basic')}
-                    className={`px-10 py-3 rounded-full border-2 font-bold transition-all min-w-[180px]
-                        ${activeTab === 'basic'
-                            ? 'bg-amber-500 text-white border-amber-500 shadow-lg'
-                            : 'bg-white text-gray-400 border-gray-100 hover:border-amber-200'}`}
-                >
-                    Basic Details
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setActiveTab('docs')}
-                    className={`px-10 py-3 rounded-full border-2 font-bold transition-all min-w-[180px]
-                        ${activeTab === 'docs'
-                            ? 'bg-amber-500 text-white border-amber-500 shadow-lg'
-                            : 'bg-white text-gray-400 border-gray-100 hover:border-amber-200'}`}
-                >
-                    Documentation
-                </button>
+        <div className="p-6 max-w-7xl mx-auto space-y-8">
+            {/* Header / Selection Card */}
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
+                    <div className="flex-1 w-full">
+                        <SearchableSelect
+                            label="Select Customer"
+                            name="customerId"
+                            value={formik.values.customerId}
+                            onChange={(e) => handleCustomerChange(e.target.value)}
+                            options={customerOptions}
+                            placeholder="Search by Shop Name or Code"
+                            loading={loading}
+                        />
+                    </div>
+
+                    {selectedCustomer && (
+                        <div className="flex flex-wrap gap-6 bg-amber-50 rounded-2xl p-4 border border-amber-100 flex-1 w-full">
+                            <div>
+                                <p className="text-xs text-amber-600 font-bold uppercase tracking-wider">Customer ID</p>
+                                <p className="text-gray-900 font-semibold">{selectedCustomer.customerCode || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-amber-600 font-bold uppercase tracking-wider">Shop Name</p>
+                                <p className="text-gray-900 font-semibold">{selectedCustomer.shopName}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-amber-600 font-bold uppercase tracking-wider">Contact</p>
+                                <p className="text-gray-900 font-semibold">{selectedCustomer.mobileNo1 || selectedCustomer.businessEmail}</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Main Card */}
-            <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-5xl p-12 border border-gray-100">
+            {fetchingCustomer ? (
+                <div className="flex justify-center py-20">
+                    <Icon icon="mdi:loading" className="animate-spin text-4xl text-amber-500" />
+                </div>
+            ) : selectedCustomer ? (
                 <FormikProvider value={formik}>
-                    <form onSubmit={formik.handleSubmit}>
-                        {activeTab === 'basic' ? (
-                            <div className="space-y-10">
-                                {/* Ship To Details */}
-                                <div className="space-y-6">
-                                    <h3 className="text-amber-500 font-bold text-lg flex items-center gap-2">
-                                        Ship To Details
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                                        <Select
-                                            label="Customer"
-                                            name="customerId"
-                                            value={formik.values.customerId}
-                                            onChange={formik.handleChange}
-                                            onBlur={formik.handleBlur}
-                                            options={customers.map(c => ({ value: c._id, label: c.shopName }))}
-                                            placeholder="Select Customer"
-                                            error={formik.touched.customerId && formik.errors.customerId ? { message: formik.errors.customerId } : null}
-                                        />
-                                        <Input
-                                            label="Ship To Customer Name"
-                                            name="shipToCustomerName"
-                                            value={formik.values.shipToCustomerName}
-                                            onChange={formik.handleChange}
-                                            onBlur={formik.handleBlur}
-                                            placeholder="Enter Customer Name"
-                                            error={formik.touched.shipToCustomerName && formik.errors.shipToCustomerName ? { message: formik.errors.shipToCustomerName } : null}
-                                        />
-                                        <Input
-                                            label="Email ID"
-                                            name="emailId"
-                                            type="email"
-                                            value={formik.values.emailId}
-                                            onChange={formik.handleChange}
-                                            onBlur={formik.handleBlur}
-                                            placeholder="Enter Email ID"
-                                            error={formik.touched.emailId && formik.errors.emailId ? { message: formik.errors.emailId } : null}
-                                        />
-                                        <Input
-                                            label="Contact No."
-                                            name="contactNo"
-                                            value={formik.values.contactNo}
-                                            onChange={formik.handleChange}
-                                            onBlur={formik.handleBlur}
-                                            placeholder="Enter Contact No."
-                                            error={formik.touched.contactNo && formik.errors.contactNo ? { message: formik.errors.contactNo } : null}
-                                        />
-                                    </div>
-                                </div>
+                    <form onSubmit={formik.handleSubmit} className="space-y-8">
+                        <FieldArray name="shipToDetails">
+                            {({ push, remove }) => (
+                                <div className="space-y-8">
+                                    {formik.values.shipToDetails.map((addr, index) => (
+                                        <div key={index} className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-10 relative overflow-hidden">
+                                            {/* Zebra Stripe/Accent */}
+                                            <div className="absolute top-0 left-0 w-2 h-full bg-[#fef3c6]" />
 
-                                {/* Address Details */}
-                                <FieldArray name="branches">
-                                    {({ push, remove }) => (
-                                        <div className="space-y-8">
-                                            {formik.values.branches.map((branch, index) => (
-                                                <div key={index} className="space-y-6 pt-4 border-t border-gray-50 first:border-t-0 relative">
-                                                    <div className="flex justify-between items-center">
-                                                        <h3 className="text-amber-500 font-bold text-lg flex items-center gap-2">
-                                                            Address Details {formik.values.branches.length > 1 ? `#${index + 1}` : ''}
-                                                        </h3>
-                                                        {index > 0 && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => remove(index)}
-                                                                className="text-red-400 hover:text-red-600 transition-colors flex items-center gap-1 text-sm font-semibold"
-                                                            >
-                                                                <Icon icon="mdi:trash-can-outline" /> Remove
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                                                        <Input
-                                                            label="Billing Address"
-                                                            name={`branches[${index}].billingAddress`}
-                                                            value={branch.billingAddress}
-                                                            onChange={formik.handleChange}
-                                                            onBlur={formik.handleBlur}
-                                                            placeholder="Enter Billing Address"
-                                                            error={formik.touched.branches?.[index]?.billingAddress && formik.errors.branches?.[index]?.billingAddress ? { message: formik.errors.branches[index].billingAddress } : null}
-                                                        />
-                                                        <Input
-                                                            label="Ship To Address"
-                                                            name={`branches[${index}].shipToAddress`}
-                                                            value={branch.shipToAddress}
-                                                            onChange={formik.handleChange}
-                                                            onBlur={formik.handleBlur}
-                                                            placeholder="Enter Ship To Address"
-                                                            error={formik.touched.branches?.[index]?.shipToAddress && formik.errors.branches?.[index]?.shipToAddress ? { message: formik.errors.branches[index].shipToAddress } : null}
-                                                        />
-                                                        {/* <Select
-                                                            label="State (Region)"
-                                                            name={`branches[${index}].stateRefId`}
-                                                            value={branch.stateRefId}
-                                                            onChange={(e) => {
-                                                                formik.handleChange(e);
-                                                                fetchCities(e.target.value);
-                                                                const region = regions.find(r => r._id === e.target.value);
-                                                                formik.setFieldValue(`branches[${index}].state`, region?.name || '');
-                                                            }}
-                                                            onBlur={formik.handleBlur}
-                                                            options={regions.locations.map(r => ({ value: r._id, label: r.name }))}
-                                                            placeholder="Select State"
-                                                            error={formik.touched.branches?.[index]?.stateRefId && formik.errors.branches?.[index]?.stateRefId ? { message: formik.errors.branches[index].stateRefId } : null}
-                                                        /> */}
-                                                        <Select
-                                                            label="City"
-                                                            name={`branches[${index}].city`}
-                                                            value={branch.city}
-                                                            onChange={formik.handleChange}
-                                                            onBlur={formik.handleBlur}
-                                                            options={(cities[branch.stateRefId] || []).map(c => ({ value: c.name, label: c.name }))}
-                                                            placeholder="Select City"
-                                                            disabled={!branch.stateRefId}
-                                                            error={formik.touched.branches?.[index]?.city && formik.errors.branches?.[index]?.city ? { message: formik.errors.branches[index].city } : null}
-                                                        />
-                                                        <Input
-                                                            label="Zip Code"
-                                                            name={`branches[${index}].zipCode`}
-                                                            value={branch.zipCode}
-                                                            onChange={formik.handleChange}
-                                                            onBlur={formik.handleBlur}
-                                                            placeholder="Enter Zip Code"
-                                                            error={formik.touched.branches?.[index]?.zipCode && formik.errors.branches?.[index]?.zipCode ? { message: formik.errors.branches[index].zipCode } : null}
-                                                        />
-                                                    </div>
+                                            <div className="flex justify-between items-center mb-8">
+                                                <h3 className="text-[#fe9a00] font-bold text-xl flex items-center gap-2">
+                                                    Ship To Address {index + 1}
+                                                    {addr._id && <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase">Existing</span>}
+                                                </h3>
+                                                <div className="flex gap-4">
+                                                    {/* {index === 0 && (
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={handleCopyFromBillTo}
+                                                            className="text-blue-500 hover:text-blue-600 font-bold text-sm flex items-center gap-1 transition-colors"
+                                                        >
+                                                            <Icon icon="mdi:content-copy" className="text-lg" />
+                                                            Copy from Bill To
+                                                        </button>
+                                                    )} */}
+                                                    {formik.values.shipToDetails.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => remove(index)}
+                                                            className="text-red-500 hover:text-red-600 font-bold text-sm flex items-center gap-1 transition-colors"
+                                                        >
+                                                            <Icon icon="mdi:delete-outline" className="text-lg" />
+                                                            Remove
+                                                        </button>
+                                                    )}
                                                 </div>
-                                            ))}
+                                            </div>
 
-                                            <div className="flex justify-center">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => push({ billingAddress: '', shipToAddress: '', city: '', state: '', stateRefId: '', zipCode: '' })}
-                                                    className="bg-amber-500 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-amber-600 transition-colors shadow-md"
-                                                >
-                                                    <Icon icon="mdi:plus" className="text-xl" />
-                                                    Add Branch
-                                                </button>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-x-12 gap-y-8">
+                                                <Input
+                                                    label="Branch Name*"
+                                                    name={`shipToDetails[${index}].branchName`}
+                                                    value={addr.branchName}
+                                                    onChange={formik.handleChange}
+                                                    onBlur={formik.handleBlur}
+                                                    placeholder="Enter Branch Name"
+                                                    error={formik.touched.shipToDetails?.[index]?.branchName && formik.errors.shipToDetails?.[index]?.branchName ? { message: formik.errors.shipToDetails[index].branchName } : null}
+                                                />
+                                                <Input
+                                                    label="Contact Person Name*"
+                                                    name={`shipToDetails[${index}].customerContactName`}
+                                                    value={addr.customerContactName}
+                                                    onChange={formik.handleChange}
+                                                    onBlur={formik.handleBlur}
+                                                    placeholder="Enter Contact Person"
+                                                    error={formik.touched.shipToDetails?.[index]?.customerContactName && formik.errors.shipToDetails?.[index]?.customerContactName ? { message: formik.errors.shipToDetails[index].customerContactName } : null}
+                                                />
+                                                <Input
+                                                    label="Contact Number*"
+                                                    name={`shipToDetails[${index}].customerContactNumber`}
+                                                    value={addr.customerContactNumber}
+                                                    onChange={formik.handleChange}
+                                                    onBlur={formik.handleBlur}
+                                                    placeholder="Enter Contact Number"
+                                                    maxLength={10}
+                                                    error={formik.touched.shipToDetails?.[index]?.customerContactNumber && formik.errors.shipToDetails?.[index]?.customerContactNumber ? { message: formik.errors.shipToDetails[index].customerContactNumber } : null}
+                                                />
+                                                <Input
+                                                    label="Address (Street/Locality)*"
+                                                    name={`shipToDetails[${index}].address`}
+                                                    value={addr.address}
+                                                    onChange={formik.handleChange}
+                                                    onBlur={formik.handleBlur}
+                                                    placeholder="Enter Full Address"
+                                                    error={formik.touched.shipToDetails?.[index]?.address && formik.errors.shipToDetails?.[index]?.address ? { message: formik.errors.shipToDetails[index].address } : null}
+                                                />
+                                                <Input
+                                                    label="City*"
+                                                    name={`shipToDetails[${index}].city`}
+                                                    value={addr.city}
+                                                    onChange={formik.handleChange}
+                                                    onBlur={formik.handleBlur}
+                                                    placeholder="Enter City"
+                                                    error={formik.touched.shipToDetails?.[index]?.city && formik.errors.shipToDetails?.[index]?.city ? { message: formik.errors.shipToDetails[index].city } : null}
+                                                />
+                                                <SearchableSelect
+                                                    label="State*"
+                                                    name={`shipToDetails[${index}].state`}
+                                                    value={addr.state}
+                                                    onChange={formik.handleChange}
+                                                    options={(configs.states || []).map(s => ({ value: s.name, label: s.name }))}
+                                                    error={formik.touched.shipToDetails?.[index]?.state && formik.errors.shipToDetails?.[index]?.state ? { message: formik.errors.shipToDetails[index].state } : null}
+                                                />
+                                                <Select
+                                                    label="Country*"
+                                                    name={`shipToDetails[${index}].country`}
+                                                    value={addr.country}
+                                                    onChange={formik.handleChange}
+                                                    options={[{ value: 'India', label: 'India' }]}
+                                                />
+                                                <Select
+                                                    label="Billing Currency*"
+                                                    name={`shipToDetails[${index}].billingCurrency`}
+                                                    value={addr.billingCurrency}
+                                                    onChange={formik.handleChange}
+                                                    options={[{ value: 'INR', label: 'INR' }, { value: 'USD', label: 'USD' }]}
+                                                />
+                                                <Select
+                                                    label="Billing Mode*"
+                                                    name={`shipToDetails[${index}].billingMode`}
+                                                    value={addr.billingMode}
+                                                    onChange={formik.handleChange}
+                                                    options={[{ value: 'Credit', label: 'Credit' }, { value: 'Advance', label: 'Advance' }]}
+                                                />
+                                                <Input
+                                                    label="Pincode*"
+                                                    name={`shipToDetails[${index}].zipCode`}
+                                                    value={addr.zipCode}
+                                                    onChange={formik.handleChange}
+                                                    onBlur={formik.handleBlur}
+                                                    placeholder="Enter Pincode"
+                                                    error={formik.touched.shipToDetails?.[index]?.zipCode && formik.errors.shipToDetails?.[index]?.zipCode ? { message: formik.errors.shipToDetails[index].zipCode } : null}
+                                                />
                                             </div>
                                         </div>
-                                    )}
-                                </FieldArray>
+                                    ))}
 
-                                {/* Actions */}
-                                <div className="flex flex-col items-center gap-8 pt-6">
-                                    <div className="flex gap-4 w-full justify-center">
-                                        <Button
-                                            type="button"
-                                            onClick={handleNext}
-                                            className="rounded-full px-16 py-3 font-bold shadow-lg"
-                                        >
-                                            Next
-                                        </Button>
+                                    <div className="flex justify-center pt-4">
                                         <button
                                             type="button"
-                                            onClick={() => formik.resetForm()}
-                                            className="px-16 py-3 rounded-full border-2 border-amber-500 text-amber-500 font-bold hover:bg-amber-50 transition-colors"
+                                            onClick={() => push({
+                                                branchName: '',
+                                                customerContactName: '',
+                                                customerContactNumber: '',
+                                                address: '',
+                                                city: '',
+                                                state: '',
+                                                country: 'India',
+                                                billingCurrency: 'INR',
+                                                billingMode: 'Credit',
+                                                zipCode: '',
+                                            })}
+                                            className="bg-[#fe9a00] cursor-pointer text-white rounded-full px-12 py-4 font-bold flex items-center gap-2  transition-all shadow-lg hover:shadow-yellow-200"
                                         >
-                                            Refresh
+                                            <Icon icon="mdi:plus-circle-outline" className="text-2xl" />
+                                            Add Another Ship To
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-10">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                                    <Select
-                                        label="Select Address"
-                                        name="selectedAddressIndex"
-                                        value={formik.values.selectedAddressIndex}
-                                        onChange={formik.handleChange}
-                                        onBlur={formik.handleBlur}
-                                        options={formik.values.branches.map((b, i) => ({ value: i, label: b.shipToAddress || `Branch ${i + 1}` }))}
-                                        placeholder="Select Address"
-                                    />
-                                    <Input
-                                        label="Name"
-                                        name="docName"
-                                        value={formik.values.docName}
-                                        onChange={formik.handleChange}
-                                        onBlur={formik.handleBlur}
-                                        placeholder="Enter Name"
-                                        error={formik.touched.docName && formik.errors.docName ? { message: formik.errors.docName } : null}
-                                    />
-                                    <Input
-                                        label="Contact"
-                                        name="docContact"
-                                        value={formik.values.docContact}
-                                        onChange={formik.handleChange}
-                                        onBlur={formik.handleBlur}
-                                        placeholder="Enter Contact No."
-                                        error={formik.touched.docContact && formik.errors.docContact ? { message: formik.errors.docContact } : null}
-                                    />
+                            )}
+                        </FieldArray>
 
-                                    <div className="flex items-end gap-4 relative">
-                                        <div className="flex-1">
-                                            <Input
-                                                label="Aadhar Card No."
-                                                name="aadharNo"
-                                                value={formik.values.aadharNo}
-                                                onChange={formik.handleChange}
-                                                onBlur={formik.handleBlur}
-                                                placeholder="Enter Aadhar No."
-                                            />
-                                        </div>
-                                        <input type="file" ref={aadharInputRef} className="hidden" onChange={(e) => handleFileChange(e, 'aadhar')} />
-                                        <button
-                                            type="button"
-                                            disabled={uploading.aadhar}
-                                            onClick={() => aadharInputRef.current?.click()}
-                                            className="mb-1 bg-amber-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-amber-600 transition-colors h-[50px] whitespace-nowrap disabled:opacity-50"
-                                        >
-                                            {uploading.aadhar ? (
-                                                <Icon icon="mdi:loading" className="animate-spin text-xl" />
-                                            ) : (
-                                                <Icon icon="mdi:plus" className="text-xl" />
-                                            )}
-                                            {formik.values.aadharImage ? 'Change Image' : 'Add Image'}
-                                        </button>
-                                        {previews.aadhar && (
-                                            <div className="absolute -bottom-16 left-0 w-20 h-14 rounded-lg overflow-hidden border border-amber-200">
-                                                <img src={previews.aadhar} alt="Aadhar Preview" className="w-full h-full object-cover" />
-                                            </div>
-                                        )}
+                        <div className="flex justify-center gap-6 pt-12 border-t border-gray-100">
+                            <Button
+                                type="submit"
+                                className="rounded-full px-20 py-4 font-bold text-lg shadow-xl min-w-[250px] cursor-pointer"
+                                disabled={formik.isSubmitting}
+                            >
+                                {formik.isSubmitting ? (
+                                    <div className="flex items-center gap-2">
+                                        <Icon icon="mdi:loading" className="animate-spin" />
+                                        Updating...
                                     </div>
-
-                                    <div className="flex items-end gap-4 relative">
-                                        <div className="flex-1">
-                                            <Input
-                                                label="PAN Card No."
-                                                name="panNo"
-                                                value={formik.values.panNo}
-                                                onChange={formik.handleChange}
-                                                onBlur={formik.handleBlur}
-                                                placeholder="Enter PAN No."
-                                            />
-                                        </div>
-                                        <input type="file" ref={panInputRef} className="hidden" onChange={(e) => handleFileChange(e, 'pan')} />
-                                        <button
-                                            type="button"
-                                            disabled={uploading.pan}
-                                            onClick={() => panInputRef.current?.click()}
-                                            className="mb-1 bg-amber-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-amber-600 transition-colors h-[50px] whitespace-nowrap disabled:opacity-50"
-                                        >
-                                            {uploading.pan ? (
-                                                <Icon icon="mdi:loading" className="animate-spin text-xl" />
-                                            ) : (
-                                                <Icon icon="mdi:plus" className="text-xl" />
-                                            )}
-                                            {formik.values.panImage ? 'Change Image' : 'Add Image'}
-                                        </button>
-                                        {previews.pan && (
-                                            <div className="absolute -bottom-16 left-0 w-20 h-14 rounded-lg overflow-hidden border border-amber-200">
-                                                <img src={previews.pan} alt="PAN Preview" className="w-full h-full object-cover" />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-center pt-16">
-                                    <Button
-                                        type="submit"
-                                        className="rounded-full px-20 py-4 font-bold text-lg shadow-xl"
-                                        disabled={formik.isSubmitting}
-                                    >
-                                        {formik.isSubmitting ? 'Submitting...' : 'Submit'}
-                                    </Button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setActiveTab('basic')}
-                                        className="ml-4 px-10 py-4 rounded-full border-2 border-gray-200 text-gray-500 font-bold hover:bg-gray-50 transition-colors"
-                                    >
-                                        Back
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                                ) : 'Save All Changes'}
+                            </Button>
+                            <button
+                                type="button"
+                                onClick={() => handleCustomerChange(formik.values.customerId)}
+                                className="px-12 py-4 rounded-full border-2  cursor-pointer border-gray-200 text-gray-500 font-bold hover:bg-gray-50 transition-colors"
+                            >
+                                Reset Form
+                            </button>
+                        </div>
                     </form>
                 </FormikProvider>
-            </div>
+            ) : (
+                <div className="bg-white rounded-[3rem] border-2 border-dashed border-gray-200 p-20 flex flex-col items-center justify-center text-gray-400">
+                    <Icon icon="mdi:account-search-outline" className="text-6xl mb-4" />
+                    <p className="text-xl font-medium">Please select a customer to manage their ship-to details</p>
+                </div>
+            )}
         </div>
     );
 };

@@ -293,3 +293,12 @@ export const acceptTermsConditions = async () => {
         throw error.response ? error.response.data : new Error('Failed to accept terms & conditions');
     }
 };
+
+export const updateShipToDetails = async (customerId, shipToData) => {
+    try {
+        const response = await api.put(`/api/customer/management/update-ship-to-details/${customerId}`, shipToData);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to update ship-to details');
+    }
+};
