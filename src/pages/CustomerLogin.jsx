@@ -4,13 +4,14 @@ import Button from '../components/ui/Button';
 import { Icon } from '@iconify/react';
 import logo from '../assets/logo.svg';
 import loginImage from '../assets/login-image.png';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { toast } from 'react-toastify';
 import { userCustomerLogin } from '../services/customerService';
 import { setCredentials } from '../store/slices/authSlice';
+import { PATHS } from '../routes/paths';
 
 const CustomerLogin = () => {
     const [showPassword, setShowPassword] = useState(false);
@@ -112,6 +113,8 @@ const CustomerLogin = () => {
                         <Button type="submit" className="mt-8 shadow-lg w-full max-w-[250px] mx-auto shadow-amber-500/30 font-black tracking-widest uppercase">
                             Customer Login
                         </Button>
+                        <br />
+                        <Link to={PATHS.CUSTOMER_FORGOT_PASSWORD} className="text-amber-500 text-left hover:underline">Forgot Password</Link>
                     </form>
                 </div>
             </div>

@@ -3,7 +3,12 @@ export const PATHS = {
     ROOT: '/',
     LOGIN: '/login',
     WELCOME: '/welcome',
-    
+
+    // PASSWORD RESET
+    FORGOT_PASSWORD: '/forgot-password',
+    CUSTOMER_FORGOT_PASSWORD: '/customer-forgot-password',
+    RESET_PASSWORD_CONFIRM: '/reset-password/confirm',
+
     // CUSTOMER PORTAL
     CUSTOMER_LOGIN: '/customer-login',
     CUSTOMER_PORTAL: '/customer-portal',

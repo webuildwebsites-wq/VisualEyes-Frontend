@@ -1,4 +1,6 @@
 import Login from '../pages/Login';
+import ForgotPassword from '../pages/ForgotPassword';
+import ResetPasswordConfirm from '../pages/ResetPasswordConfirm';
 import Welcome from '../pages/Welcome';
 import Registration from '../pages/Registration';
 import RegisterCustomer from '../pages/RegisterCustomer';
@@ -86,6 +88,22 @@ export const routesConfig = [
     {
         path: PATHS.CUSTOMER_LOGIN,
         element: CustomerLogin,
+        isPublic: true
+    },
+    {
+        path: PATHS.FORGOT_PASSWORD,
+        element: ForgotPassword,
+        isPublic: true
+    },
+    {
+        path: PATHS.CUSTOMER_FORGOT_PASSWORD,
+        element: ForgotPassword,
+        props: { type: 'customer' },
+        isPublic: true
+    },
+    {
+        path: PATHS.RESET_PASSWORD_CONFIRM,
+        element: ResetPasswordConfirm,
         isPublic: true
     },
     {
