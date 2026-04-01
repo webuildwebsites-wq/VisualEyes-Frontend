@@ -443,7 +443,7 @@ const CustomerList = () => {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-2 text-center border-r border-gray-50">
-                                                <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-md text-[9px] font-black uppercase tracking-widest border border-gray-200">
+                                                <span className="px-2.5 py-1 bg-gray-100 text-gray-600 whitespace-nowrap rounded-md text-[9px] font-black uppercase tracking-widest border border-gray-200">
                                                     {cust?.businessType?.name || cust?.businessType || cust?.CustomerType?.name || cust?.CustomerType || '---'}
                                                 </span>
                                             </td>
@@ -500,7 +500,14 @@ const CustomerList = () => {
                                                                 <Icon icon="mdi:eye" className="text-lg" />
                                                                 View
                                                             </button>
-                                                            <button className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors border-y border-gray-50">
+                                                            <button
+                                                                onClick={() => navigate(`${PATHS.CUSTOMER.SHIP_TO}?customerId=${cust._id}`)}
+                                                                className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-emerald-600 hover:bg-emerald-50 transition-colors"
+                                                            >
+                                                                <Icon icon="mdi:truck-delivery-outline" className="text-lg" />
+                                                                Edit Ship-To
+                                                            </button>
+                                                            <button className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-blue-500 hover:bg-blue-50 border-y border-gray-50 transition-colors">
                                                                 <Icon icon="mdi:pencil" className="text-lg" />
                                                                 Edit
                                                             </button>

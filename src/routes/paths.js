@@ -26,6 +26,18 @@ export const PATHS = {
         SHIP_TO: '/customer/ship-to',
     },
 
+    // CUSTOMER CARE / ORDERS
+    CUSTOMER_CARE: {
+        NEW_ORDER: '/new-order',
+        ALL_ORDERS: '/orders/all',
+        PENDING_ORDERS: '/orders/pending',
+        ORDER_STATUS: '/orders/status',
+        SERVICE_GOODS: '/orders/service-goods',
+        VIEW_ORDERS: '/orders/view',
+        UPGRADE_ORDERS: '/orders/upgrade',
+        UPDATE_CUSTOMERS: '/customer/list',
+    },
+
     STORES: '/stores',
     NEW_ORDER: '/new-order',
     DRAFTS: '/drafts',

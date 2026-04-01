@@ -38,6 +38,21 @@ const navItems = [
             { label: 'Correction Needed', path: PATHS.CORRECTIONS }
         ]
     },
+    {
+        label: 'Customer Care',
+        icon: 'mdi:face-agent',
+        usePlayIcon: true,
+        subItems: [
+            { label: 'New Order', path: PATHS.CUSTOMER_CARE.NEW_ORDER, isBold: true },
+            { label: 'All Orders', path: PATHS.CUSTOMER_CARE.ALL_ORDERS },
+            { label: 'Pending Orders', path: PATHS.CUSTOMER_CARE.PENDING_ORDERS },
+            { label: 'Order Status', path: PATHS.CUSTOMER_CARE.ORDER_STATUS },
+            { label: 'Service/Goods Order', path: PATHS.CUSTOMER_CARE.SERVICE_GOODS },
+            { label: 'View Orders', path: PATHS.CUSTOMER_CARE.VIEW_ORDERS },
+            { label: 'Upgrade Orders', path: PATHS.CUSTOMER_CARE.UPGRADE_ORDERS },
+            { label: 'Update Customers', path: PATHS.CUSTOMER_CARE.UPDATE_CUSTOMERS },
+        ]
+    },
     { label: 'Drafts', icon: 'mdi:file-edit-outline', path: PATHS.DRAFTS },
     // { label: 'F&A', icon: 'mdi:finance', path: PATHS.OPERATIONS.FINANCE },
     { label: 'Stores', icon: 'mdi:store', path: PATHS.STORES },

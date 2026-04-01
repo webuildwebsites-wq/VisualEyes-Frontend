@@ -62,6 +62,16 @@ export const PERMISSIONS_CONFIG = {
     [PATHS.OPERATIONS.DISPATCH]: { allowedDepartments: ['DISPATCH', 'LOGISTICS'], allowedRoles: ['SUPERADMIN'] },
     [PATHS.OPERATIONS.DMS]: { allowedRoles: ['SUPERADMIN'] },
     
+    // CUSTOMER CARE / ORDERS
+    [PATHS.CUSTOMER_CARE.NEW_ORDER]: { allowedDepartments: ['SALES', 'ADMIN'], allowedRoles: ['SUPERADMIN'] },
+    [PATHS.CUSTOMER_CARE.ALL_ORDERS]: { allowedDepartments: ['SALES', 'ADMIN'], allowedRoles: ['SUPERADMIN'] },
+    [PATHS.CUSTOMER_CARE.PENDING_ORDERS]: { allowedDepartments: ['SALES', 'ADMIN'], allowedRoles: ['SUPERADMIN'] },
+    [PATHS.CUSTOMER_CARE.ORDER_STATUS]: { allowedDepartments: ['SALES', 'ADMIN'], allowedRoles: ['SUPERADMIN'] },
+    [PATHS.CUSTOMER_CARE.SERVICE_GOODS]: { allowedDepartments: ['SALES', 'ADMIN'], allowedRoles: ['SUPERADMIN'] },
+    [PATHS.CUSTOMER_CARE.VIEW_ORDERS]: { allowedDepartments: ['SALES', 'ADMIN'], allowedRoles: ['SUPERADMIN'] },
+    [PATHS.CUSTOMER_CARE.UPGRADE_ORDERS]: { allowedDepartments: ['SALES', 'ADMIN'], allowedRoles: ['SUPERADMIN'] },
+    [PATHS.CUSTOMER_CARE.UPDATE_CUSTOMERS]: { allowedDepartments: ['SALES', 'ADMIN'], allowedRoles: ['SUPERADMIN'], permission: 'CanManageCustomers' },
+
     // SETUP / SETTINGS
     [PATHS.STORES]: {
         permission: 'CanManageSettings',

@@ -14,13 +14,24 @@ import {
     getCustomerConfigs
 } from '../services/customerService';
 import { getStatesByZone, getCitiesByState } from '../services/locationService';
+import { useSearchParams } from 'react-router-dom';
 
 const ShipTo = () => {
+    const [searchParams] = useSearchParams();
+    const urlCustomerId = searchParams.get('customerId');
     const [customers, setCustomers] = useState([]);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [configs, setConfigs] = useState({ states: [], billingCurrencies: [] });
     const [loading, setLoading] = useState(false);
     const [fetchingCustomer, setFetchingCustomer] = useState(false);
+    const [initialLoadDone, setInitialLoadDone] = useState(false);
+
+    // Effect to handle URL params
+    useEffect(() => {
+        if (initialLoadDone && urlCustomerId && urlCustomerId !== formik.values.customerId) {
+            handleCustomerChange(urlCustomerId);
+        }
+    }, [initialLoadDone, urlCustomerId]);
 
     // Load initial data
     useEffect(() => {
@@ -40,6 +51,7 @@ const ShipTo = () => {
                 toast.error('Failed to load customers list');
             } finally {
                 setLoading(false);
+                setInitialLoadDone(true);
             }
         };
         fetchInitialData();

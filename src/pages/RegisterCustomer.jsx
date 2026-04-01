@@ -307,17 +307,18 @@ export default function RegisterCustomer() {
                     }
 
 
-                    if (currentStage === 'salesCorrection') {
+                    if (isFinanceUser) {
                         await toast.promise(
-                            resubmitCustomerCorrection(correctionCustomerId, filteredPayload), // resubmit-correction endpoint
+                            resubmitCustomerCorrectionFinance(correctionCustomerId, filteredPayload), // finance-resubmit endpoint
                             {
-                                pending: 'Resubmitting corrections...',
-                                success: 'Corrections resubmitted successfully! 👌',
+                                pending: 'Finance Resubmitting corrections...',
+                                success: 'Finance corrections resubmitted successfully! 👌',
                             }
                         );
                     } else {
+                        // Sales Person or Sales Head
                         await toast.promise(
-                            resubmitCustomerCorrectionFinance(correctionCustomerId, filteredPayload),
+                            resubmitCustomerCorrection(correctionCustomerId, filteredPayload), // resubmit-correction endpoint
                             {
                                 pending: 'Resubmitting corrections...',
                                 success: 'Corrections resubmitted successfully! 👌',
@@ -784,26 +785,20 @@ export default function RegisterCustomer() {
         if (!approvalId) return;
         setSaving(true);
         try {
+            // Match the payload structure from screenshots: action, remark, fieldsToCorrect
             const { targetRole, ...rest } = correctionData;
-
-            // Determine the target stage based on requested target role
-            let targetStage = 'salesCorrection'; // Default
-            if (isSalesHead && targetRole === 'Finance') {
-                targetStage = 'financeCorrection';
-            } else if (isFinanceUser) {
-                targetStage = 'financeCorrection';
-            }
 
             const payload = {
                 action: 'REQUEST_MODIFICATION',
-                targetStage,
                 ...rest
             };
 
             let serviceCall;
             if (currentStage === 'salesHead') {
+                // When sales head sends back, use sales-head-approve endpoint
                 serviceCall = salesHeadApproveCustomer(approvalId, payload);
             } else if (currentStage === 'finance') {
+                // When finance sends back, use finance-approve endpoint
                 serviceCall = financeApproveCustomer(approvalId, payload);
             } else {
                 serviceCall = sendCustomerForCorrection(approvalId, payload);

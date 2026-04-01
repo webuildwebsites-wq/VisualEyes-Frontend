@@ -12,6 +12,7 @@ import OrderWizard from '../pages/OrderWizard';
 import DraftsList from '../pages/DraftsList';
 import ApprovalsList from '../pages/ApprovalsList';
 import CorrectionsList from '../pages/CorrectionsList';
+import AllOrdersList from '../pages/AllOrdersList';
 import PlaceholderPage from '../pages/PlaceholderPage';
 import AuthWrapper from '../components/AuthWrapper';
 import MainLayout from '../components/layout/MainLayout';
@@ -58,6 +59,17 @@ const CUSTOMER_MODULE = [
         element: ShipTo,
         requiredPermission: 'CanManageCustomers'
     }
+];
+
+const CUSTOMER_CARE_MODULE = [
+    { path: PATHS.CUSTOMER_CARE.NEW_ORDER, element: OrderWizard },
+    { path: PATHS.CUSTOMER_CARE.ALL_ORDERS, element: AllOrdersList },
+    { path: PATHS.CUSTOMER_CARE.PENDING_ORDERS, element: PlaceholderPage, props: { title: 'Pending Orders' } },
+    { path: PATHS.CUSTOMER_CARE.ORDER_STATUS, element: PlaceholderPage, props: { title: 'Order Status' } },
+    { path: PATHS.CUSTOMER_CARE.SERVICE_GOODS, element: PlaceholderPage, props: { title: 'Service/Goods Order' } },
+    { path: PATHS.CUSTOMER_CARE.VIEW_ORDERS, element: PlaceholderPage, props: { title: 'View Orders' } },
+    { path: PATHS.CUSTOMER_CARE.UPGRADE_ORDERS, element: PlaceholderPage, props: { title: 'Upgrade Orders' } },
+    { path: PATHS.CUSTOMER_CARE.UPDATE_CUSTOMERS, element: CustomerList, requiredPermission: 'CanManageCustomers' },
 ];
 
 const OPERATIONS_MODULE = [
@@ -146,6 +158,7 @@ export const routesConfig = [
                     },
                     ...STAFF_MODULE,
                     ...CUSTOMER_MODULE,
+                    ...CUSTOMER_CARE_MODULE,
                     ...OPERATIONS_MODULE
                 ]
             }

@@ -132,14 +132,14 @@ const ApprovalsList = () => {
                                     >
                                         <td className="p-6">
                                             <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white font-black shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
+                                                <div className="w-10 whitespace-nowrap h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white font-black shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
                                                     {approval.shopName?.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <div className="font-black text-gray-800 uppercase tracking-tight text-sm leading-tight leading-4">
+                                                    <div className="font-black whitespace-nowrap text-gray-800 uppercase tracking-tight text-sm leading-tight leading-4">
                                                         {approval.shopName}
                                                     </div>
-                                                    <div className="text-gray-400 font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
+                                                    <div className="text-gray-400 whitespace-nowrap font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
                                                         <Icon icon="mdi:account" className="text-gray-300" />
                                                         {approval.ownerName}
                                                     </div>
@@ -147,13 +147,13 @@ const ApprovalsList = () => {
                                             </div>
                                         </td>
                                         <td className="p-6">
-                                            <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-[10px] font-black uppercase tracking-widest">
+                                            <span className="px-3 py-1 whitespace-nowrap bg-gray-100 text-gray-600 rounded-full text-[10px] font-black uppercase tracking-widest">
                                                 {approval.businessType?.name || approval.businessType || approval.CustomerType?.name || approval.CustomerType || 'N/A'}
                                             </span>
                                         </td>
                                         <td className="p-6">
                                             <span className="text-xs font-bold text-gray-700 uppercase tracking-tight">
-                                                {(typeof approval.createdBy === 'object' ? (approval.createdBy?.employeeName || approval.createdBy?.name) : (approval.createdByLabel || approval.createdBy)) || 'N/A'}
+                                                {(typeof approval.createdByName === 'object' ? (approval.createdByName?.employeeName || approval.createdByName?.name) : (approval.createdByLabel || approval.createdByName)) || 'N/A'}
                                             </span>
                                         </td>
                                         <td className="p-6">

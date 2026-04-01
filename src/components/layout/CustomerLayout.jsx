@@ -41,7 +41,7 @@ const CustomerLayout = () => {
                 toast.error(res?.message || 'Failed to accept terms');
             }
         } catch (err) {
-            toast.error(err?.message || 'Something went wrong');
+            toast.error(err?.message || err?.error?.message || 'Something went wrong');
         } finally {
             setTermsAccepting(false);
         }
@@ -60,7 +60,7 @@ const CustomerLayout = () => {
                     <img src={logo} alt="VisualEyes" className="h-10 object-contain" />
                     <span className="hidden md:inline-block text-lg font-black text-amber-600 tracking-widest uppercase border-l-2 border-amber-500/20 pl-4 py-1">Customer Portal</span>
                 </div>
-                
+
                 <div className="flex items-center gap-6">
                     {/* User Info Badges */}
                     <div className="hidden lg:flex items-center gap-2 text-[10px]">
@@ -73,8 +73,8 @@ const CustomerLayout = () => {
                         <span className="text-sm font-bold text-gray-800">{user?.shopName || user?.ownerName}</span>
                         <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">{user?.customerCode || 'Customer'}</span>
                     </div>
-                    
-                    <button 
+
+                    <button
                         onClick={handleLogout}
                         className="flex items-center gap-2 px-5 py-2.5 rounded-full text-red-500 hover:bg-red-50 font-black text-xs uppercase tracking-widest transition-all duration-300 border border-transparent hover:border-red-200 shadow-sm hover:shadow-md"
                     >
@@ -97,7 +97,7 @@ const CustomerLayout = () => {
                     <div className="bg-white rounded-[2rem] shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in">
                         {/* Header */}
                         <div className="bg-gradient-to-r from-amber-500 to-amber-600 px-8 py-6 text-white">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center  gap-3">
                                 <Icon icon="mdi:file-document-check-outline" className="text-3xl" />
                                 <div>
                                     <h2 className="text-xl font-black tracking-tight">Terms & Conditions</h2>
@@ -137,7 +137,7 @@ const CustomerLayout = () => {
                         </div>
 
                         {/* Footer Actions */}
-                        <div className="border-t border-gray-100 px-8 py-5 flex items-center justify-end gap-4 bg-gray-50/50">
+                        <div className="border-t border-gray-100 px-8 py-5 flex items-center mx-auto justify-end gap-4 bg-gray-50/50">
                             <button
                                 onClick={handleDeclineTerms}
                                 className="px-6 py-2.5 rounded-full text-gray-500 hover:bg-gray-100 font-black text-xs uppercase tracking-widest transition-all duration-300 border border-gray-200"

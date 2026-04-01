@@ -19,25 +19,26 @@ const CorrectionsList = () => {
         setLoading(true);
         try {
             const isSalesExecutive = user?.Department?.name?.toUpperCase() === 'SALES' && user?.EmployeeType?.toUpperCase() === 'EMPLOYEE';
-            const isSalesHead = user?.Department?.name?.toUpperCase() === 'SALES' && user?.EmployeeType?.toUpperCase() === 'ADMIN';
+            const isSalesHead = (user?.Department?.name?.toUpperCase() === 'SALES' || user?.Department?.toUpperCase() === 'SALES') && (user?.EmployeeType?.toUpperCase() === 'ADMIN' || user?.EmployeeType?.toUpperCase() === 'SALES ADMIN');
             const isFinanceUser = ['FINANCE', 'F&A', 'F&A CFO', 'ACCOUNTING'].includes(user?.Department?.name?.toUpperCase()) || user?.EmployeeType?.toUpperCase() === 'SUPERADMIN';
-            
+
             let stages = [];
             if (isSalesExecutive) stages.push('salesCorrection');
+            if (isSalesHead) stages.push('salesHead');
             if (isFinanceUser) stages.push('financeCorrection');
-            
-            // Default if nothing matched or superadmin
-            if (stages.length === 0) stages = ['salesCorrection', 'financeCorrection'];
 
-            const response = await getPendingStageCustomers(stages.join(','), page, 10);
+            // Default if nothing matched or superadmin
+            if (stages.length === 0) stages = ['salesCorrection', 'financeCorrection', 'salesHead'];
+
+            const response = await getPendingStageCustomers(stages.join('&'), page, 10);
             if (response.success) {
                 let customers = response.data.customers || [];
-                
+
                 // For Sales Executives, filter to only show their own
                 if (isSalesExecutive && !user?.EmployeeType === 'SUPERADMIN') {
                     customers = customers.filter(c => c.createdBy === user._id || c.createdBy?._id === user._id);
                 }
-                
+
                 setCorrections(customers);
                 setPagination(response.data.pagination || { currentPage: 1, totalPages: 1 });
             }
