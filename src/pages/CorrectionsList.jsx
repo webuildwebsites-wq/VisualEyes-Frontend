@@ -14,12 +14,13 @@ const CorrectionsList = () => {
     const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
 
     const user = useSelector((state) => state.auth.user);
+    console.log('user', user)
 
     const fetchCorrections = async (page = 1) => {
         setLoading(true);
         try {
             const isSalesExecutive = user?.Department?.name?.toUpperCase() === 'SALES' && user?.EmployeeType?.toUpperCase() === 'EMPLOYEE';
-            const isSalesHead = (user?.Department?.name?.toUpperCase() === 'SALES' || user?.Department?.toUpperCase() === 'SALES') && (user?.EmployeeType?.toUpperCase() === 'ADMIN' || user?.EmployeeType?.toUpperCase() === 'SALES ADMIN');
+            const isSalesHead = (user?.Department?.name?.toUpperCase() === 'SALES' || user?.Department?.name?.toUpperCase() === 'SALES') && (user?.EmployeeType?.toUpperCase() === 'ADMIN' || user?.EmployeeType?.toUpperCase() === 'SALES ADMIN');
             const isFinanceUser = ['FINANCE', 'F&A', 'F&A CFO', 'ACCOUNTING'].includes(user?.Department?.name?.toUpperCase()) || user?.EmployeeType?.toUpperCase() === 'SUPERADMIN';
 
             let stages = [];

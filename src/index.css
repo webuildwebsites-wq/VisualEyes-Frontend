@@ -30,7 +30,7 @@ body {
 
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1000px) {
   .app-root {
     background: url('/src/assets/main-bg.svg') no-repeat right center;
     background-size: cover;

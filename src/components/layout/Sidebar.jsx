@@ -29,8 +29,8 @@ const navItems = [
         ]
     },
     {
-        label: 'Customer ',
-        icon: 'mdi:face-agent',
+        label: 'Customer',
+        icon: 'mdi:account-details-outline',
         subItems: [
             { label: 'Customer List', path: PATHS.CUSTOMER.LIST },
             { label: 'Ship To', path: PATHS.CUSTOMER.SHIP_TO },
@@ -157,7 +157,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                     </button>
 
                                     {/* Submenu */}
-                                    <div className={` transition-all duration-300 ease-in-out ${openSubmenus[item.label] ? ' opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+                                    <div className={`transition-all duration-300 ease-in-out overflow-hidden ${openSubmenus[item.label] ? 'max-h-[500px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
                                         <div className="bg-gray-50 rounded-2xl py-2 px-2 ml-4 space-y-2 border-l-2 border-amber-200">
                                             {item.subItems.map((subItem) => (
                                                 <NavLink
