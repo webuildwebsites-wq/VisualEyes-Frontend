@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useFormik, FormikProvider, FieldArray } from 'formik';
 import * as Yup from 'yup';
 import { Icon } from '@iconify/react';
@@ -11,16 +11,32 @@ import Button from '../components/ui/Button';
 import SearchableSelect from '../components/ui/SearchableSelect';
 import CustomToggle from '../components/ui/CustomToggle';
 
-import { getAllCustomers, getCustomerById, getCustomerConfigs } from '../services/customerService';
+import { getAllCustomers, getCustomerById } from '../services/customerService';
+import {
+    getOrderProductConfigs,
+    getTints,
+    getFrameTypes,
+    getProductNames,
+    resolveProductBase,
+    createOrder,
+    getCategoriesByBrand
+} from '../services/orderService';
+import { useNavigate } from 'react-router-dom';
 
 const OrderWizard = () => {
     const user = useSelector((state) => state.auth.user);
     const [activeStep, setActiveStep] = useState(0);
     const [customers, setCustomers] = useState([]);
     const [configs, setConfigs] = useState({});
+    console.log('configs', configs)
     const [loadingConfigs, setLoadingConfigs] = useState(true);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [shipToAddresses, setShipToAddresses] = useState([]);
+    const [productNames, setProductNames] = useState([]);
+    const [loadingProductNames, setLoadingProductNames] = useState(false);
+    const [resolutionResult, setResolutionResult] = useState(null);
+    const [resolvingBase, setResolvingBase] = useState(false);
+    const navigate = useNavigate()
 
     const steps = ['Customer Details', 'Product Details', 'Advanced Details'];
 
@@ -40,9 +56,10 @@ const OrderWizard = () => {
         productMode: 'rx', // stock | rx
         hasPrism: 'no', // yes | no
         powerTable: {
-            R: { sph: '', cyl: '', axis: '', add: '', dia: '' },
-            L: { sph: '', cyl: '', axis: '', add: '', dia: '' }
+            R: { sph: '', cyl: '', axis: '', add: '', dia: '70' },
+            L: { sph: '', cyl: '', axis: '', add: '', dia: '70' }
         },
+        selectedSide: 'R', // Used when powerMode is 'single'
         prismTable: {
             R: { prism: '', base: '' },
             L: { prism: '', base: '' }
@@ -51,6 +68,7 @@ const OrderWizard = () => {
         categoryId: '',
         treatmentId: '',
         indexId: '',
+        productName: '',
         lensTypeId: '',
         coatingId: '',
         tintId: '',
@@ -85,21 +103,143 @@ const OrderWizard = () => {
         initialValues,
         validationSchema,
         onSubmit: async (values) => {
-            console.log('Order Submitted:', values);
-            toast.success('Order submitted successfully!');
+            try {
+                const payload = formatOrderPayload(values, 'Submitted');
+                const res = await createOrder(payload);
+                if (res.success) {
+                    toast.success('Order placed successfully! 👌');
+                    navigate(PATHS.CUSTOMER_CARE.ALL_ORDERS);
+                }
+            } catch (error) {
+                toast.error(error.message || 'Failed to place order');
+            }
         }
     });
+
+    const formatOrderPayload = (values, status) => {
+        const mapEyeData = (side, data) => ({
+            side,
+            sph: parseFloat(data.sph) || 0,
+            cyl: parseFloat(data.cyl) || 0,
+            axis: parseFloat(data.axis) || 0,
+            add: parseFloat(data.add) || 0,
+            diameter: parseFloat(data.dia) || 70
+        });
+
+        const powers = [];
+        if (values.powerMode === 'both') {
+            powers.push(mapEyeData('R', values.powerTable.R));
+            powers.push(mapEyeData('L', values.powerTable.L));
+        } else {
+            const side = values.selectedSide;
+            powers.push(mapEyeData(side, values.powerTable[side]));
+        }
+
+        const prisms = [];
+        if (values.hasPrism === 'yes') {
+            if (values.powerMode === 'both') {
+                prisms.push({ side: 'R', ...values.prismTable.R });
+                prisms.push({ side: 'L', ...values.prismTable.L });
+            } else {
+                const side = values.selectedSide;
+                prisms.push({ side, ...values.prismTable[side] });
+            }
+        }
+
+        const centration = [];
+        if (values.powerMode === 'both') {
+            centration.push({ side: 'R', ...values.centrationData.R });
+            centration.push({ side: 'L', ...values.centrationData.L });
+        } else {
+            const side = values.selectedSide;
+            centration.push({ side, ...values.centrationData[side] });
+        }
+
+        const getFieldData = (field, id) => {
+            const configSource = field === 'tints' ? configs.tints : configs[field];
+            const item = (configSource || []).find(i => i._id === id || i.id === id);
+            return item ? { id: item._id || item.id, name: item.name || item.productName || item.value } : null;
+        };
+
+        const getProductNameData = (id) => {
+            const item = productNames.find(p => p.value === id);
+            return item ? { id, name: item.label } : { id: id || '', name: '' };
+        };
+
+        return {
+            customer: {
+                customerId: values.customerId,
+                customerShipToId: values.shipToId
+            },
+            lab: getFieldData('lab', values.labId),
+            orderReference: values.orderReference,
+            consumerCardName: values.consumerCardName,
+            opticianName: values.opticianName,
+            powerType: values.powerMode === 'both' ? 'Both' : 'Single',
+            powers,
+            productMode: values.productMode === 'stock' ? 'Stock Lens' : 'Rx',
+            prisms,
+            brand: getFieldData('brand', values.brandId),
+            category: getFieldData('category', values.categoryId),
+            treatment: getFieldData('treatment', values.treatmentId),
+            index: parseFloat(values.indexId),
+            productName: getProductNameData(values.productName),
+            coating: getFieldData('coating', values.coatingId),
+            tint: getFieldData('tints', values.tintId),
+            tintDetails: values.tintDetails,
+            remarks: values.remarks,
+            mirror: values.hasMirror === 'yes',
+            centration,
+            fitting: {
+                hasFlatFitting: values.hasFlatFitting === 'yes',
+                dbl: values.dbl,
+                frameType: values.frameType,
+                frameLength: values.frameLength,
+                frameHeight: values.frameHeight
+            },
+            lensData: {
+                pantoscopeAngle: values.pantoscopicAngle,
+                bowAngle: values.bowAngle,
+                bvd: values.bvd
+            },
+            directCustomer: values.directCustomer,
+            shippingCharges: values.shippingCharges,
+            otherCharges: values.otherCharges,
+            status
+        };
+    };
+
+    const handleSaveDraft = async () => {
+        try {
+            const payload = formatOrderPayload(formik.values, 'Draft');
+            const res = await createOrder(payload); // Using create API with Draft status as per instruction
+            if (res.success) {
+                toast.success('Draft saved successfully! 💾');
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to save draft');
+        }
+    };
 
     // Load initial data
     useEffect(() => {
         const fetchInitialData = async () => {
+            setLoadingConfigs(true);
             try {
-                const [custRes, configRes] = await Promise.all([
+                const [custRes, prodConfigs, tints, frameTypes] = await Promise.all([
                     getAllCustomers(1, 1000),
-                    getCustomerConfigs()
+                    getOrderProductConfigs(),
+                    getTints(),
+                    getFrameTypes()
                 ]);
+
                 if (custRes.success) setCustomers(custRes.data.customers || []);
-                setConfigs(configRes);
+
+                setConfigs({
+                    ...prodConfigs,
+                    tints,
+                    frameTypes
+                });
             } catch (error) {
                 console.error('Failed to load data:', error);
                 toast.error('Failed to initialize page');
@@ -109,6 +249,152 @@ const OrderWizard = () => {
         };
         fetchInitialData();
     }, []);
+
+    // Handle Product Name Search
+    // Local store for search timer
+    const searchTimeout = useRef(null);
+
+    const searchProducts = (search = '') => {
+        if (searchTimeout.current) clearTimeout(searchTimeout.current);
+
+        searchTimeout.current = setTimeout(async () => {
+            const brandName = configs.brand.find(b => b._id === formik.values.brandId)?.name || '';
+            const categoryName = configs.category.find(c => c._id === formik.values.categoryId)?.name || '';
+
+            console.log('Searching products:', { search, brand: brandName, category: categoryName });
+            setLoadingProductNames(true);
+            try {
+                const data = await getProductNames(search, 1, 100, brandName, categoryName);
+                const items = data?.data?.data || data || [];
+                console.log(data, 'data')
+                setProductNames(items.map(p => ({
+                    value: p._id || p.id || p.productName || '',
+                    label: p.productName || p.name || ''
+                })));
+            } catch (error) {
+                console.error('Failed to fetch product names:', error);
+            } finally {
+                setLoadingProductNames(false);
+            }
+        }, 500);
+    };
+
+    // Initial search: Only trigger when filters change
+    useEffect(() => {
+        searchProducts('');
+    }, [formik.values.brandId, formik.values.categoryId]);
+
+    // Dynamic Category Loading
+    useEffect(() => {
+        const fetchCategories = async () => {
+            if (!formik.values.brandId) {
+                setConfigs(prev => ({ ...prev, category: [] }));
+                return;
+            }
+
+            const brandName = configs.brand.find(b => b._id === formik.values.brandId)?.name || '';
+            if (brandName) {
+                setLoadingConfigs(true);
+                try {
+                    const filteredCats = await getCategoriesByBrand(brandName);
+                    setConfigs(prev => ({ ...prev, category: filteredCats }));
+                    // Reset downstream dependencies
+                    formik.setFieldValue('categoryId', '');
+                    formik.setFieldValue('productName', '');
+                } catch (err) {
+                    console.error('Failed to filter categories:', err);
+                } finally {
+                    setLoadingConfigs(false);
+                }
+            }
+        };
+        fetchCategories();
+    }, [formik.values.brandId]);
+
+    // Clear Product when Category changes
+    const prevCatRef = useRef(formik.values.categoryId);
+    useEffect(() => {
+        if (prevCatRef.current !== formik.values.categoryId) {
+            formik.setFieldValue('productName', '');
+            prevCatRef.current = formik.values.categoryId;
+        }
+    }, [formik.values.categoryId, formik.setFieldValue]);
+
+    useEffect(() => {
+        console.log('Selected Product Name:', formik.values.productName);
+    }, [formik.values.productName]);
+    const handleResolveBase = async () => {
+        setResolvingBase(true);
+        setResolutionResult(null);
+        try {
+            const powers = [];
+            const rSide = formik.values.powerTable.R;
+            powers.push({
+                side: 'R',
+                sph: parseFloat(rSide.sph) || 0,
+                cyl: parseFloat(rSide.cyl) || 0,
+                diameter: parseFloat(rSide.dia) || 70
+            });
+
+            if (formik.values.powerMode === 'both') {
+                const lSide = formik.values.powerTable.L;
+                powers.push({
+                    side: 'L',
+                    sph: parseFloat(lSide.sph) || 0,
+                    cyl: parseFloat(lSide.cyl) || 0,
+                    diameter: parseFloat(lSide.dia) || 70
+                });
+            }
+            console.log('formik.values.productName', formik.values.productName)
+            const brandNameResolve = configs.brand?.find(b => b._id === formik.values.brandId)?.name || '';
+            const categoryNameResolve = configs.category?.find(c => c._id === formik.values.categoryId)?.name || '';
+            const productNameResolve = productNames.find(p => p.value === formik.values.productName)?.label || '';
+
+            const payload = {
+                powers,
+                productMode: formik.values.productMode === 'stock' ? 'Stock Lens' : 'Rx',
+                brand: brandNameResolve,
+                category: categoryNameResolve,
+                productName: productNameResolve
+            };
+
+            const res = await resolveProductBase(payload);
+            console.log('Resolve API Response:', res); // Debug log for user demo
+            if (res.success) {
+                // Normalize result: ensure it has a resolved array
+                const data = res.data;
+                const normalized = Array.isArray(data) ? { resolved: data } : (data?.resolved ? data : { resolved: [] });
+                setResolutionResult(normalized);
+                toast.success('Supplier & base resolved! 🔍');
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to resolve base curve');
+        } finally {
+            setResolvingBase(false);
+        }
+    };
+
+    // Auto-Resolve Trigger
+    // useEffect(() => {
+    //     const canResolve = formik.values.brandId && formik.values.categoryId && formik.values.productName;
+    //     if (!canResolve) return;
+
+    //     const timer = setTimeout(() => {
+    //         // handleResolveBase();
+    //     }, 800);
+    //     return () => clearTimeout(timer);
+    // }, [
+    //     formik.values.brandId,
+    //     formik.values.categoryId,
+    //     formik.values.productName,
+    //     formik.values.powerTable.R.sph,
+    //     formik.values.powerTable.R.cyl,
+    //     formik.values.powerTable.R.dia,
+    //     formik.values.powerTable.L.sph,
+    //     formik.values.powerTable.L.cyl,
+    //     formik.values.powerTable.L.dia,
+    //     formik.values.powerMode
+    // ]);
 
     // Handle Customer Change
     const handleCustomerChange = async (customerId) => {
@@ -209,7 +495,7 @@ const OrderWizard = () => {
             {wrapInput(Select, {
                 label: "Select Lab",
                 name: "labId",
-                options: (configs.labs || []).map(l => ({ value: l._id, label: l.name })),
+                options: (Array.isArray(configs?.lab) ? configs.lab : []).map(l => ({ value: l._id, label: l.name })),
                 placeholder: "Select Lab"
             })}
             {wrapInput(Input, {
@@ -233,16 +519,17 @@ const OrderWizard = () => {
     const renderProductDetails = () => (
         <div className="p-10 space-y-12 bg-white rounded-b-2xl border-t border-gray-50">
             {/* Toggles Row */}
-            <div className="flex flex-wrap gap-10 items-end">
+            <div className="flex flex-wrap gap-10 items-end justify-between ">
                 <CustomToggle
                     label="Power Details"
                     value={formik.values.powerMode}
                     onChange={(v) => formik.setFieldValue('powerMode', v)}
                     options={[{ label: 'Single', value: 'single' }, { label: 'Both', value: 'both' }]}
-                    containerClassName="w-64"
+                    containerClassName="w-64 "
                 />
+
                 <CustomToggle
-                    label="Product Details"
+                    label="Product Type"
                     value={formik.values.productMode}
                     onChange={(v) => formik.setFieldValue('productMode', v)}
                     options={[{ label: 'Stock Lens', value: 'stock' }, { label: 'Rx', value: 'rx' }]}
@@ -255,6 +542,8 @@ const OrderWizard = () => {
                     options={[{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }]}
                     containerClassName="w-64"
                 />
+
+
             </div>
 
             {/* Power Tables Row */}
@@ -267,10 +556,57 @@ const OrderWizard = () => {
                         ))}
                     </div>
                     {['R', 'L'].map((side, sIdx) => {
-                        if (side === 'L' && formik.values.powerMode === 'single') return null;
+                        const isDisabled = formik.values.powerMode === 'single' && formik.values.selectedSide !== side;
+                        // Find resolution for this eye
+                        const eyeResolve = resolutionResult?.resolved?.resolved?.find(r => r.side === side);
+
                         return (
-                            <div key={side} className={`grid grid-cols-6 border-b border-gray-100 last:border-b-0 items-center ${side === 'L' ? 'bg-orange-50/20' : ''}`}>
-                                <div className="py-4 font-black text-gray-500 text-center border-r border-gray-100 italic">{side}</div>
+                            <div key={side} className={`grid grid-cols-6 border-b border-gray-100 last:border-b-0 items-center ${side === 'L' ? 'bg-orange-50/20' : ''} ${isDisabled ? 'opacity-30' : ''}`}>
+                                <div
+                                    className={`py-4 flex flex-col items-center justify-center border-r border-gray-100 gap-1 overflow-hidden transition-all duration-300 ${formik.values.powerMode === 'single' ? 'cursor-pointer hover:bg-orange-50/50' : ''}`}
+                                    onClick={() => {
+                                        if (formik.values.powerMode === 'single') {
+                                            formik.setFieldValue('selectedSide', side);
+                                        }
+                                    }}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        {formik.values.powerMode === 'single' && (
+                                            <div className={`w-4 h-4 rounded-sm border transition-all flex items-center justify-center ${formik.values.selectedSide === side
+                                                ? 'bg-[#fe9a00] border-[#fe9a00] shadow-sm'
+                                                : 'bg-white border-gray-200'
+                                                }`}>
+                                                {formik.values.selectedSide === side && <Icon icon="mdi:check" className="text-white text-[10px]" />}
+                                            </div>
+                                        )}
+                                        <span className={`font-black italic text-sm ${formik.values.powerMode === 'single' && formik.values.selectedSide === side
+                                            ? 'text-[#fe9a00]'
+                                            : 'text-gray-500'
+                                            }`}>{side}</span>
+                                    </div>
+                                    {eyeResolve && (
+                                        <div className="flex flex-col items-center animate-in zoom-in-50 duration-500">
+                                            <span className="px-1.5 py-0.5 bg-black text-white text-[7px] font-black uppercase tracking-tighter rounded-sm whitespace-nowrap mb-0.5">
+                                                {eyeResolve.blankCode}
+                                            </span>
+                                            {eyeResolve.baseCurve && (
+                                                <span className="text-[7px] text-amber-600 font-black italic tracking-tighter mb-0.5">
+                                                    Base: {eyeResolve.baseCurve}
+                                                </span>
+                                            )}
+                                            <span className="text-[7px] text-orange-600 font-extrabold uppercase tracking-tighter truncate max-w-[50px]">
+                                                {eyeResolve.supplier}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {resolvingBase && (
+                                        <div className="animate-pulse flex gap-0.5 mt-1">
+                                            <div className="w-1 h-1 bg-amber-400 rounded-full"></div>
+                                            <div className="w-1 h-1 bg-amber-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                                            <div className="w-1 h-1 bg-amber-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                                        </div>
+                                    )}
+                                </div>
                                 {['sph', 'cyl', 'axis', 'add', 'dia'].map(field => (
                                     <div key={field} className="p-1 border-r border-gray-100 last:border-r-0">
                                         <input
@@ -278,8 +614,9 @@ const OrderWizard = () => {
                                             name={`powerTable.${side}.${field}`}
                                             value={formik.values.powerTable[side][field]}
                                             onChange={formik.handleChange}
-                                            className="w-full h-10 bg-transparent text-center font-bold text-gray-700 focus:outline-none focus:bg-white transition-colors"
-                                            placeholder="..."
+                                            disabled={isDisabled}
+                                            className="w-full h-10 border-r border-gray-100 last:border-r-0  bg-white text-center font-bold text-gray-700 focus:outline-none focus:bg-white transition-colors disabled:cursor-not-allowed"
+                                            placeholder=" "
                                         />
                                     </div>
                                 ))}
@@ -297,18 +634,41 @@ const OrderWizard = () => {
                             ))}
                         </div>
                         {['R', 'L'].map((side) => {
-                            if (side === 'L' && formik.values.powerMode === 'single') return null;
+                            const isDisabled = formik.values.powerMode === 'single' && formik.values.selectedSide !== side;
                             return (
-                                <div key={side} className="grid grid-cols-3 border-b border-gray-100 last:border-b-0 items-center">
-                                    <div className="py-4 font-black text-gray-500 text-center border-r border-gray-100 italic">{side}</div>
+                                <div key={side} className={`grid grid-cols-3 border-b border-gray-100 last:border-b-0 items-center ${isDisabled ? 'opacity-30' : ''}`}>
+                                    <div
+                                        className={`py-4 flex flex-col items-center justify-center border-r border-gray-100 gap-1 overflow-hidden transition-all duration-300 ${formik.values.powerMode === 'single' ? 'cursor-pointer hover:bg-orange-50/50' : ''}`}
+                                        onClick={() => {
+                                            if (formik.values.powerMode === 'single') {
+                                                formik.setFieldValue('selectedSide', side);
+                                            }
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {formik.values.powerMode === 'single' && (
+                                                <div className={`w-4 h-4 rounded-sm border transition-all flex items-center justify-center ${formik.values.selectedSide === side
+                                                    ? 'bg-[#fe9a00] border-[#fe9a00] shadow-sm'
+                                                    : 'bg-white border-gray-200'
+                                                    }`}>
+                                                    {formik.values.selectedSide === side && <Icon icon="mdi:check" className="text-white text-[10px]" />}
+                                                </div>
+                                            )}
+                                            <span className={`font-black italic text-sm ${formik.values.powerMode === 'single' && formik.values.selectedSide === side
+                                                ? 'text-[#fe9a00]'
+                                                : 'text-gray-500'
+                                                }`}>{side}</span>
+                                        </div>
+                                    </div>
                                     <div className="p-1 border-r border-gray-100">
                                         <input
                                             type="text"
                                             name={`prismTable.${side}.prism`}
                                             value={formik.values.prismTable[side].prism}
                                             onChange={formik.handleChange}
-                                            className="w-full h-10 bg-transparent text-center font-bold text-gray-700 focus:outline-none focus:bg-white transition-colors"
-                                            placeholder="..."
+                                            disabled={isDisabled}
+                                            className="w-full h-10 border-r border-gray-100 last:border-r-0  bg-white text-center font-bold text-gray-700 focus:outline-none focus:bg-white transition-colors disabled:cursor-not-allowed"
+                                            placeholder=""
                                         />
                                     </div>
                                     <div className="p-1">
@@ -317,8 +677,9 @@ const OrderWizard = () => {
                                             name={`prismTable.${side}.base`}
                                             value={formik.values.prismTable[side].base}
                                             onChange={formik.handleChange}
-                                            className="w-full h-10 bg-transparent text-center font-bold text-gray-700 focus:outline-none focus:bg-white transition-colors"
-                                            placeholder="..."
+                                            disabled={isDisabled}
+                                            className="w-full h-10 border-r border-gray-100 last:border-r-0  bg-white text-center font-bold text-gray-700 focus:outline-none focus:bg-white transition-colors disabled:cursor-not-allowed"
+                                            placeholder=""
                                         />
                                     </div>
                                 </div>
@@ -333,44 +694,54 @@ const OrderWizard = () => {
                 {wrapInput(Select, {
                     label: "Select Brand",
                     name: "brandId",
-                    options: (configs.brands || []).map(b => ({ value: b._id, label: b.name })),
+                    options: (Array.isArray(configs.brand) ? configs.brand : []).map(b => ({ value: b._id, label: b.name })),
                     placeholder: "Select Brand"
                 })}
                 {wrapInput(Select, {
                     label: "Select Category",
                     name: "categoryId",
-                    options: (configs.categories || []).map(c => ({ value: c._id, label: c.name })),
-                    placeholder: "Select Category"
+                    options: (Array.isArray(configs.category) ? configs.category : []).map(c => ({ value: c._id, label: c.name })),
+                    placeholder: "Select Category",
+                    disabled: !formik.values.brandId
                 })}
+                <div className="md:col-span-1">
+                    <SearchableSelect
+                        label="Product Name"
+                        name="productName"
+                        value={formik.values.productName}
+                        onChange={(e) => formik.setFieldValue('productName', e.target.value)}
+                        onSearch={(q) => searchProducts(q)}
+                        options={productNames}
+                        loading={loadingProductNames}
+                        placeholder="Search Product Name (e.g. Polarised)..."
+                        disabled={!formik.values.brandId || !formik.values.categoryId}
+                    />
+                </div>
+
                 {wrapInput(Select, {
                     label: "Treatment",
                     name: "treatmentId",
                     placeholder: "Treatment",
-                    options: [] // To be filled from configs
+                    options: (Array.isArray(configs.treatment) ? configs.treatment : []).map(t => ({ value: t._id, label: t.name }))
                 })}
                 {wrapInput(Select, {
                     label: "Index",
                     name: "indexId",
                     placeholder: "Index",
-                    options: [] // To be filled from configs
+                    options: (Array.isArray(configs.index) ? configs.index : []).map(i => ({ value: i.value, label: i.value }))
                 })}
-                {wrapInput(Select, {
-                    label: "Lens Type",
-                    name: "lensTypeId",
-                    placeholder: "Lens Type",
-                    options: [] // To be filled from configs
-                })}
+
                 {wrapInput(Select, {
                     label: "Coating",
                     name: "coatingId",
                     placeholder: "Coating",
-                    options: [] // To be filled from configs
+                    options: (Array.isArray(configs.coating) ? configs.coating : []).map(c => ({ value: c._id, label: c.name }))
                 })}
                 {wrapInput(Select, {
                     label: "Tint",
                     name: "tintId",
                     placeholder: "Tint",
-                    options: [] // To be filled from configs
+                    options: (Array.isArray(configs.tints) ? configs.tints : []).map(t => ({ value: t._id, label: t.name }))
                 })}
                 {wrapInput(Input, {
                     label: "Tint Details",
@@ -382,6 +753,95 @@ const OrderWizard = () => {
                     name: "remarks",
                     placeholder: "Enter Remarks"
                 })}
+
+                {/* Know Suppliers Section */}
+                <div className="col-span-full mt-4 p-6 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="space-y-1">
+                            <h5 className="text-sm font-black text-gray-800 uppercase tracking-widest flex items-center gap-2">
+                                <Icon icon="mdi:truck-delivery" className="text-orange-500" />
+                                Identify Suppliers & Base Type
+                            </h5>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider italic">Demo Tool: Check which supplier and base curve will be used for this selection.</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleResolveBase}
+                            disabled={resolvingBase}
+                            className="bg-[#fe9a00] text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-lg shadow-orange-500/10 active:scale-95 disabled:opacity-50"
+                        >
+                            {resolvingBase ? <Icon icon="mdi:loading" className="animate-spin text-lg" /> : <Icon icon="mdi:account-search" className="text-lg" />}
+                            Know Suppliers
+                        </button>
+                    </div>
+
+                    {/* Resolution Results Card */}
+                    {resolutionResult && (
+                        <div className="mt-8 space-y-6 animate-in fade-in slide-in-from-top-6 duration-700">
+                            {/* Detailed Eye Results */}
+                            {Array.isArray(resolutionResult.resolved?.resolved) && (
+                                <div className="space-y-3">
+                                    <h6 className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Product Resolution:</h6>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {resolutionResult.resolved.resolved.map((item, idx) => (
+                                            <div key={idx} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center font-black text-white italic shadow-sm">
+                                                        {item.side}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Blank Code</p>
+                                                        <p className="text-xs font-black text-gray-800">{item.blankCode}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Base Curve</p>
+                                                    <p className="text-xs font-black text-amber-600 italic">BC {item.baseCurve}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Supplier</p>
+                                                    <p className="text-xs font-black text-gray-900 flex items-center gap-1 justify-end">
+                                                        <Icon icon="mdi:check-decagram" className="text-green-500 text-[10px]" />
+                                                        {item.supplier}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Supplier Priority Table */}
+                            {Array.isArray(resolutionResult.resolved?.suppliers) && (
+                                <div className="space-y-3">
+                                    <h6 className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Supplier Priorities:</h6>
+                                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                                        <div className="grid grid-cols-3 bg-gray-50 border-b border-gray-100 py-2 px-4">
+                                            <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Supplier Name</div>
+                                            <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Priority</div>
+                                            <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Status</div>
+                                        </div>
+                                        {resolutionResult.resolved.suppliers.map((sup, sidx) => (
+                                            <div key={sidx} className="grid grid-cols-3 py-2.5 px-4 border-b border-gray-50 last:border-0 hover:bg-orange-50/10 transition-colors items-center">
+                                                <div className="text-xs font-bold text-gray-700">{sup.name}</div>
+                                                <div className="text-center">
+                                                    <span className="px-2 py-0.5 bg-gray-100 rounded-full text-[9px] font-black text-gray-500">
+                                                        Rank {sup.priority}
+                                                    </span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className={`text-[9px] font-black uppercase tracking-widest ${sup.active ? 'text-green-500' : 'text-red-400'}`}>
+                                                        {sup.active ? 'Active' : 'Inactive'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Mirror Toggle */}
@@ -405,9 +865,9 @@ const OrderWizard = () => {
                         ))}
                     </div>
                     {['R', 'L'].map((side) => {
-                        if (side === 'L' && formik.values.powerMode === 'single') return null;
+                        const isDisabled = formik.values.powerMode === 'single' && formik.values.selectedSide !== side;
                         return (
-                            <div key={side} className="grid grid-cols-4 border-b border-gray-100 last:border-b-0 items-center">
+                            <div key={side} className={`grid grid-cols-4 border-b border-gray-100 last:border-b-0 items-center ${isDisabled ? 'opacity-30' : ''}`}>
                                 <div className="py-4 font-black text-gray-500 text-center border-r border-gray-100 italic">{side}</div>
                                 {['pd', 'corridor', 'fittingHeight'].map(field => (
                                     <div key={field} className="p-1 border-r border-gray-100 last:border-r-0">
@@ -416,8 +876,9 @@ const OrderWizard = () => {
                                             name={`centrationData.${side}.${field}`}
                                             value={formik.values.centrationData[side][field]}
                                             onChange={formik.handleChange}
-                                            className="w-full h-10 bg-transparent text-center font-bold text-gray-700 focus:outline-none focus:bg-white transition-colors"
-                                            placeholder="..."
+                                            disabled={isDisabled}
+                                            className="w-full h-10 border-r border-gray-100 last:border-r-0  bg-white text-center font-bold text-gray-700 focus:outline-none focus:bg-white transition-colors disabled:cursor-not-allowed"
+                                            placeholder=""
                                         />
                                     </div>
                                 ))}
@@ -445,7 +906,12 @@ const OrderWizard = () => {
 
 
 
-                    {wrapInput(Select, { label: "Frame Type", name: "frameType", placeholder: "Select Frame Type", options: [] })}
+                    {wrapInput(Select, {
+                        label: "Frame Type",
+                        name: "frameType",
+                        placeholder: "Select Frame Type",
+                        options: (Array.isArray(configs.frameTypes) ? configs.frameTypes : []).map(f => ({ value: f.name, label: f.name }))
+                    })}
                     {wrapInput(Input, { label: "Frame Length", name: "frameLength", placeholder: "Frame Length" })}
                     {wrapInput(Input, { label: "Frame Height", name: "frameHeight", placeholder: "Frame Height" })}
                     {wrapInput(Input, { label: "DBL", name: "dbl", placeholder: "DBL" })}
@@ -470,7 +936,16 @@ const OrderWizard = () => {
             <div className="space-y-6">
                 <h4 className="text-xs font-black uppercase tracking-widest text-[#fe9a00] italic">Other Data</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {wrapInput(Select, { label: "Direct Customer", name: "directCustomer", placeholder: "Direct Customer", options: [] })}
+                    {wrapInput(Input, { label: "Direct Customer", name: "directCustomer", placeholder: "Direct Customer" })}
+                    {/* {wrapInput(Select, {
+                        label: "Direct Customer",
+                        name: "directCustomer",
+                        placeholder: "Direct Customer",
+                        options: [
+                            { value: 'Walk-in', label: 'Walk-in' },
+                            { value: 'Corporate', label: 'Corporate' }
+                        ]
+                    })} */}
                     {wrapInput(Input, { label: "Shipping Charges", name: "shippingCharges", placeholder: "Shipping Charges" })}
                     {wrapInput(Input, { label: "Other Charges", name: "otherCharges", placeholder: "Other Charges" })}
                 </div>
@@ -552,7 +1027,7 @@ const OrderWizard = () => {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => console.log('Draft Saving')}
+                                onClick={handleSaveDraft}
                                 className="flex items-center px-10 py-4 bg-white border-2 border-gray-200 text-gray-600 text-sm font-black uppercase tracking-widest rounded-2xl hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-95"
                             >
                                 <Icon icon="mdi:content-save-outline" className="mr-2 text-xl text-gray-400" />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
-import { getAllOrders, getOrderConfigs } from '../services/orderService';
+import { getAllOrders, getOrderProductConfigs } from '../services/orderService';
+import { getAllCustomers } from '../services/customerService';
 import { useSelector } from 'react-redux';
 import { selectCurrentUser } from '../store/slices/authSlice';
 import { toast } from 'react-toastify';
@@ -43,8 +44,10 @@ const AllOrdersList = () => {
     const navigate = useNavigate();
     const currentUser = useSelector(selectCurrentUser);
     const [orders, setOrders] = useState([]);
+    console.log(orders, 'orders')
     const [loading, setLoading] = useState(true);
     const [configs, setConfigs] = useState({ brands: [], categories: [] });
+    const [customers, setCustomers] = useState([]);
     const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
     const [expandedRows, setExpandedRows] = useState(new Set());
     const [activeActionMenu, setActiveActionMenu] = useState(null);
@@ -54,6 +57,7 @@ const AllOrdersList = () => {
     const [filters, setFilters] = useState({
         search: '',
         status: '',
+        customerId: '',
         orderType: '',
         fromDate: '',
         toDate: ''
@@ -61,10 +65,14 @@ const AllOrdersList = () => {
 
     const fetchConfigs = async () => {
         try {
-            const data = await getOrderConfigs();
-            setConfigs(data);
+            const [orderConfigs, customerData] = await Promise.all([
+                getOrderProductConfigs(),
+                getAllCustomers(1, 1000) // Fetch large batch of customers for filter
+            ]);
+            setConfigs(orderConfigs);
+            setCustomers(customerData?.data?.customers || []);
         } catch (error) {
-            console.error('Error fetching order configs:', error);
+            console.error('Error fetching configs:', error);
         }
     };
 
@@ -115,6 +123,7 @@ const AllOrdersList = () => {
         setFilters({
             search: '',
             status: '',
+            customerId: '',
             orderType: '',
             fromDate: '',
             toDate: ''
@@ -123,11 +132,10 @@ const AllOrdersList = () => {
 
     const getStatusBadge = (status) => {
         const statusMap = {
-            'PENDING': 'bg-amber-100 text-amber-700 border-amber-200',
-            'CONFIRMED': 'bg-blue-100 text-blue-700 border-blue-200',
-            'PROCESSING': 'bg-purple-100 text-purple-700 border-purple-200',
-            'SHIPPED': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-            'DELIVERED': 'bg-green-100 text-green-700 border-green-200',
+            'DRAFT': 'bg-gray-100 text-gray-700 border-gray-200',
+            'SUBMITTED': 'bg-amber-100 text-amber-700 border-amber-200',
+            'PROCESSING': 'bg-blue-100 text-blue-700 border-blue-200',
+            'COMPLETED': 'bg-green-100 text-green-700 border-green-200',
             'CANCELLED': 'bg-red-100 text-red-700 border-red-200'
         };
         const style = statusMap[status?.toUpperCase()] || 'bg-gray-100 text-gray-700 border-gray-200';
@@ -154,22 +162,39 @@ const AllOrdersList = () => {
                     </div>
 
                     {/* Status Filter */}
-                    <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[200px]">
-                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Order Status</span>
+                    <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[180px]">
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Status</span>
                         <div className="relative">
-                            <Icon icon="mdi:checkbox-blank-circle-outline" className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
+                            <Icon icon="mdi:checkbox-blank-circle-outline" className="fixed-icon absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
                             <select
                                 className="w-full pl-14 pr-10 py-2.5 rounded-full bg-gray-50/80 border border-gray-100/50 text-[11px] font-black uppercase tracking-widest text-gray-700 appearance-none focus:bg-white focus:ring-4 focus:ring-amber-50 transition-all outline-none"
                                 value={filters.status}
                                 onChange={(e) => setFilters({ ...filters, status: e.target.value })}
                             >
                                 <option value="">All Statuses</option>
-                                <option value="PENDING">Pending</option>
-                                <option value="CONFIRMED">Confirmed</option>
-                                <option value="PROCESSING">Processing</option>
-                                <option value="SHIPPED">Shipped</option>
-                                <option value="DELIVERED">Delivered</option>
-                                <option value="CANCELLED">Cancelled</option>
+                                <option value="Draft">Draft</option>
+                                <option value="Submitted">Submitted</option>
+                                <option value="Processing">Processing</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Customer Filter */}
+                    <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[220px]">
+                        <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Customer</span>
+                        <div className="relative">
+                            <Icon icon="mdi:account-outline" className="fixed-icon absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
+                            <select
+                                className="w-full pl-14 pr-10 py-2.5 rounded-full bg-gray-50/80 border border-gray-100/50 text-[11px] font-black uppercase tracking-widest text-gray-700 appearance-none focus:bg-white focus:ring-4 focus:ring-amber-50 transition-all outline-none"
+                                value={filters.customerId}
+                                onChange={(e) => setFilters({ ...filters, customerId: e.target.value })}
+                            >
+                                <option value="">All Customers</option>
+                                {customers.map(c => (
+                                    <option key={c._id} value={c._id}>{c.shopName}</option>
+                                ))}
                             </select>
                         </div>
                     </div>
@@ -229,7 +254,7 @@ const AllOrdersList = () => {
                                     <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Order Code</th>
                                     <th className="py-4 px-6 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Customer / Shop</th>
                                     <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Date / Time</th>
-                                    <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Product Type</th>
+                                    <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Product Details</th>
                                     <th className="py-4 px-6 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Order Total</th>
                                     <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Priority</th>
                                     <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Status</th>
@@ -250,8 +275,8 @@ const AllOrdersList = () => {
                                             </td>
                                             <td className="px-6 py-2 text-center border-r border-gray-50">
                                                 <div className="flex flex-col">
-                                                    <span className="text-sm font-black text-gray-800 tracking-tight">{order?.customerId?.shopName || '---'}</span>
-                                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{order?.customerId?.customerCode || '---'}</span>
+                                                    <span className="text-sm font-black text-gray-800 tracking-tight">{order?.customer?.customerName || '---'}</span>
+                                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{order?.customer?.customerShipToBranchName || '---'}</span>
                                                 </div>
                                             </td>
                                             <td className="px-4 py-2 text-center border-r border-gray-50">
@@ -300,16 +325,32 @@ const AllOrdersList = () => {
                                                         />
                                                         <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 z-[70] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden min-w-[140px] animate-in fade-in slide-in-from-right-4 duration-200">
                                                             <button
+                                                                onClick={() => {
+                                                                    toggleRow(order._id);
+                                                                    setActiveActionMenu(null);
+                                                                }}
                                                                 className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-gray-600 hover:bg-amber-50 hover:text-amber-600 transition-colors"
                                                             >
                                                                 <Icon icon="mdi:eye" className="text-lg" />
-                                                                View Items
+                                                                {expandedRows.has(order._id) ? 'Hide Details' : 'View Items'}
                                                             </button>
-                                                            <button className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors border-y border-gray-50">
+                                                            <button
+                                                                onClick={() => {
+                                                                    window.print();
+                                                                    setActiveActionMenu(null);
+                                                                }}
+                                                                className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors border-y border-gray-50"
+                                                            >
                                                                 <Icon icon="mdi:printer" className="text-lg" />
                                                                 Print Invoice
                                                             </button>
-                                                            <button className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-emerald-600 hover:bg-emerald-50 transition-colors">
+                                                            <button
+                                                                onClick={() => {
+                                                                    navigate(PATHS.CUSTOMER_CARE.ORDER_STATUS);
+                                                                    setActiveActionMenu(null);
+                                                                }}
+                                                                className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-emerald-600 hover:bg-emerald-50 transition-colors"
+                                                            >
                                                                 <Icon icon="mdi:truck-delivery" className="text-lg" />
                                                                 Track
                                                             </button>
@@ -328,22 +369,23 @@ const AllOrdersList = () => {
                                                             <DetailSection title="Patient Info">
                                                                 <DetailItem label="Card Name" value={order.consumerCardName} />
                                                                 <DetailItem label="Optician" value={order.opticianName} />
-                                                                <DetailSection title="Reference" value={order.orderReference} />
+                                                                <DetailItem label="Reference" value={order.orderReference} />
                                                             </DetailSection>
                                                             <DetailSection title="Centration Data (R)">
-                                                                <DetailItem label="PD" value={order.centrationData?.R?.pd} />
-                                                                <DetailItem label="Corridor" value={order.centrationData?.R?.corridor} />
-                                                                <DetailItem label="Fitting Ht" value={order.centrationData?.R?.fittingHeight} />
+                                                                <DetailItem label="PD" value={order.centration?.find(c => c.side === 'R')?.pd} />
+                                                                <DetailItem label="Corridor" value={order.centration?.find(c => c.side === 'R')?.corridor} />
+                                                                <DetailItem label="Fitting Ht" value={order.centration?.find(c => c.side === 'R')?.fittingHeight} />
                                                             </DetailSection>
                                                             <DetailSection title="Centration Data (L)">
-                                                                <DetailItem label="PD" value={order.centrationData?.L?.pd} />
-                                                                <DetailItem label="Corridor" value={order.centrationData?.L?.corridor} />
-                                                                <DetailItem label="Fitting Ht" value={order.centrationData?.L?.fittingHeight} />
+                                                                <DetailItem label="PD" value={order.centration?.find(c => c.side === 'L')?.pd} />
+                                                                <DetailItem label="Corridor" value={order.centration?.find(c => c.side === 'L')?.corridor} />
+                                                                <DetailItem label="Fitting Ht" value={order.centration?.find(c => c.side === 'L')?.fittingHeight} />
                                                             </DetailSection>
                                                             <DetailSection title="Technical Details">
-                                                                <DetailItem label="Frame Type" value={order.frameType} />
-                                                                <DetailItem label="Lens Type" value={order.lensTypeId} />
-                                                                <DetailItem label="Coating" value={order.coatingId} />
+                                                                <DetailItem label="Frame Type" value={order.fitting?.frameType} />
+                                                                <DetailItem label="Product Name" value={order.productName?.name} />
+                                                                <DetailItem label="Brand / Cat" value={`${order.brand?.name || '---'} / ${order.category?.name || '---'}`} />
+                                                                <DetailItem label="Coating" value={order.coating?.name} />
                                                             </DetailSection>
                                                         </div>
 
@@ -357,16 +399,22 @@ const AllOrdersList = () => {
                                                                 <span className="text-[10px] font-black uppercase text-gray-400">ADD</span>
                                                                 <span className="text-[10px] font-black uppercase text-gray-400">PRISM</span>
                                                             </div>
-                                                            {['R', 'L'].map((side) => (
-                                                                <div key={side} className="grid grid-cols-6 px-6 py-4 border-b border-gray-50 last:border-b-0">
-                                                                    <span className="text-xs font-black text-amber-500">{side}</span>
-                                                                    <span className="text-xs font-bold text-gray-800">{order.powerTable?.[side]?.sph || '0.00'}</span>
-                                                                    <span className="text-xs font-bold text-gray-800">{order.powerTable?.[side]?.cyl || '0.00'}</span>
-                                                                    <span className="text-xs font-bold text-gray-800">{order.powerTable?.[side]?.axis || '0.00'}</span>
-                                                                    <span className="text-xs font-bold text-gray-800">{order.powerTable?.[side]?.add || '0.00'}</span>
-                                                                    <span className="text-xs font-bold text-gray-800">{order.prismTable?.[side]?.prism ? `${order.prismTable[side].prism} / ${order.prismTable[side].base}` : '---'}</span>
-                                                                </div>
-                                                            ))}
+                                                            {['R', 'L'].filter(side => {
+                                                                return order.powers?.some(p => p.side === side);
+                                                            }).map((side) => {
+                                                                const power = order.powers?.find(p => p.side === side) || {};
+                                                                const prism = order.prisms?.find(p => p.side === side) || {};
+                                                                return (
+                                                                    <div key={side} className="grid grid-cols-6 px-6 py-4 border-b border-gray-50 last:border-b-0">
+                                                                        <span className="text-xs font-black text-amber-500">{side === 'R' ? 'Right Eye' : 'Left Eye'}</span>
+                                                                        <span className="text-xs font-bold text-gray-800">{power.sph ?? '---'}</span>
+                                                                        <span className="text-xs font-bold text-gray-800">{power.cyl ?? '---'}</span>
+                                                                        <span className="text-xs font-bold text-gray-800">{power.axis ?? '---'}</span>
+                                                                        <span className="text-xs font-bold text-gray-800">{power.add ?? '---'}</span>
+                                                                        <span className="text-xs font-bold text-gray-800">{prism.prism ? `${prism.prism} / ${prism.base}` : '---'}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
                                                         </div>
                                                     </div>
                                                 </td>

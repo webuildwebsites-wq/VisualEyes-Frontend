@@ -61,3 +61,11 @@ export const customerResetPassword = async ({ uidb36, token, password, confirmPa
         throw error.response ? error.response.data : new Error('Reset failed');
     }
 };
+export const refreshAccessToken = async (refreshToken) => {
+    try {
+        const response = await api.post('/api/employee/auth/refresh', { refreshToken });
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Refresh failed');
+    }
+};

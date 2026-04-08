@@ -28,31 +28,103 @@ export const updateOrderStatus = async (id, status) => {
     }
 };
 
-export const getOrderConfigs = async () => {
+export const getOrderProductConfigs = async () => {
     try {
-        const endpoints = [
-            '/api/product/brands',
-            '/api/product/categories',
-            '/api/product/treatments',
-            '/api/product/index',
-            '/api/product/lens-types',
-            '/api/product/coatings',
-            '/api/product/tints',
-        ];
+        const fields = ['brand', 'category', 'treatment', 'index', 'productType', 'lab', 'coating'];
+        const responses = await Promise.all(
+            fields.map(field => api.get(`/api/order/product-fields/${field}`).catch(() => ({ data: { data: [] } })))
+        );
 
-        const responses = await Promise.all(endpoints.map(url => api.get(url).catch(() => ({ data: { data: [] } }))));
-
-        return {
-            brands: responses[0]?.data?.data || [],
-            categories: responses[1]?.data?.data || [],
-            treatments: responses[2]?.data?.data || [],
-            indices: responses[3]?.data?.data || [],
-            lensTypes: responses[4]?.data?.data || [],
-            coatings: responses[5]?.data?.data || [],
-            tints: responses[6]?.data?.data || [],
-        };
+        const configs = {};
+        fields.forEach((field, index) => {
+            configs[field] = responses[index]?.data?.data || [];
+        });
+        return configs;
     } catch (error) {
-        console.error('Error fetching order configs:', error);
+        console.error('Error fetching order product configs:', error);
         return {};
+    }
+};
+
+export const getTints = async () => {
+    try {
+        const response = await api.get('/api/order/product/get-tint');
+        return response.data?.data || [];
+    } catch (error) {
+        console.error('Error fetching tints:', error);
+        return [];
+    }
+};
+
+export const getFrameTypes = async () => {
+    try {
+        const response = await api.get('/api/order/product/get-frame-types');
+        return response.data?.data || [];
+    } catch (error) {
+        console.error('Error fetching frame types:', error);
+        return [];
+    }
+};
+
+export const getProductNames = async (search = '', page = 1, limit = 100, brand = '', category = '') => {
+    try {
+        const queryParams = new URLSearchParams({ 
+            search, 
+            page, 
+            limit,
+            ...(brand && { brand }),
+            ...(category && { category })
+        });
+        const response = await api.get(`/api/order/product-names?${queryParams.toString()}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching product names:', error);
+        return [];
+    }
+};
+
+export const getCategoriesByBrand = async (brandName) => {
+    try {
+        const response = await api.get(`/api/order/product-fields/category?brand=${encodeURIComponent(brandName)}`);
+        return response.data?.data || [];
+    } catch (error) {
+        console.error('Error fetching categories by brand:', error);
+        return [];
+    }
+};
+
+export const resolveProductBase = async (payload) => {
+    try {
+        const response = await api.post('/api/order/resolve-product', payload);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to resolve product base');
+    }
+};
+
+export const createOrder = async (payload) => {
+    try {
+        const response = await api.post('/api/order/create', payload);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to create order');
+    }
+};
+
+export const cancelOrder = async (id) => {
+    try {
+        const response = await api.put(`/api/order/${id}/cancel`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to cancel order');
+    }
+};
+
+export const draftOrder = async (id) => {
+    try {
+        const response = await api.put(`/api/order/${id}/draft`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to draft order');
     }
 };

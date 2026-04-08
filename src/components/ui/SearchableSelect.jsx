@@ -12,6 +12,7 @@ const SearchableSelect = ({
     icon,
     name,
     loading = false,
+    onSearch,
     ...props
 }) => {
     // Find the option object that matches the current value
@@ -25,13 +26,19 @@ const SearchableSelect = ({
                 getOptionLabel={(option) => option.label || ''}
                 value={selectedOption}
                 loading={loading}
+                onInputChange={(event, newInputValue) => {
+                    if (onSearch) onSearch(newInputValue);
+                }}
+                filterOptions={(x) => x}
                 onChange={(event, newValue) => {
-                    onChange({
-                        target: {
-                            name,
-                            value: newValue ? newValue.value : ''
-                        }
-                    });
+                    if (onChange) {
+                        onChange({
+                            target: {
+                                name,
+                                value: newValue ? newValue.value : ''
+                            }
+                        });
+                    }
                 }}
                 renderInput={(params) => (
                     <TextField
