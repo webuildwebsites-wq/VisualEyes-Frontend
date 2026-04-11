@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Icon } from '@iconify/react';
-import { getAllOrders, getOrderProductConfigs } from '../services/orderService';
+import { getAllOrders, getOrderProductConfigs, cancelOrder, draftOrder, deleteOrder } from '../services/orderService';
 import { getAllCustomers } from '../services/customerService';
 import { useSelector } from 'react-redux';
 import { selectCurrentUser } from '../store/slices/authSlice';
@@ -9,6 +9,8 @@ import { PATHS } from '../routes/paths';
 import { useNavigate } from 'react-router-dom';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
+import ConfirmationModal from '../components/ui/ConfirmationModal';
+import SearchableSelect from '../components/ui/SearchableSelect';
 
 const datePickerStyles = {
     '& .MuiOutlinedInput-root': {
@@ -44,13 +46,21 @@ const AllOrdersList = () => {
     const navigate = useNavigate();
     const currentUser = useSelector(selectCurrentUser);
     const [orders, setOrders] = useState([]);
-    console.log(orders, 'orders')
     const [loading, setLoading] = useState(true);
     const [configs, setConfigs] = useState({ brands: [], categories: [] });
     const [customers, setCustomers] = useState([]);
     const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
     const [expandedRows, setExpandedRows] = useState(new Set());
     const [activeActionMenu, setActiveActionMenu] = useState(null);
+
+    // Modal States
+    const [actionModal, setActionModal] = useState({
+        isOpen: false,
+        type: '', // 'cancel' or 'delete'
+        id: null,
+        loading: false
+    });
+    const [cancelReason, setCancelReason] = useState('');
 
     // Filter States
     const [searchTerm, setSearchTerm] = useState('');
@@ -67,7 +77,7 @@ const AllOrdersList = () => {
         try {
             const [orderConfigs, customerData] = await Promise.all([
                 getOrderProductConfigs(),
-                getAllCustomers(1, 1000) // Fetch large batch of customers for filter
+                getAllCustomers(1, 1000)
             ]);
             setConfigs(orderConfigs);
             setCustomers(customerData?.data?.customers || []);
@@ -85,16 +95,20 @@ const AllOrdersList = () => {
             const response = await getAllOrders(page, 10, activeFilters);
             if (response.success) {
                 setOrders(response.data.orders || []);
-                setPagination(response.data.pagination || { currentPage: 1, totalPages: 1 });
+                const paginationData = response.data.pagination || {};
+                setPagination({
+                    currentPage: Number(paginationData.currentPage || paginationData.page || 1),
+                    totalPages: Number(paginationData.totalPages || paginationData.pages || 1)
+                });
             }
         } catch (error) {
-            // Error handling with a fallback to empty data for demo/initial purposes
             console.error('Fetch error:', error);
-            // toast.error('Failed to load orders - ensure order API is available');
         } finally {
             setLoading(false);
         }
     };
+
+    const isFirstRun = useRef(true);
 
     useEffect(() => {
         fetchConfigs();
@@ -102,12 +116,17 @@ const AllOrdersList = () => {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            setFilters(prev => ({ ...prev, search: searchTerm }));
+            // Only update filters if search term actually changed
+            if (searchTerm !== filters.search) {
+                setFilters(prev => ({ ...prev, search: searchTerm }));
+            }
         }, 500);
         return () => clearTimeout(timer);
     }, [searchTerm]);
 
     useEffect(() => {
+        // Simple fetch - if filters changes, it fetches.
+        // We let the first one run on mount.
         fetchOrders(1, filters);
     }, [filters]);
 
@@ -130,6 +149,67 @@ const AllOrdersList = () => {
         });
     };
 
+    const handleCancelOrder = async (id, reason) => {
+        setActionModal(prev => ({ ...prev, loading: true }));
+        try {
+            const response = await cancelOrder(id, { reason });
+            if (response.success) {
+                toast.success('Order cancelled successfully');
+                handleCloseModal();
+                fetchOrders(pagination.currentPage);
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to cancel order');
+        } finally {
+            setActionModal(prev => ({ ...prev, loading: false }));
+        }
+    };
+
+    const handleDraftOrder = async (id) => {
+        try {
+            const response = await draftOrder(id);
+            if (response.success) {
+                toast.success('Order moved to draft');
+                fetchOrders(pagination.currentPage);
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to move order to draft');
+        }
+    };
+
+    const handleDeleteOrder = async (id) => {
+        setActionModal(prev => ({ ...prev, loading: true }));
+        try {
+            const response = await deleteOrder(id);
+            if (response.success) {
+                toast.success('Order deleted successfully');
+                handleCloseModal();
+                fetchOrders(pagination.currentPage);
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to delete order');
+        } finally {
+            setActionModal(prev => ({ ...prev, loading: false }));
+        }
+    };
+
+    const handleConfirmAction = () => {
+        if (actionModal.type === 'cancel') {
+            if (!cancelReason.trim()) {
+                toast.warn('Please provide a reason for cancellation');
+                return;
+            }
+            handleCancelOrder(actionModal.id, cancelReason);
+        } else if (actionModal.type === 'delete') {
+            handleDeleteOrder(actionModal.id);
+        }
+    };
+
+    const handleCloseModal = () => {
+        setActionModal({ isOpen: false, type: '', id: null, loading: false });
+        setCancelReason('');
+    };
+
     const getStatusBadge = (status) => {
         const statusMap = {
             'DRAFT': 'bg-gray-100 text-gray-700 border-gray-200',
@@ -144,10 +224,8 @@ const AllOrdersList = () => {
 
     return (
         <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto p-4 animate-in fade-in duration-500">
-            {/* Filter Bar */}
             <div className="bg-white p-4 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm border border-gray-100/80 flex flex-col gap-4 md:gap-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:flex lg:flex-wrap items-end gap-3 md:gap-6">
-                    {/* Search */}
                     <div className="flex flex-col gap-1.5 col-span-1 md:col-span-2 lg:min-w-[300px] lg:flex-1">
                         <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Search By Order ID, Shop Name, or Customer</span>
                         <div className="relative group">
@@ -161,7 +239,6 @@ const AllOrdersList = () => {
                         </div>
                     </div>
 
-                    {/* Status Filter */}
                     <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[180px]">
                         <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Status</span>
                         <div className="relative">
@@ -181,25 +258,28 @@ const AllOrdersList = () => {
                         </div>
                     </div>
 
-                    {/* Customer Filter */}
-                    <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[220px]">
+                    <div className="flex flex-col gap-1.5 w-full lg:w-auto lg:min-w-[250px]">
                         <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Customer</span>
-                        <div className="relative">
-                            <Icon icon="mdi:account-outline" className="fixed-icon absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
-                            <select
-                                className="w-full pl-14 pr-10 py-2.5 rounded-full bg-gray-50/80 border border-gray-100/50 text-[11px] font-black uppercase tracking-widest text-gray-700 appearance-none focus:bg-white focus:ring-4 focus:ring-amber-50 transition-all outline-none"
-                                value={filters.customerId}
-                                onChange={(e) => setFilters({ ...filters, customerId: e.target.value })}
-                            >
-                                <option value="">All Customers</option>
-                                {customers.map(c => (
-                                    <option key={c._id} value={c._id}>{c.shopName}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <SearchableSelect
+                            name="customerId"
+                            value={filters.customerId}
+                            onChange={(e) => setFilters({ ...filters, customerId: e.target.value })}
+                            options={customers.map(c => ({ value: c._id, label: `${c.shopName} (${c.customerCode || 'No Code'})` }))}
+                            placeholder="All Customers"
+                            containerClassName="!bg-transparent"
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: '9999px',
+                                    height: '42px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    backgroundColor: 'rgba(249, 250, 251, 0.8)',
+                                    '& fieldset': { borderColor: '#f3f4f6' },
+                                }
+                            }}
+                        />
                     </div>
 
-                    {/* Order Period */}
                     <div className="flex flex-col gap-1.5 col-span-1 md:col-span-2 lg:min-w-[380px]">
                         <span className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em] ml-2 md:ml-5">Registration Period</span>
                         <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -240,7 +320,6 @@ const AllOrdersList = () => {
                 </div>
             </div>
 
-            {/* Table Container */}
             <div className="w-full bg-white rounded-[2rem] shadow-xl overflow-hidden border border-gray-100 min-h-[500px]">
                 {loading ? (
                     <div className="flex justify-center items-center h-[500px]">
@@ -256,7 +335,7 @@ const AllOrdersList = () => {
                                     <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Date / Time</th>
                                     <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Product Details</th>
                                     <th className="py-4 px-6 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Order Total</th>
-                                    <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Priority</th>
+                                    <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">product Name</th>
                                     <th className="py-4 px-4 font-semibold text-xs border-r border-amber-600/20 last:border-r-0 text-center uppercase tracking-wider">Status</th>
                                     <th className="py-4 px-4 font-semibold text-xs text-center uppercase tracking-wider">Action</th>
                                 </tr>
@@ -291,22 +370,33 @@ const AllOrdersList = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-2 text-center border-r border-gray-50">
-                                                <span className="text-sm font-black text-gray-800 tracking-tight italic">
+                                                <span className="text-sm font-black text-gray-800 tracking-tight ">
                                                     ₹{order?.totalAmount || '0.00'}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-2 text-center border-r border-gray-50">
                                                 <div className="flex justify-center gap-1">
-                                                    <Icon
-                                                        icon="mdi:fire"
-                                                        className={`text-lg ${order?.isUrgent ? 'text-red-500 animate-pulse' : 'text-gray-200'}`}
-                                                    />
+                                                    {order?.productName?.name}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-2 text-center border-r border-gray-50 uppercase">
-                                                <span className={getStatusBadge(order?.status)}>
-                                                    {order?.status || 'PENDING'}
-                                                </span>
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <span className={getStatusBadge(order?.status)}>
+                                                        {order?.status || 'PENDING'}
+                                                    </span>
+                                                    {order?.status?.toUpperCase() === 'DRAFT' && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                navigate(PATHS.CUSTOMER_CARE.EDIT_ORDER.replace(':id', order._id));
+                                                            }}
+                                                            className="p-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-500 hover:text-white transition-all shadow-sm border border-amber-100"
+                                                            title="Edit Draft Order"
+                                                        >
+                                                            <Icon icon="mdi:pencil" className="text-sm" />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-4 py-2 text-center relative" onClick={(e) => e.stopPropagation()}>
                                                 <button
@@ -316,44 +406,83 @@ const AllOrdersList = () => {
                                                     <Icon icon="mdi:dots-vertical" className="w-6 h-6" />
                                                 </button>
 
-                                                {/* Absolute Action Dropdown */}
                                                 {activeActionMenu === order._id && (
                                                     <>
                                                         <div
                                                             className="fixed inset-0 z-[60]"
                                                             onClick={() => setActiveActionMenu(null)}
                                                         />
-                                                        <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 z-[70] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden min-w-[140px] animate-in fade-in slide-in-from-right-4 duration-200">
+                                                        <div className="absolute right-full mr-2 top-0 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-[100] animate-in fade-in slide-in-from-right-2 duration-200">
                                                             <button
                                                                 onClick={() => {
                                                                     toggleRow(order._id);
                                                                     setActiveActionMenu(null);
                                                                 }}
-                                                                className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-gray-600 hover:bg-amber-50 hover:text-amber-600 transition-colors"
+                                                                className="w-full flex items-center gap-3 px-4 py-2 text-[11px] font-black uppercase text-gray-600 hover:bg-amber-50 hover:text-amber-600 transition-colors"
                                                             >
-                                                                <Icon icon="mdi:eye" className="text-lg" />
-                                                                {expandedRows.has(order._id) ? 'Hide Details' : 'View Items'}
+                                                                <Icon icon="mdi:eye-outline" className="text-base" />
+                                                                {expandedRows.has(order._id) ? 'Hide Items' : 'View Items'}
                                                             </button>
+
                                                             <button
+                                                                onClick={() => {
+                                                                    navigate(PATHS.CUSTOMER_CARE.ORDER_DETAILS.replace(':id', order._id));
+                                                                    setActiveActionMenu(null);
+                                                                }}
+                                                                className="w-full flex items-center gap-3 px-4 py-2 text-[11px] font-black uppercase text-gray-600 hover:bg-amber-50 hover:text-amber-600 transition-colors"
+                                                            >
+                                                                <Icon icon="mdi:file-document-outline" className="text-base" />
+                                                                Full Details
+                                                            </button>
+
+                                                            {order.status?.toUpperCase() === 'DRAFT' && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        navigate(PATHS.CUSTOMER_CARE.EDIT_ORDER.replace(':id', order._id));
+                                                                        setActiveActionMenu(null);
+                                                                    }}
+                                                                    className="w-full flex items-center gap-3 px-4 py-2 text-[11px] font-black uppercase text-amber-600 hover:bg-amber-50 transition-colors"
+                                                                >
+                                                                    <Icon icon="mdi:pencil-outline" className="text-base" />
+                                                                    Edit Order
+                                                                </button>
+                                                            )}
+
+                                                            {order.status !== 'CANCELLED' && (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setActionModal({ isOpen: true, type: 'cancel', id: order._id, loading: false });
+                                                                            setActiveActionMenu(null);
+                                                                        }}
+                                                                        className="w-full flex items-center gap-3 px-4 py-2 text-[11px] font-black uppercase text-red-600 hover:bg-red-50 transition-colors"
+                                                                    >
+                                                                        <Icon icon="mdi:close-circle-outline" className="text-base" />
+                                                                        Cancel Order
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setActionModal({ isOpen: true, type: 'delete', id: order._id, loading: false });
+                                                                            setActiveActionMenu(null);
+                                                                        }}
+                                                                        className="w-full flex items-center gap-3 px-4 py-2 text-[11px] font-black uppercase text-red-700 hover:bg-red-100 transition-colors border-t border-red-50"
+                                                                    >
+                                                                        <Icon icon="mdi:delete-outline" className="text-base" />
+                                                                        Delete Order
+                                                                    </button>
+                                                                </>
+                                                            )}
+
+                                                            {/* <button
                                                                 onClick={() => {
                                                                     window.print();
                                                                     setActiveActionMenu(null);
                                                                 }}
-                                                                className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors border-y border-gray-50"
+                                                                className="w-full flex items-center gap-3 px-4 py-2 text-[11px] font-black uppercase text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-50 mt-1 pt-2"
                                                             >
-                                                                <Icon icon="mdi:printer" className="text-lg" />
+                                                                <Icon icon="mdi:printer-outline" className="text-base" />
                                                                 Print Invoice
-                                                            </button>
-                                                            <button
-                                                                onClick={() => {
-                                                                    navigate(PATHS.CUSTOMER_CARE.ORDER_STATUS);
-                                                                    setActiveActionMenu(null);
-                                                                }}
-                                                                className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-emerald-600 hover:bg-emerald-50 transition-colors"
-                                                            >
-                                                                <Icon icon="mdi:truck-delivery" className="text-lg" />
-                                                                Track
-                                                            </button>
+                                                            </button> */}
                                                         </div>
                                                     </>
                                                 )}
@@ -447,6 +576,31 @@ const AllOrdersList = () => {
                     </div>
                 )}
             </div>
+
+            <ConfirmationModal
+                isOpen={actionModal.isOpen}
+                onClose={handleCloseModal}
+                onConfirm={handleConfirmAction}
+                loading={actionModal.loading}
+                title={actionModal.type === 'cancel' ? "Cancel Order" : "Delete Order"}
+                message={actionModal.type === 'cancel'
+                    ? "Please provide a reason for cancelling this order."
+                    : "Are you sure you want to delete this order? This action cannot be undone."}
+                confirmText={actionModal.type === 'cancel' ? "Confirm Cancellation" : "Delete Permanently"}
+                type={actionModal.type === 'cancel' ? "warning" : "danger"}
+            >
+                {actionModal.type === 'cancel' && (
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Cancellation Reason</label>
+                        <textarea
+                            className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-bold text-gray-700 focus:bg-white focus:ring-4 focus:ring-amber-50 focus:border-amber-200 transition-all outline-none min-h-[100px] resize-none"
+                            placeholder="e.g. I don't have money to pay..."
+                            value={cancelReason}
+                            onChange={(e) => setCancelReason(e.target.value)}
+                        />
+                    </div>
+                )}
+            </ConfirmationModal>
         </div>
     );
 };

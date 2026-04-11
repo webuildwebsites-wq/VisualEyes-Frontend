@@ -12,7 +12,7 @@ export const getAllOrders = async (page = 1, limit = 10, filters = {}) => {
 
 export const getOrderById = async (id) => {
     try {
-        const response = await api.get(`/api/order/get-order/${id}`);
+        const response = await api.get(`/api/order/${id}`);
         return response.data;
     } catch (error) {
         throw error.response ? error.response.data : new Error('Failed to fetch order details');
@@ -68,9 +68,9 @@ export const getFrameTypes = async () => {
 
 export const getProductNames = async (search = '', page = 1, limit = 100, brand = '', category = '') => {
     try {
-        const queryParams = new URLSearchParams({ 
-            search, 
-            page, 
+        const queryParams = new URLSearchParams({
+            search,
+            page,
             limit,
             ...(brand && { brand }),
             ...(category && { category })
@@ -111,9 +111,18 @@ export const createOrder = async (payload) => {
     }
 };
 
-export const cancelOrder = async (id) => {
+export const updateOrder = async (id, payload) => {
     try {
-        const response = await api.put(`/api/order/${id}/cancel`);
+        const response = await api.patch(`/api/order/${id}/draft`, payload);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to update order');
+    }
+};
+
+export const cancelOrder = async (id, payload) => {
+    try {
+        const response = await api.post(`/api/order/${id}/cancel`, payload);
         return response.data;
     } catch (error) {
         throw error.response ? error.response.data : new Error('Failed to cancel order');
@@ -122,9 +131,18 @@ export const cancelOrder = async (id) => {
 
 export const draftOrder = async (id) => {
     try {
-        const response = await api.put(`/api/order/${id}/draft`);
+        const response = await api.patch(`/api/order/${id}/draft`);
         return response.data;
     } catch (error) {
         throw error.response ? error.response.data : new Error('Failed to draft order');
+    }
+};
+
+export const deleteOrder = async (id) => {
+    try {
+        const response = await api.delete(`/api/order/${id}`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to delete order');
     }
 };

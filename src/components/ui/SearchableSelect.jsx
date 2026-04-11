@@ -15,22 +15,49 @@ const SearchableSelect = ({
     onSearch,
     ...props
 }) => {
-    // Find the option object that matches the current value
-    const selectedOption = options.find(opt => opt.value === value) || null;
+    // We want to keep track of what the input text should be.
+    // By default, it's the label of the current 'value'.
+    const [inputValue, setInputValue] = React.useState('');
+
+    // Synchronize the input text when the value changes externally
+    // or when the options finally load to provide the label for a value.
+    React.useEffect(() => {
+        const selectedOption = options.find(opt => opt.value === value);
+        if (selectedOption) {
+            setInputValue(selectedOption.label || '');
+        } else if (!value) {
+            setInputValue('');
+        }
+    }, [value, options]); // Sync when value OR options change
 
     return (
         <div className={`w-full ${containerClassName}`}>
             <Autocomplete
                 id={name}
                 options={options}
-                getOptionLabel={(option) => option.label || ''}
-                value={selectedOption}
-                loading={loading}
-                onInputChange={(event, newInputValue) => {
-                    if (onSearch) onSearch(newInputValue);
+                getOptionLabel={(option) => {
+                    if (typeof option === 'string') return option;
+                    return option?.label || '';
                 }}
-                filterOptions={(x) => x}
+                // We find the selected option from the list. 
+                // If not found (e.g. during search), we still want MUI to respect the controlled 'value'.
+                // To do this smoothly, we can pass the currently selected object if value exists.
+                value={options.find(opt => opt.value === value) || null}
+                loading={loading}
+                // Control the input text independently 
+                inputValue={inputValue}
+                onInputChange={(event, newInputValue, reason) => {
+                    // Only update our internal state if the change comes from typing or clearing
+                    if (reason === 'input' || reason === 'clear') {
+                        setInputValue(newInputValue);
+                        if (onSearch) onSearch(newInputValue);
+                    }
+                }}
+                // Only disable internal filtering if we are doing server-side search (onSearch provided)
+                filterOptions={onSearch ? (x) => x : undefined}
                 onChange={(event, newValue) => {
+                    // console.log('Selection Change:', newValue);
+                    
                     if (onChange) {
                         onChange({
                             target: {
@@ -38,6 +65,13 @@ const SearchableSelect = ({
                                 value: newValue ? newValue.value : ''
                             }
                         });
+                    }
+
+                    // Update local input text immediately on selection
+                    if (newValue) {
+                        setInputValue(newValue.label || '');
+                    } else {
+                        setInputValue('');
                     }
                 }}
                 renderInput={(params) => (
@@ -85,6 +119,7 @@ const SearchableSelect = ({
                                     color: '#F59E0B',
                                 },
                             },
+                            ...props.sx // Merge custom styles
                         }}
                     />
                 )}

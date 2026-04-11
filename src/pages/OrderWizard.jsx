@@ -21,7 +21,9 @@ import {
     createOrder,
     getCategoriesByBrand
 } from '../services/orderService';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { PATHS } from '../routes/paths';
+import { getOrderById, updateOrder } from '../services/orderService';
 
 const OrderWizard = () => {
     const user = useSelector((state) => state.auth.user);
@@ -36,7 +38,16 @@ const OrderWizard = () => {
     const [loadingProductNames, setLoadingProductNames] = useState(false);
     const [resolutionResult, setResolutionResult] = useState(null);
     const [resolvingBase, setResolvingBase] = useState(false);
-    const navigate = useNavigate()
+    const navigate = useNavigate();
+    const isMappingData = useRef(false);
+    const { id } = useParams();
+    const { pathname } = useLocation();
+
+    const isEditMode = pathname.includes('/edit/');
+    const isViewMode = pathname.includes('/view/');
+    const isReadOnly = isViewMode;
+
+    const [fetchingOrder, setFetchingOrder] = useState(!!id);
 
     const steps = ['Customer Details', 'Product Details', 'Advanced Details'];
 
@@ -95,8 +106,42 @@ const OrderWizard = () => {
     };
 
     const validationSchema = Yup.object().shape({
-        customerId: Yup.string().required('Customer is required'),
-        // Add more validations as needed
+        // Step 1: Customer Details
+        customerId: Yup.string().required('Customer selection is required'),
+        labId: Yup.string().required('Lab selection is required'),
+
+        // Step 2: Product Details
+        brandId: Yup.string().required('Brand is required'),
+        categoryId: Yup.string().required('Category is required'),
+        productName: Yup.string().required('Product selection is required'),
+        indexId: Yup.string().required('Lens Index is required'),
+
+        // Step 3: Advanced Details
+        pantoscopicAngle: Yup.number().typeError('Must be a number').required('Pantoscopic Angle is required'),
+        bowAngle: Yup.number().typeError('Must be a number').required('Bow Angle is required'),
+        bvd: Yup.number().typeError('Must be a number').required('BVD is required'),
+
+        // Conditional Frame Details
+        frameType: Yup.string().when('hasFlatFitting', {
+            is: 'yes',
+            then: (schema) => schema.required('Frame Type is required'),
+            otherwise: (schema) => schema.notRequired()
+        }),
+        dbl: Yup.string().when('hasFlatFitting', {
+            is: 'yes',
+            then: (schema) => schema.required('DBL is required'),
+            otherwise: (schema) => schema.notRequired()
+        }),
+        frameLength: Yup.string().when('hasFlatFitting', {
+            is: 'yes',
+            then: (schema) => schema.required('Frame Length is required'),
+            otherwise: (schema) => schema.notRequired()
+        }),
+        frameHeight: Yup.string().when('hasFlatFitting', {
+            is: 'yes',
+            then: (schema) => schema.required('Frame Height is required'),
+            otherwise: (schema) => schema.notRequired()
+        }),
     });
 
     const formik = useFormik({
@@ -104,17 +149,149 @@ const OrderWizard = () => {
         validationSchema,
         onSubmit: async (values) => {
             try {
+                // Clicking Primary submit button always means "Place Order" / "Submit for Processing"
                 const payload = formatOrderPayload(values, 'Submitted');
-                const res = await createOrder(payload);
+                let res;
+                if (isEditMode) {
+                    res = await updateOrder(id, payload);
+                } else {
+                    res = await createOrder(payload);
+                }
+
                 if (res.success) {
-                    toast.success('Order placed successfully! 👌');
+                    toast.success(isEditMode ? 'Order updated and submitted successfully! 🚀' : 'Order placed successfully! 🚀');
                     navigate(PATHS.CUSTOMER_CARE.ALL_ORDERS);
                 }
             } catch (error) {
-                toast.error(error.message || 'Failed to place order');
+                toast.error(error.message || 'Failed to process order');
             }
         }
     });
+
+    // Map Backend Data to Formik Values
+    useEffect(() => {
+        if (id) {
+            const fetchOrderData = async () => {
+                try {
+                    setFetchingOrder(true);
+                    const response = await getOrderById(id);
+                    if (response.success && response.data) {
+                        const order = response.data;
+                        isMappingData.current = true;
+
+                        // Deep mapping from backend order structure to Formik values
+                        const mappedValues = {
+                            ...initialValues,
+                            customerId: order.customer?.customerId?._id || order.customer?.customerId || '',
+                            shipToId: order.customer?.customerShipToId || '',
+                            labId: order.lab?.id || '',
+                            orderReference: order.orderReference || '',
+                            consumerCardName: order.consumerCardName || '',
+                            opticianName: order.opticianName || '',
+                            customerBalance: order.customer?.customerId?.customerBalance || '0.00',
+
+                            powerMode: order.powers?.length === 1 ? 'single' : 'both',
+                            productMode: order.productMode?.toLowerCase() === 'rx' ? 'rx' : 'stock',
+                            hasPrism: (order.hasPrism || order.prisms?.length > 0) ? 'yes' : 'no',
+                            selectedSide: order.powers?.[0]?.side || 'R',
+
+                            brandId: order.brand?.id || '',
+                            categoryId: order.category?.id || '',
+                            treatmentId: order.treatment?.id || '',
+                            indexId: (order.index !== undefined && order.index !== null) ? order.index.toString() : '',
+                            productName: order.productName?.id || '',
+                            lensTypeId: order.productType?.id || '',
+                            coatingId: order.coating?.id || '',
+                            tintId: order.tint?.id || '',
+                            tintDetails: order.tintDetails || '',
+                            remarks: order.remarks || '',
+                            hasMirror: order.mirror ? 'yes' : 'no',
+
+                            hasFlatFitting: order.fitting?.hasFlatFitting ? 'yes' : 'no',
+                            dbl: order.fitting?.dbl || '',
+                            frameType: order.fitting?.frameType || '',
+                            frameLength: order.fitting?.frameLength || '',
+                            frameHeight: order.fitting?.frameHeight || '',
+
+                            pantoscopicAngle: order.lensData?.pantoscopeAngle || '',
+                            bowAngle: order.lensData?.bowAngle || '',
+                            bvd: order.lensData?.bvd || '',
+
+                            directCustomer: order.directCustomer || '',
+                            shippingCharges: order.shippingCharges || '',
+                            otherCharges: order.otherCharges || ''
+                        };
+
+                        // Map Power Table
+                        if (order.powers) {
+                            order.powers.forEach(p => {
+                                mappedValues.powerTable[p.side] = {
+                                    sph: p.sph?.toString() || '',
+                                    cyl: p.cyl?.toString() || '',
+                                    axis: p.axis?.toString() || '',
+                                    add: p.add?.toString() || '',
+                                    dia: p.diameter?.toString() || '70'
+                                };
+                            });
+                        }
+
+                        // Map Prism Table
+                        if (order.prisms) {
+                            order.prisms.forEach(p => {
+                                mappedValues.prismTable[p.side] = {
+                                    prism: p.prism || '',
+                                    base: p.base || ''
+                                };
+                            });
+                        }
+
+                        // Map Centration Data (API uses 'centration' singular)
+                        const centData = order.centration || order.centrations;
+                        if (centData) {
+                            centData.forEach(c => {
+                                mappedValues.centrationData[c.side] = {
+                                    pd: c.pd?.toString() || '',
+                                    corridor: c.corridor?.toString() || '',
+                                    fittingHeight: c.fittingHeight?.toString() || ''
+                                };
+                            });
+                        }
+
+                        // Inject the current order's product into the options list 
+                        // so the searchable select can resolve the label immediately
+                        if (order.productName) {
+                            setProductNames(prev => {
+                                const exists = prev.find(p => p.value === order.productName.id);
+                                if (exists) return prev;
+                                return [{
+                                    value: order.productName.id,
+                                    label: order.productName.name,
+                                    price: 0 // Will be updated when search runs
+                                }, ...prev];
+                            });
+                        }
+
+                        await formik.setValues(mappedValues);
+
+                        // Also trigger customer details fetch for ship-to addresses
+                        if (mappedValues.customerId) {
+                            handleCustomerChange(mappedValues.customerId);
+                        }
+
+                        // Release mapping lock after state updates have propagated
+                        setTimeout(() => {
+                            isMappingData.current = false;
+                        }, 500);
+                    }
+                } catch (error) {
+                    toast.error('Failed to fetch order details');
+                } finally {
+                    setFetchingOrder(false);
+                }
+            };
+            fetchOrderData();
+        }
+    }, [id]);
 
     const formatOrderPayload = (values, status) => {
         const mapEyeData = (side, data) => ({
@@ -182,7 +359,7 @@ const OrderWizard = () => {
             brand: getFieldData('brand', values.brandId),
             category: getFieldData('category', values.categoryId),
             treatment: getFieldData('treatment', values.treatmentId),
-            index: parseFloat(values.indexId),
+            index: parseFloat(values.indexId) || 0,
             productName: getProductNameData(values.productName),
             coating: getFieldData('coating', values.coatingId),
             tint: getFieldData('tints', values.tintId),
@@ -192,19 +369,19 @@ const OrderWizard = () => {
             centration,
             fitting: {
                 hasFlatFitting: values.hasFlatFitting === 'yes',
-                dbl: values.dbl,
+                dbl: parseFloat(values.dbl) || null,
                 frameType: values.frameType,
-                frameLength: values.frameLength,
-                frameHeight: values.frameHeight
+                frameLength: parseFloat(values.frameLength) || null,
+                frameHeight: parseFloat(values.frameHeight) || null
             },
             lensData: {
-                pantoscopeAngle: values.pantoscopicAngle,
-                bowAngle: values.bowAngle,
-                bvd: values.bvd
+                pantoscopeAngle: parseFloat(values.pantoscopicAngle) || null,
+                bowAngle: parseFloat(values.bowAngle) || null,
+                bvd: parseFloat(values.bvd) || null
             },
             directCustomer: values.directCustomer,
-            shippingCharges: values.shippingCharges,
-            otherCharges: values.otherCharges,
+            shippingCharges: parseFloat(values.shippingCharges) || 0,
+            otherCharges: parseFloat(values.otherCharges) || 0,
             status
         };
     };
@@ -212,9 +389,19 @@ const OrderWizard = () => {
     const handleSaveDraft = async () => {
         try {
             const payload = formatOrderPayload(formik.values, 'Draft');
-            const res = await createOrder(payload); // Using create API with Draft status as per instruction
+            let res;
+            if (isEditMode) {
+                res = await updateOrder(id, payload);
+            } else {
+                res = await createOrder(payload);
+            }
+
             if (res.success) {
-                toast.success('Draft saved successfully! 💾');
+                toast.success(isEditMode ? 'Draft details updated! 💾' : 'Order saved as draft! 💾');
+                // For updates, we can either stay or go back. User requested "edit details and update draft status"
+                // but if they just update details and keep draft, they might want to stay in the wizard.
+                // However, traditionally for dashboard apps, we return to the list.
+                if (isEditMode) navigate(PATHS.CUSTOMER_CARE.ALL_ORDERS);
             }
         } catch (error) {
             toast.error(error.message || 'Failed to save draft');
@@ -266,10 +453,11 @@ const OrderWizard = () => {
             try {
                 const data = await getProductNames(search, 1, 100, brandName, categoryName);
                 const items = data?.data?.data || data || [];
-                console.log(data, 'data')
+                console.log(items, 'data')
                 setProductNames(items.map(p => ({
                     value: p._id || p.id || p.productName || '',
-                    label: p.productName || p.name || ''
+                    label: p.productName || p.name || '',
+                    price: p.price || p.mrp || 0
                 })));
             } catch (error) {
                 console.error('Failed to fetch product names:', error);
@@ -298,9 +486,12 @@ const OrderWizard = () => {
                 try {
                     const filteredCats = await getCategoriesByBrand(brandName);
                     setConfigs(prev => ({ ...prev, category: filteredCats }));
-                    // Reset downstream dependencies
-                    formik.setFieldValue('categoryId', '');
-                    formik.setFieldValue('productName', '');
+
+                    // Only reset downstream if we are NOT currently mapping initial data
+                    if (!isMappingData.current) {
+                        formik.setFieldValue('categoryId', '');
+                        formik.setFieldValue('productName', '');
+                    }
                 } catch (err) {
                     console.error('Failed to filter categories:', err);
                 } finally {
@@ -315,7 +506,9 @@ const OrderWizard = () => {
     const prevCatRef = useRef(formik.values.categoryId);
     useEffect(() => {
         if (prevCatRef.current !== formik.values.categoryId) {
-            formik.setFieldValue('productName', '');
+            if (!isMappingData.current) {
+                formik.setFieldValue('productName', '');
+            }
             prevCatRef.current = formik.values.categoryId;
         }
     }, [formik.values.categoryId, formik.setFieldValue]);
@@ -452,18 +645,76 @@ const OrderWizard = () => {
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 value={fieldValue ?? ''}
+                disabled={props.disabled || isReadOnly}
             />
         );
     };
 
-    const isStepValid = (idx) => {
-        // Simple logic for now, can be expanded
-        return true;
+    const isStepValid = (stepIdx = activeStep) => {
+        const { values, errors } = formik;
+        switch (stepIdx) {
+            case 0: // Customer Details
+                return !!values.customerId && !!values.labId && !errors.customerId && !errors.labId;
+            case 1: // Product Details
+                return !!values.brandId && !!values.categoryId && !!values.productName && !!values.indexId &&
+                    !errors.brandId && !errors.categoryId && !errors.productName && !errors.indexId;
+            case 2: // Advanced Details
+                const techValid = !!values.pantoscopicAngle && !!values.bowAngle && !!values.bvd &&
+                    !errors.pantoscopicAngle && !errors.bowAngle && !errors.bvd;
+                if (values.hasFlatFitting === 'yes') {
+                    return techValid && !!values.frameType && !!values.dbl && !!values.frameLength && !!values.frameHeight;
+                }
+                return techValid;
+            default:
+                return false;
+        }
     };
 
-    const toggleAccordion = (idx) => {
-        if (activeStep === idx) setActiveStep(-1);
-        else setActiveStep(idx);
+    const handleNext = async () => {
+        // Define fields for each step to validate partially
+        const stepFields = [
+            ['customerId', 'labId'], // Step 1
+            ['brandId', 'categoryId', 'productName', 'indexId'], // Step 2
+            ['pantoscopicAngle', 'bowAngle', 'bvd'] // Step 3
+        ];
+
+        // Handle conditional fields for Step 3
+        if (formik.values.hasFlatFitting === 'yes') {
+            stepFields[2].push('frameType', 'dbl', 'frameLength', 'frameHeight');
+        }
+
+        const currentFields = stepFields[activeStep] || [];
+
+        // Mark current fields as touched
+        const touchedFields = { ...formik.touched };
+        currentFields.forEach(field => {
+            touchedFields[field] = true;
+        });
+        formik.setTouched(touchedFields);
+
+        // Validate only fields of the current step
+        const errors = await formik.validateForm();
+        const hasErrorsInCurrentStep = currentFields.some(field => !!errors[field]);
+
+        if (!hasErrorsInCurrentStep) {
+            if (activeStep < steps.length - 1) {
+                setActiveStep(prev => prev + 1);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                formik.handleSubmit();
+            }
+        } else {
+            // Find the first error message to show in toast
+            const firstErrorField = currentFields.find(f => errors[f]);
+            toast.warn(`Please fix: ${errors[firstErrorField]}`);
+        }
+    };
+
+    const handleBack = () => {
+        if (activeStep > 0) {
+            setActiveStep(prev => prev - 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     };
 
     const renderCustomerDetails = () => (
@@ -476,9 +727,10 @@ const OrderWizard = () => {
                     onChange={(e) => handleCustomerChange(e.target.value)}
                     options={customerOptions}
                     placeholder="Search by Shop Name or Code"
+                    disabled={isReadOnly}
                 />
             </div>
-            {wrapInput(Select, {
+            {wrapInput(SearchableSelect, {
                 label: "Select Ship To",
                 name: "shipToId",
                 placeholder: "Select Ship To Address",
@@ -486,9 +738,15 @@ const OrderWizard = () => {
                 disabled: !formik.values.customerId
             })}
 
-            <div className="col-span-full py-2">
+            <div className="flex flex-wrap col-span-full items-center justify-center gap-4 py-2">
                 <p className="text-sm font-black text-[#fe9a00] uppercase tracking-widest bg-orange-50/50 px-4 py-2 rounded-xl border border-orange-100/50 inline-block">
                     Customer Balance: <span className="text-gray-900 ml-2">₹ {selectedCustomer?.customerBalance || '0.00'}</span>
+                </p>
+                <p className="text-sm font-black text-[#fe9a00] uppercase tracking-widest bg-orange-50/50 px-4 py-2 rounded-xl border border-orange-100/50 inline-block">
+                    Customer Credit Limit: <span className="text-gray-900 ml-2">₹ {selectedCustomer?.creditLimit || '0.00'}</span>
+                </p>
+                <p className="text-sm font-black text-[#fe9a00] uppercase tracking-widest bg-orange-50/50 px-4 py-2 rounded-xl border border-orange-100/50 inline-block">
+                    Customer Credit Used: <span className="text-gray-900 ml-2">₹ {selectedCustomer?.creditUsed || '0.00'}</span>
                 </p>
             </div>
 
@@ -552,7 +810,7 @@ const OrderWizard = () => {
                 <div className="flex-1 bg-gray-50/50 border border-gray-200/50 rounded-2xl overflow-hidden shadow-sm">
                     <div className="grid grid-cols-6 bg-gray-100/80 border-b border-gray-200">
                         {['SIDE', 'SPH', 'CYLD', 'AXIS', 'ADD', 'DIAMETER'].map(h => (
-                            <div key={h} className="py-2.5 text-[10px] font-black uppercase text-gray-400 tracking-wider text-center border-r border-gray-200 last:border-r-0 italic">{h}</div>
+                            <div key={h} className="py-2.5 text-[10px] font-black uppercase text-gray-400 tracking-wider text-center border-r border-gray-200 last:border-r-0 ">{h}</div>
                         ))}
                     </div>
                     {['R', 'L'].map((side, sIdx) => {
@@ -579,7 +837,7 @@ const OrderWizard = () => {
                                                 {formik.values.selectedSide === side && <Icon icon="mdi:check" className="text-white text-[10px]" />}
                                             </div>
                                         )}
-                                        <span className={`font-black italic text-sm ${formik.values.powerMode === 'single' && formik.values.selectedSide === side
+                                        <span className={`font-black  text-sm ${formik.values.powerMode === 'single' && formik.values.selectedSide === side
                                             ? 'text-[#fe9a00]'
                                             : 'text-gray-500'
                                             }`}>{side}</span>
@@ -590,7 +848,7 @@ const OrderWizard = () => {
                                                 {eyeResolve.blankCode}
                                             </span>
                                             {eyeResolve.baseCurve && (
-                                                <span className="text-[7px] text-amber-600 font-black italic tracking-tighter mb-0.5">
+                                                <span className="text-[7px] text-amber-600 font-black  tracking-tighter mb-0.5">
                                                     Base: {eyeResolve.baseCurve}
                                                 </span>
                                             )}
@@ -608,15 +866,15 @@ const OrderWizard = () => {
                                     )}
                                 </div>
                                 {['sph', 'cyl', 'axis', 'add', 'dia'].map(field => (
-                                    <div key={field} className="p-1 border-r border-gray-100 last:border-r-0">
+                                    <div key={field} className="p-1.5">
                                         <input
                                             type="text"
                                             name={`powerTable.${side}.${field}`}
                                             value={formik.values.powerTable[side][field]}
                                             onChange={formik.handleChange}
                                             disabled={isDisabled}
-                                            className="w-full h-10 border-r border-gray-100 last:border-r-0  bg-white text-center font-bold text-gray-700 focus:outline-none focus:bg-white transition-colors disabled:cursor-not-allowed"
-                                            placeholder=" "
+                                            className="w-full h-10 border border-gray-200 rounded-lg bg-white text-center font-bold text-gray-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-50 transition-all disabled:cursor-not-allowed"
+                                            placeholder="0.00"
                                         />
                                     </div>
                                 ))}
@@ -630,7 +888,7 @@ const OrderWizard = () => {
                     <div className="w-full lg:w-72 bg-gray-50/50 border border-gray-200/50 rounded-2xl overflow-hidden shadow-sm animate-in slide-in-from-right-4 duration-300">
                         <div className="grid grid-cols-3 bg-gray-100/80 border-b border-gray-200">
                             {['SIDE', 'PRISM', 'BASE SEL.'].map(h => (
-                                <div key={h} className="py-2.5 text-[10px] font-black uppercase text-gray-400 tracking-wider text-center border-r border-gray-200 last:border-r-0 italic">{h}</div>
+                                <div key={h} className="py-2.5 text-[10px] font-black uppercase text-gray-400 tracking-wider text-center border-r border-gray-200 last:border-r-0 ">{h}</div>
                             ))}
                         </div>
                         {['R', 'L'].map((side) => {
@@ -654,32 +912,32 @@ const OrderWizard = () => {
                                                     {formik.values.selectedSide === side && <Icon icon="mdi:check" className="text-white text-[10px]" />}
                                                 </div>
                                             )}
-                                            <span className={`font-black italic text-sm ${formik.values.powerMode === 'single' && formik.values.selectedSide === side
+                                            <span className={`font-black  text-sm ${formik.values.powerMode === 'single' && formik.values.selectedSide === side
                                                 ? 'text-[#fe9a00]'
                                                 : 'text-gray-500'
                                                 }`}>{side}</span>
                                         </div>
                                     </div>
-                                    <div className="p-1 border-r border-gray-100">
+                                    <div className="p-1.5">
                                         <input
                                             type="text"
                                             name={`prismTable.${side}.prism`}
                                             value={formik.values.prismTable[side].prism}
                                             onChange={formik.handleChange}
                                             disabled={isDisabled}
-                                            className="w-full h-10 border-r border-gray-100 last:border-r-0  bg-white text-center font-bold text-gray-700 focus:outline-none focus:bg-white transition-colors disabled:cursor-not-allowed"
-                                            placeholder=""
+                                            className="w-full h-10 border border-gray-200 rounded-lg bg-white text-center font-bold text-gray-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-50 transition-all disabled:cursor-not-allowed"
+                                            placeholder="0.00"
                                         />
                                     </div>
-                                    <div className="p-1">
+                                    <div className="p-1.5">
                                         <input
                                             type="text"
                                             name={`prismTable.${side}.base`}
                                             value={formik.values.prismTable[side].base}
                                             onChange={formik.handleChange}
                                             disabled={isDisabled}
-                                            className="w-full h-10 border-r border-gray-100 last:border-r-0  bg-white text-center font-bold text-gray-700 focus:outline-none focus:bg-white transition-colors disabled:cursor-not-allowed"
-                                            placeholder=""
+                                            className="w-full h-10 border border-gray-200 rounded-lg bg-white text-center font-bold text-gray-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-50 transition-all disabled:cursor-not-allowed"
+                                            placeholder="Base"
                                         />
                                     </div>
                                 </div>
@@ -691,13 +949,13 @@ const OrderWizard = () => {
 
             {/* Rest of the Product Fields */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-8">
-                {wrapInput(Select, {
+                {wrapInput(SearchableSelect, {
                     label: "Select Brand",
                     name: "brandId",
                     options: (Array.isArray(configs.brand) ? configs.brand : []).map(b => ({ value: b._id, label: b.name })),
                     placeholder: "Select Brand"
                 })}
-                {wrapInput(Select, {
+                {wrapInput(SearchableSelect, {
                     label: "Select Category",
                     name: "categoryId",
                     options: (Array.isArray(configs.category) ? configs.category : []).map(c => ({ value: c._id, label: c.name })),
@@ -714,9 +972,12 @@ const OrderWizard = () => {
                         options={productNames}
                         loading={loadingProductNames}
                         placeholder="Search Product Name (e.g. Polarised)..."
-                        disabled={!formik.values.brandId || !formik.values.categoryId}
+                        disabled={!formik.values.brandId || !formik.values.categoryId || isReadOnly}
                     />
+
                 </div>
+
+
 
                 {wrapInput(Select, {
                     label: "Treatment",
@@ -728,7 +989,10 @@ const OrderWizard = () => {
                     label: "Index",
                     name: "indexId",
                     placeholder: "Index",
-                    options: (Array.isArray(configs.index) ? configs.index : []).map(i => ({ value: i.value, label: i.value }))
+                    options: (Array.isArray(configs.index) ? configs.index : []).map(i => {
+                        const val = i.value?.toString() || i.toString() || '';
+                        return { value: val, label: val };
+                    })
                 })}
 
                 {wrapInput(Select, {
@@ -753,9 +1017,15 @@ const OrderWizard = () => {
                     name: "remarks",
                     placeholder: "Enter Remarks"
                 })}
-
-                {/* Know Suppliers Section */}
-                <div className="col-span-full mt-4 p-6 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
+                {formik.values.productName && (
+                    <div className="mt-2 flex items-center gap-2">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest"> Price:</span>
+                        <span className="text-sm font-black text-amber-600">
+                            ₹{productNames.find(p => p.value === formik.values.productName)?.price || '0.00'}
+                        </span>
+                    </div>
+                )}
+                {/* <div className="col-span-full mt-4 p-6 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                         <div className="space-y-1">
                             <h5 className="text-sm font-black text-gray-800 uppercase tracking-widest flex items-center gap-2">
@@ -775,10 +1045,8 @@ const OrderWizard = () => {
                         </button>
                     </div>
 
-                    {/* Resolution Results Card */}
                     {resolutionResult && (
                         <div className="mt-8 space-y-6 animate-in fade-in slide-in-from-top-6 duration-700">
-                            {/* Detailed Eye Results */}
                             {Array.isArray(resolutionResult.resolved?.resolved) && (
                                 <div className="space-y-3">
                                     <h6 className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Product Resolution:</h6>
@@ -796,7 +1064,7 @@ const OrderWizard = () => {
                                                 </div>
                                                 <div className="text-center">
                                                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Base Curve</p>
-                                                    <p className="text-xs font-black text-amber-600 italic">BC {item.baseCurve}</p>
+                                                    <p className="text-xs font-black text-amber-600 ">BC {item.baseCurve}</p>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Supplier</p>
@@ -811,7 +1079,6 @@ const OrderWizard = () => {
                                 </div>
                             )}
 
-                            {/* Supplier Priority Table */}
                             {Array.isArray(resolutionResult.resolved?.suppliers) && (
                                 <div className="space-y-3">
                                     <h6 className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Supplier Priorities:</h6>
@@ -841,7 +1108,7 @@ const OrderWizard = () => {
                             )}
                         </div>
                     )}
-                </div>
+                </div> */}
             </div>
 
             {/* Mirror Toggle */}
@@ -857,28 +1124,28 @@ const OrderWizard = () => {
 
             {/* Centration Table */}
             <div className="space-y-4">
-                <h4 className="text-xs font-black uppercase tracking-widest text-[#fe9a00] italic">Centration Data:</h4>
+                <h4 className="text-xs font-black uppercase tracking-widest text-[#fe9a00] ">Centration Data:</h4>
                 <div className="bg-gray-50/50 border border-gray-200/50 rounded-2xl overflow-hidden shadow-sm max-w-4xl">
                     <div className="grid grid-cols-4 bg-gray-100/80 border-b border-gray-200">
                         {['SIDE', 'PD', 'CORRIDOR', 'FITTING HEIGHT'].map(h => (
-                            <div key={h} className="py-2.5 text-[10px] font-black uppercase text-gray-400 tracking-wider text-center border-r border-gray-200 last:border-r-0 italic">{h}</div>
+                            <div key={h} className="py-2.5 text-[10px] font-black uppercase text-gray-400 tracking-wider text-center border-r border-gray-200 last:border-r-0 ">{h}</div>
                         ))}
                     </div>
                     {['R', 'L'].map((side) => {
                         const isDisabled = formik.values.powerMode === 'single' && formik.values.selectedSide !== side;
                         return (
                             <div key={side} className={`grid grid-cols-4 border-b border-gray-100 last:border-b-0 items-center ${isDisabled ? 'opacity-30' : ''}`}>
-                                <div className="py-4 font-black text-gray-500 text-center border-r border-gray-100 italic">{side}</div>
+                                <div className="py-4 font-black text-gray-500 text-center border-r border-gray-100 ">{side}</div>
                                 {['pd', 'corridor', 'fittingHeight'].map(field => (
-                                    <div key={field} className="p-1 border-r border-gray-100 last:border-r-0">
+                                    <div key={field} className="p-1.5">
                                         <input
                                             type="text"
                                             name={`centrationData.${side}.${field}`}
                                             value={formik.values.centrationData[side][field]}
                                             onChange={formik.handleChange}
                                             disabled={isDisabled}
-                                            className="w-full h-10 border-r border-gray-100 last:border-r-0  bg-white text-center font-bold text-gray-700 focus:outline-none focus:bg-white transition-colors disabled:cursor-not-allowed"
-                                            placeholder=""
+                                            className="w-full h-10 border border-gray-200 rounded-lg bg-white text-center font-bold text-gray-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-50 transition-all disabled:cursor-not-allowed"
+                                            placeholder="---"
                                         />
                                     </div>
                                 ))}
@@ -892,9 +1159,9 @@ const OrderWizard = () => {
 
     const renderAdvancedDetails = () => (
         <div className="p-10 space-y-12 bg-white rounded-b-2xl border-t border-gray-50">
-            {/* Fitting Data */}
+            {/* Fitting Selection */}
             <div className="space-y-6">
-                <h4 className="text-xs font-black uppercase tracking-widest text-[#fe9a00] italic">Fitting Data</h4>
+                <h4 className="text-xs font-black uppercase tracking-widest text-[#fe9a00] ">Advanced Fitting Data</h4>
                 <CustomToggle
                     label="Has Flat Fitting"
                     value={formik.values.hasFlatFitting}
@@ -902,50 +1169,49 @@ const OrderWizard = () => {
                     options={[{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }]}
                     containerClassName="w-64"
                 />
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-end">
 
+                {/* Conditional Frame Specifications */}
+                {formik.values.hasFlatFitting === 'yes' && (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-x-12 gap-y-8 p-10  border border-orange-100 rounded-3xl">
+                        <div className="col-span-full">
+                            <h3 className="text-[10px] font-black text-amber-600 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
+                                {/* <Icon icon="mdi:frame-outline" className="text-lg" /> */}
+                                Frame Specifications
+                            </h3>
+                        </div>
+                        {wrapInput(Select, {
+                            label: "Frame Type",
+                            name: "frameType",
+                            options: (Array.isArray(configs.frameTypes) ? configs.frameTypes : []).map(f => ({ value: f.name || f, label: f.name || f })),
+                            placeholder: "Select Frame Type"
+                        })}
+                        {wrapInput(Input, { label: "DBL", name: "dbl", placeholder: "mm" })}
+                        {wrapInput(Input, { label: "Frame Length", name: "frameLength", placeholder: "mm" })}
+                        {wrapInput(Input, { label: "Frame Height", name: "frameHeight", placeholder: "mm" })}
+                    </div>
+                )}
 
-
-                    {wrapInput(Select, {
-                        label: "Frame Type",
-                        name: "frameType",
-                        placeholder: "Select Frame Type",
-                        options: (Array.isArray(configs.frameTypes) ? configs.frameTypes : []).map(f => ({ value: f.name, label: f.name }))
-                    })}
-                    {wrapInput(Input, { label: "Frame Length", name: "frameLength", placeholder: "Frame Length" })}
-                    {wrapInput(Input, { label: "Frame Height", name: "frameHeight", placeholder: "Frame Height" })}
-                    {wrapInput(Input, { label: "DBL", name: "dbl", placeholder: "DBL" })}
+                {/* Technical Centration Specs */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-8 p-10 bg-gray-50/50 border border-gray-100 rounded-3xl">
+                    <div className="col-span-full">
+                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
+                            {/* <Icon icon="mdi:ruler-square" className="text-lg" /> */}
+                            Technical Centration & Angles
+                        </h3>
+                    </div>
+                    {wrapInput(Input, { label: "Pantoscopic Angle", name: "pantoscopicAngle", placeholder: "Eg. 7°" })}
+                    {wrapInput(Input, { label: "Bow Angle", name: "bowAngle", placeholder: "Eg. 5°" })}
+                    {wrapInput(Input, { label: "BVD", name: "bvd", placeholder: "Eg. 12mm" })}
                 </div>
             </div>
 
-            <hr className="border-gray-100" />
+            <hr className="border-gray-50" />
 
-            {/* Lens Data */}
+            {/* Miscellaneous Data */}
             <div className="space-y-6">
-                <h4 className="text-xs font-black uppercase tracking-widest text-[#fe9a00] italic">Lens Data</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {wrapInput(Input, { label: "Pantoscopic Angle", name: "pantoscopicAngle", placeholder: "Pantoscopic Angle" })}
-                    {wrapInput(Input, { label: "Bow Angle", name: "bowAngle", placeholder: "Bow Angle" })}
-                    {wrapInput(Input, { label: "BVD", name: "bvd", placeholder: "BVD" })}
-                </div>
-            </div>
-
-            <hr className="border-gray-100" />
-
-            {/* Other Data */}
-            <div className="space-y-6">
-                <h4 className="text-xs font-black uppercase tracking-widest text-[#fe9a00] italic">Other Data</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <h4 className="text-xs font-black uppercase tracking-widest text-[#fe9a00] ">Shipping & Others</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-8">
                     {wrapInput(Input, { label: "Direct Customer", name: "directCustomer", placeholder: "Direct Customer" })}
-                    {/* {wrapInput(Select, {
-                        label: "Direct Customer",
-                        name: "directCustomer",
-                        placeholder: "Direct Customer",
-                        options: [
-                            { value: 'Walk-in', label: 'Walk-in' },
-                            { value: 'Corporate', label: 'Corporate' }
-                        ]
-                    })} */}
                     {wrapInput(Input, { label: "Shipping Charges", name: "shippingCharges", placeholder: "Shipping Charges" })}
                     {wrapInput(Input, { label: "Other Charges", name: "otherCharges", placeholder: "Other Charges" })}
                 </div>
@@ -958,84 +1224,157 @@ const OrderWizard = () => {
 
 
             <div className="max-w-6xl mx-auto">
-                <FormikProvider value={formik}>
-                    <form onSubmit={formik.handleSubmit} className="space-y-6 pb-20">
-                        {steps.map((label, idx) => {
-                            const isActive = activeStep === idx;
-                            const isCompleted = idx < activeStep;
+                <div className="flex items-center justify-between mb-8">
+                    <div className="space-y-1">
+                        <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">
+                            {isViewMode ? 'Order Details' : isEditMode ? 'Edit Order' : 'Create New Order'}
+                        </h1>
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                            {isViewMode ? 'Viewing recorded order data' : isEditMode ? 'Modifying existing draft' : 'Configure and submit order to lab'}
+                        </p>
+                    </div>
+                    {isReadOnly && (
+                        <button
+                            onClick={() => navigate(PATHS.CUSTOMER_CARE.ALL_ORDERS)}
+                            className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all active:scale-95 shadow-sm"
+                        >
+                            <Icon icon="mdi:arrow-left" className="text-lg" />
+                            Back to List
+                        </button>
+                    )}
+                </div>
 
-                            return (
-                                <div
-                                    key={idx}
-                                    className={`bg-white rounded-2xl border transition-all duration-500 ${isActive
-                                        ? 'shadow-2xl ring-1 ring-[#fe9a00]/10 border-[#fe9a00]/20'
-                                        : 'shadow-sm border-gray-100'
-                                        }`}
-                                >
-                                    {/* Accordion Header - 1:1 with RegisterCustomer */}
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleAccordion(idx)}
-                                        className="w-full flex items-center justify-between p-6 cursor-pointer group"
+                {fetchingOrder ? (
+                    <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl p-20 flex flex-col items-center justify-center gap-6">
+                        <div className="w-16 h-16 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin"></div>
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] animate-pulse">Safely Fetching Order Details...</p>
+                    </div>
+                ) : (
+                    <FormikProvider value={formik}>
+                        <form onSubmit={formik.handleSubmit} className="space-y-6 pb-20">
+                            {steps.map((label, idx) => {
+                                const isActive = activeStep === idx;
+                                const isCompleted = idx < activeStep;
+
+                                return (
+                                    <div
+                                        key={idx}
+                                        className={`bg-white rounded-2xl border transition-all duration-300 ${isActive
+                                            ? 'shadow-md border-[#fe9a00]/20'
+                                            : 'shadow-sm border-gray-100'
+                                            }`}
                                     >
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 ${isActive
-                                                ? 'bg-[#fe9a00] text-white shadow-lg rotate-12 scale-110'
-                                                : isCompleted
-                                                    ? 'bg-green-500 text-white'
-                                                    : 'bg-gray-100 text-gray-400 group-hover:bg-orange-50'
-                                                }`}>
-                                                {isCompleted ? <Icon icon="mdi:check" className="text-xl" /> : <span className="font-black italic text-lg">{idx + 1}</span>}
-                                            </div>
-                                            <div className="text-left">
-                                                <h3 className={`font-black uppercase tracking-widest text-sm transition-colors ${isActive ? 'text-[#fe9a00]' : 'text-gray-700'
+                                        {/* Accordion Header */}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (idx <= activeStep || isStepValid(activeStep) || isReadOnly) {
+                                                    setActiveStep(idx);
+                                                } else {
+                                                    toast.warning(`Please complete the current step first.`);
+                                                }
+                                            }}
+                                            className="w-full flex items-center justify-between p-6 cursor-pointer group"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 ${isActive
+                                                    ? 'bg-[#fe9a00] text-white'
+                                                    : isCompleted
+                                                        ? 'bg-green-500 text-white'
+                                                        : 'bg-gray-100 text-gray-400 group-hover:bg-orange-50'
                                                     }`}>
-                                                    {label}
-                                                </h3>
-                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                                                    {isActive ? 'Currently Editing' : isCompleted ? 'Entry Complete' : 'Pending Details'}
-                                                </p>
+                                                    {isCompleted ? <Icon icon="mdi:check" className="text-xl" /> : <span className="font-black  text-lg">{idx + 1}</span>}
+                                                </div>
+                                                <div className="text-left">
+                                                    <h3 className={`font-black uppercase tracking-widest text-sm transition-colors ${isActive ? 'text-[#fe9a00]' : 'text-gray-700'
+                                                        }`}>
+                                                        {label}
+                                                    </h3>
+                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                                                        {isActive ? 'Currently Editing' : isCompleted ? 'Entry Complete' : 'Pending Details'}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${isActive ? 'bg-orange-50 rotate-180' : 'bg-gray-50'}`}>
-                                            <Icon icon="mdi:chevron-down" className={`text-xl ${isActive ? 'text-[#fe9a00]' : 'text-gray-400'}`} />
-                                        </div>
-                                    </button>
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${isActive ? 'bg-orange-50 rotate-180' : 'bg-gray-50'}`}>
+                                                <Icon icon="mdi:chevron-down" className={`text-xl ${isActive ? 'text-[#fe9a00]' : 'text-gray-400'}`} />
+                                            </div>
+                                        </button>
 
-                                    {/* Accordion Content - Sync Padding */}
-                                    <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isActive ? 'max-h-[3000px] opacity-100 pb-12' : 'max-h-0 opacity-0 pointer-events-none'}`}>
-                                        <div className="px-8 md:px-12 pt-0">
-                                            <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-100 to-transparent mb-12" />
-                                            {idx === 0 && renderCustomerDetails()}
-                                            {idx === 1 && renderProductDetails()}
-                                            {idx === 2 && renderAdvancedDetails()}
+                                        {/* Accordion Content */}
+                                        <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isActive ? 'max-h-[3000px] opacity-100 pb-12' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+                                            <div className="px-8 md:px-12 pt-0">
+                                                <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-100 to-transparent mb-12" />
+                                                {idx === 0 && renderCustomerDetails()}
+                                                {idx === 1 && renderProductDetails()}
+                                                {idx === 2 && renderAdvancedDetails()}
+
+                                                {/* Navigation Buttons inside Step Content */}
+                                                {!isReadOnly && isActive && (
+                                                    <div className="mt-12 flex items-center justify-between pt-8 border-t border-gray-50">
+                                                        <div className="flex gap-4">
+                                                            {idx > 0 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleBack}
+                                                                    className="flex items-center px-6 py-3 bg-gray-100 text-gray-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-all"
+                                                                >
+                                                                    <Icon icon="mdi:chevron-left" className="mr-2 text-lg" />
+                                                                    Back
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleSaveDraft}
+                                                                className="flex items-center px-6 py-3 bg-white border border-gray-200 text-gray-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all shadow-sm"
+                                                            >
+                                                                <Icon icon="mdi:content-save-outline" className="mr-2 text-lg text-gray-400" />
+                                                                {isEditMode ? 'Update Draft' : 'Save Draft'}
+                                                            </button>
+                                                        </div>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleNext}
+                                                            className="flex items-center px-8 py-3 bg-[#fe9a00] text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-black transition-all active:scale-95"
+                                                        >
+                                                            <span>
+                                                                {idx === steps.length - 1 ? (isEditMode ? 'Submit & Process' : 'Place Order') : 'Next Step'}
+                                                            </span>
+                                                            <Icon icon={idx === steps.length - 1 ? "mdi:check-circle" : "mdi:arrow-right"} className="ml-2 text-lg" />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
 
-                        {/* Submission Buttons - Styled like RegisterCustomer Footer */}
-                        <div className="flex justify-center gap-6 pt-10">
-                            <button
-                                type="submit"
-                                className="flex items-center px-10 py-4 bg-[#fe9a00] text-white text-sm font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-orange-500/20 hover:bg-[#e68a00] transition-all active:scale-95 disabled:opacity-50"
-                                disabled={formik.isSubmitting}
-                            >
-                                <Icon icon="mdi:check-circle" className="mr-2 text-xl" />
-                                {formik.isSubmitting ? 'Processing...' : 'Place Final Order'}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleSaveDraft}
-                                className="flex items-center px-10 py-4 bg-white border-2 border-gray-200 text-gray-600 text-sm font-black uppercase tracking-widest rounded-2xl hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-95"
-                            >
-                                <Icon icon="mdi:content-save-outline" className="mr-2 text-xl text-gray-400" />
-                                Save As Draft
-                            </button>
-                        </div>
-                    </form>
-                </FormikProvider>
+                            {/* Submission Buttons - Styled like RegisterCustomer Footer */}
+                            {!isReadOnly && (
+                                <div className="flex justify-center gap-6 pt-10">
+                                    <button
+                                        type="submit"
+                                        className="flex items-center px-10 py-4 bg-[#fe9a00] text-white text-sm font-black uppercase tracking-widest rounded-2xl hover:bg-black transition-all active:scale-95 disabled:opacity-50"
+                                        disabled={formik.isSubmitting}
+                                    >
+                                        <Icon icon="mdi:check-circle" className="mr-2 text-xl" />
+                                        {formik.isSubmitting ? 'Processing...' : isEditMode ? 'Submit & Process Order' : 'Place Final Order'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSaveDraft}
+                                        className="flex items-center px-10 py-4 bg-white border-2 border-gray-200 text-gray-600 text-sm font-black uppercase tracking-widest rounded-2xl hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-95"
+                                    >
+                                        <Icon icon="mdi:content-save-outline" className="mr-2 text-xl text-gray-400" />
+                                        {isEditMode ? 'Update Draft' : 'Save As Draft'}
+                                    </button>
+                                </div>
+                            )}
+                        </form>
+                    </FormikProvider>
+                )}
             </div>
         </div>
     );

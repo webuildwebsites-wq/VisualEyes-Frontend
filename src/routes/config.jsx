@@ -13,6 +13,7 @@ import DraftsList from '../pages/DraftsList';
 import ApprovalsList from '../pages/ApprovalsList';
 import CorrectionsList from '../pages/CorrectionsList';
 import AllOrdersList from '../pages/AllOrdersList';
+import OrderDetails from '../pages/OrderDetails';
 import PlaceholderPage from '../pages/PlaceholderPage';
 import AuthWrapper from '../components/AuthWrapper';
 import MainLayout from '../components/layout/MainLayout';
@@ -70,6 +71,8 @@ const CUSTOMER_CARE_MODULE = [
     { path: PATHS.CUSTOMER_CARE.VIEW_ORDERS, element: PlaceholderPage, props: { title: 'View Orders' } },
     { path: PATHS.CUSTOMER_CARE.UPGRADE_ORDERS, element: PlaceholderPage, props: { title: 'Upgrade Orders' } },
     { path: PATHS.CUSTOMER_CARE.UPDATE_CUSTOMERS, element: CustomerList, requiredPermission: 'CanManageCustomers' },
+    { path: PATHS.CUSTOMER_CARE.EDIT_ORDER, element: OrderWizard },
+    { path: PATHS.CUSTOMER_CARE.ORDER_DETAILS, element: OrderDetails },
 ];
 
 const OPERATIONS_MODULE = [
