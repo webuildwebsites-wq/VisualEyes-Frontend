@@ -4,6 +4,7 @@ import Topbar from './Topbar';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { Icon } from '@iconify/react';
 import mainBg from '../../assets/main-bg.svg';
+import digiOpticsLogo from '../../assets/DigiOptics-logo.png';
 
 const MainLayout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768); 
@@ -46,8 +47,18 @@ const MainLayout = () => {
                 <div className="p-2 md:p-8 pb-0">
                     <Topbar />
                 </div>
-                <main className="flex-1 overflow-x-hidden overflow-y-auto p-2 md:p-8 pt-4 relative">
-                    <Outlet />
+                <main className="flex-1 overflow-x-hidden overflow-y-auto p-2 md:p-8 pt-4 relative flex flex-col">
+                    <div className="flex-1">
+                        <Outlet />
+                    </div>
+
+                    {/* Footer */}
+                    <footer className="mt-8 py-4 flex flex-col items-center justify-center opacity-60 hover:opacity-100 transition-opacity duration-300">
+                        <div className="flex items-center gap-2 text-xs md:text-sm font-bold text-gray-400 tracking-wider uppercase">
+                            Powered by 
+                            <img src={digiOpticsLogo} alt="DigiOptics" className="h-5 md:h-6 object-contain filter grayscale hover:grayscale-0 transition-all duration-300" />
+                        </div>
+                    </footer>
 
                     {/* Floating Action Button (New Order) */}
                     <button
