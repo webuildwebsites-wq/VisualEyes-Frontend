@@ -108,6 +108,7 @@ const OrderWizard = () => {
     const validationSchema = Yup.object().shape({
         // Step 1: Customer Details
         customerId: Yup.string().required('Customer selection is required'),
+        shipToId: Yup.string().required('Ship-to address is required'),
         labId: Yup.string().required('Lab selection is required'),
 
         // Step 2: Product Details
@@ -525,7 +526,7 @@ const OrderWizard = () => {
             powers.push({
                 side: 'R',
                 sph: parseFloat(rSide.sph) || 0,
-                cyl: parseFloat(rSide.cyl) || 0,
+                add: parseFloat(rSide.add) || 0,
                 diameter: parseFloat(rSide.dia) || 70
             });
 
@@ -534,7 +535,7 @@ const OrderWizard = () => {
                 powers.push({
                     side: 'L',
                     sph: parseFloat(lSide.sph) || 0,
-                    cyl: parseFloat(lSide.cyl) || 0,
+                    add: parseFloat(lSide.add) || 0,
                     diameter: parseFloat(lSide.dia) || 70
                 });
             }
@@ -542,6 +543,16 @@ const OrderWizard = () => {
             const brandNameResolve = configs.brand?.find(b => b._id === formik.values.brandId)?.name || '';
             const categoryNameResolve = configs.category?.find(c => c._id === formik.values.categoryId)?.name || '';
             const productNameResolve = productNames.find(p => p.value === formik.values.productName)?.label || '';
+
+            // Manual validation for Progressive
+            if (categoryNameResolve.toLowerCase().includes('progressive')) {
+                const missingAdd = powers.some(p => !p.add && p.add !== 0);
+                if (missingAdd) {
+                    toast.error('Addition (ADD) is required for Progressive lenses to resolve base curve');
+                    setResolvingBase(false);
+                    return;
+                }
+            }
 
             const payload = {
                 powers,
@@ -623,6 +634,7 @@ const OrderWizard = () => {
 
     // Simplified wrapInput for OrderWizard
     const wrapInput = (Component, props) => {
+        const { onChange: customOnChange, ...rest } = props;
         const getIn = (obj, path) => {
             if (!obj || !path) return undefined;
             const keys = path.split(/[.[\]]+/).filter(Boolean);
@@ -640,15 +652,19 @@ const OrderWizard = () => {
 
         return (
             <Component
-                {...props}
+                {...rest}
                 error={fieldTouched && fieldError ? { message: fieldError } : null}
-                onChange={formik.handleChange}
+                onChange={(e) => {
+                    if (customOnChange) customOnChange(e);
+                    else formik.handleChange(e);
+                }}
                 onBlur={formik.handleBlur}
                 value={fieldValue ?? ''}
                 disabled={props.disabled || isReadOnly}
             />
         );
     };
+
 
     const isStepValid = (stepIdx = activeStep) => {
         const { values, errors } = formik;
@@ -673,7 +689,7 @@ const OrderWizard = () => {
     const handleNext = async () => {
         // Define fields for each step to validate partially
         const stepFields = [
-            ['customerId', 'labId'], // Step 1
+            ['customerId', 'shipToId', 'labId'], // Step 1
             ['brandId', 'categoryId', 'productName', 'indexId'], // Step 2
             ['pantoscopicAngle', 'bowAngle', 'bvd'] // Step 3
         ];
@@ -694,9 +710,16 @@ const OrderWizard = () => {
 
         // Validate only fields of the current step
         const errors = await formik.validateForm();
-        const hasErrorsInCurrentStep = currentFields.some(field => !!errors[field]);
 
-        if (!hasErrorsInCurrentStep) {
+        // Filter errors to only those in the current step
+        const currentStepErrors = currentFields
+            .filter(field => !!errors[field])
+            .map(field => {
+                // Map field names to readable labels if needed, or just use the error message
+                return errors[field];
+            });
+
+        if (currentStepErrors.length === 0) {
             if (activeStep < steps.length - 1) {
                 setActiveStep(prev => prev + 1);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -704,11 +727,13 @@ const OrderWizard = () => {
                 formik.handleSubmit();
             }
         } else {
-            // Find the first error message to show in toast
-            const firstErrorField = currentFields.find(f => errors[f]);
-            toast.warn(`Please fix: ${errors[firstErrorField]}`);
+            // Show all errors for the current step in a single toast or individual ones
+            // Toasting the first few is usually better to avoid cluttering
+            const uniqueErrors = [...new Set(currentStepErrors)];
+            toast.warn(`Please complete the following: ${uniqueErrors.join(', ')}`);
         }
     };
+
 
     const handleBack = () => {
         if (activeStep > 0) {
@@ -720,23 +745,23 @@ const OrderWizard = () => {
     const renderCustomerDetails = () => (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8 p-10 bg-white rounded-b-2xl  border-gray-50">
             <div className="col-span-1">
-                <SearchableSelect
-                    label="Select Customer"
-                    name="customerId"
-                    value={formik.values.customerId}
-                    onChange={(e) => handleCustomerChange(e.target.value)}
-                    options={customerOptions}
-                    placeholder="Search by Shop Name or Code"
-                    disabled={isReadOnly}
-                />
+                {wrapInput(SearchableSelect, {
+                    label: "Select Customer*",
+                    name: "customerId",
+                    onChange: (e) => handleCustomerChange(e.target.value),
+                    options: customerOptions,
+                    placeholder: "Search by Shop Name or Code",
+                    disabled: isReadOnly
+                })}
             </div>
             {wrapInput(SearchableSelect, {
-                label: "Select Ship To",
+                label: "Select Ship To*",
                 name: "shipToId",
                 placeholder: "Select Ship To Address",
                 options: shipToOptions,
                 disabled: !formik.values.customerId
             })}
+
 
             <div className="flex flex-wrap col-span-full items-center justify-center gap-4 py-2">
                 <p className="text-sm font-black text-[#fe9a00] uppercase tracking-widest bg-orange-50/50 px-4 py-2 rounded-xl border border-orange-100/50 inline-block">
@@ -751,7 +776,7 @@ const OrderWizard = () => {
             </div>
 
             {wrapInput(Select, {
-                label: "Select Lab",
+                label: "Select Lab*",
                 name: "labId",
                 options: (Array.isArray(configs?.lab) ? configs.lab : []).map(l => ({ value: l._id, label: l.name })),
                 placeholder: "Select Lab"
@@ -1025,7 +1050,7 @@ const OrderWizard = () => {
                         </span>
                     </div>
                 )}
-                {/* <div className="col-span-full mt-4 p-6 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
+                <div className="col-span-full mt-4 p-6 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                         <div className="space-y-1">
                             <h5 className="text-sm font-black text-gray-800 uppercase tracking-widest flex items-center gap-2">
@@ -1108,7 +1133,7 @@ const OrderWizard = () => {
                             )}
                         </div>
                     )}
-                </div> */}
+                </div>
             </div>
 
             {/* Mirror Toggle */}
@@ -1245,10 +1270,13 @@ const OrderWizard = () => {
                     )}
                 </div>
 
-                {fetchingOrder ? (
-                    <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl p-20 flex flex-col items-center justify-center gap-6">
-                        <div className="w-16 h-16 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin"></div>
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] animate-pulse">Safely Fetching Order Details...</p>
+                {loadingConfigs || fetchingOrder ? (
+                    <div className="flex flex-col items-center justify-center p-20 bg-white rounded-3xl border border-gray-100 shadow-sm animate-in fade-in zoom-in duration-500">
+                        <div className="relative">
+                            <div className="w-16 h-16 rounded-full border-4 border-[#fe9a00]/10 border-t-[#fe9a00] animate-spin" />
+                            <Icon icon="mdi:cart-variant" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-2xl text-[#fe9a00]" />
+                        </div>
+                        <p className="mt-6 text-gray-400 font-black uppercase tracking-[0.2em] text-[10px] animate-pulse">Initializing Application...</p>
                     </div>
                 ) : (
                     <FormikProvider value={formik}>
@@ -1352,7 +1380,7 @@ const OrderWizard = () => {
                             })}
 
                             {/* Submission Buttons - Styled like RegisterCustomer Footer */}
-                            {!isReadOnly && (
+                            {/* {!isReadOnly && (
                                 <div className="flex justify-center gap-6 pt-10">
                                     <button
                                         type="submit"
@@ -1371,7 +1399,7 @@ const OrderWizard = () => {
                                         {isEditMode ? 'Update Draft' : 'Save As Draft'}
                                     </button>
                                 </div>
-                            )}
+                            )} */}
                         </form>
                     </FormikProvider>
                 )}

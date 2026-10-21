@@ -302,3 +302,21 @@ export const updateShipToDetails = async (customerId, shipToData) => {
         throw error.response ? error.response.data : new Error('Failed to update ship-to details');
     }
 };
+
+export const sendDigiOpticsOtp = async (email) => {
+    try {
+        const response = await api.get(`/api/signinwithdigioptics/sendOtp?email=${encodeURIComponent(email)}`);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to send OTP');
+    }
+};
+
+export const verifyDigiOpticsOtp = async (data) => {
+    try {
+        const response = await api.post('/api/signinwithdigioptics/verifyOtp', data);
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Failed to verify OTP');
+    }
+};

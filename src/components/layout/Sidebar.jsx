@@ -53,7 +53,14 @@ const navItems = [
             { label: 'Update Customers', path: PATHS.CUSTOMER_CARE.UPDATE_CUSTOMERS },
         ]
     },
-    { label: 'Drafts', icon: 'mdi:file-edit-outline', path: PATHS.DRAFTS },
+    {
+        label: 'Drafts',
+        icon: 'mdi:file-edit-outline',
+        subItems: [
+            { label: 'Customer Drafts', path: PATHS.DRAFTS.CUSTOMER },
+            { label: 'Staff Drafts', path: PATHS.DRAFTS.STAFF }
+        ]
+    },
     // { label: 'F&A', icon: 'mdi:finance', path: PATHS.OPERATIONS.FINANCE },
     { label: 'Stores', icon: 'mdi:store', path: PATHS.STORES },
     { label: 'Reports', icon: 'mdi:chart-bar', path: PATHS.OPERATIONS.REPORTS },

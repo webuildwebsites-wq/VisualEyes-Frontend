@@ -159,7 +159,7 @@ const AllOrdersList = () => {
                 fetchOrders(pagination.currentPage);
             }
         } catch (error) {
-            toast.error(error.message || 'Failed to cancel order');
+            toast.error(error.message || error?.error?.message || 'Failed to cancel order');
         } finally {
             setActionModal(prev => ({ ...prev, loading: false }));
         }
@@ -173,7 +173,7 @@ const AllOrdersList = () => {
                 fetchOrders(pagination.currentPage);
             }
         } catch (error) {
-            toast.error(error.message || 'Failed to move order to draft');
+            toast.error(error.message || error?.error?.message || 'Failed to move order to draft');
         }
     };
 
@@ -187,7 +187,7 @@ const AllOrdersList = () => {
                 fetchOrders(pagination.currentPage);
             }
         } catch (error) {
-            toast.error(error.message || 'Failed to delete order');
+            toast.error(error.message || error?.error?.message || 'Failed to delete order');
         } finally {
             setActionModal(prev => ({ ...prev, loading: false }));
         }

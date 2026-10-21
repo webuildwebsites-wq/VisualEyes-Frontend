@@ -41,7 +41,11 @@ export const PERMISSIONS_CONFIG = {
     },
 
     // DRAFTS
-    [PATHS.DRAFTS]: {
+    [PATHS.DRAFTS.CUSTOMER]: {
+        allowedRoles: ['SUPERADMIN'],
+        allowedDepartments: ['SALES', 'FINANCE', 'F&A', 'F&A CFO', 'ACCOUNTING', 'ADMIN']
+    },
+    [PATHS.DRAFTS.STAFF]: {
         allowedRoles: ['SUPERADMIN'],
         allowedDepartments: ['SALES', 'FINANCE', 'F&A', 'F&A CFO', 'ACCOUNTING', 'ADMIN']
     },

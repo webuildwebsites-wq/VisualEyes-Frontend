@@ -102,25 +102,32 @@ const SearchableSelect = ({
                                 borderRadius: '12px',
                                 backgroundColor: 'rgba(229, 231, 235, 0.5)',
                                 '& fieldset': {
-                                    borderColor: '#F59E0B',
+                                    borderColor: error ? '#EF4444' : '#F59E0B',
+                                    borderWidth: error ? '2px' : '1px',
                                 },
                                 '&:hover fieldset': {
-                                    borderColor: '#F59E0B',
+                                    borderColor: error ? '#EF4444' : '#F59E0B',
                                     borderWidth: '2px',
                                 },
                                 '&.Mui-focused fieldset': {
-                                    borderColor: '#F59E0B',
+                                    borderColor: error ? '#EF4444' : '#F59E0B',
                                     borderWidth: '2px',
                                 },
                             },
                             '& .MuiInputLabel-root': {
-                                color: '#1b1c1dff',
+                                color: error ? '#EF4444' : '#1b1c1dff',
                                 '&.Mui-focused': {
-                                    color: '#F59E0B',
+                                    color: error ? '#EF4444' : '#F59E0B',
                                 },
+                            },
+                            '& .MuiFormHelperText-root': {
+                                color: '#EF4444',
+                                fontWeight: 'bold',
+                                marginLeft: '0.5rem'
                             },
                             ...props.sx // Merge custom styles
                         }}
+
                     />
                 )}
                 {...props}

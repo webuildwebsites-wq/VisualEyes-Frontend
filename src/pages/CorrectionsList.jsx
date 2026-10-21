@@ -44,7 +44,7 @@ const CorrectionsList = () => {
                 setPagination(response.data.pagination || { currentPage: 1, totalPages: 1 });
             }
         } catch (error) {
-            toast.error(error.message || 'Failed to load correction requests');
+            toast.error(error.message || error?.error?.message || 'Failed to load correction requests');
         } finally {
             setLoading(false);
         }

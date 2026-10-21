@@ -132,7 +132,7 @@ const EmployeeList = () => {
             await fetchEmployees(pagination.currentPage);
         } catch (error) {
             console.error('Error deleting employee:', error);
-            toast.error(error.message || 'Failed to delete employee');
+            toast.error(error.message || err?.error?.message || 'Failed to delete employee');
         } finally {
             setDeleteLoading(false);
             setSelectedEmployeeForDelete(null);

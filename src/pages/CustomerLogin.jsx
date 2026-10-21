@@ -43,7 +43,8 @@ const CustomerLogin = () => {
                     toast.error(response.message || 'Login failed');
                 }
             } catch (err) {
-                toast.error(err.message || 'An error occurred during login');
+                console.log('err', err)
+                toast.error(err.error.message || err?.error?.message || 'An error occurred during login');
             }
         },
     });

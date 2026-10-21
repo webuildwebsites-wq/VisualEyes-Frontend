@@ -40,6 +40,7 @@ import { AddressDetails } from '../components/CustomerRegistration/AddressDetail
 import { BusinessInformation } from '../components/CustomerRegistration/BusinessInformation';
 import { ContactInformation } from '../components/CustomerRegistration/ContactInformation';
 import { Overview } from '../components/CustomerRegistration/Overview';
+import DigiOpticsModal from '../components/CustomerRegistration/DigiOpticsModal';
 
 export default function RegisterCustomer() {
     const dispatch = useDispatch();
@@ -120,6 +121,21 @@ export default function RegisterCustomer() {
         businessEmail: Yup.string().email('Invalid email').nullable(),
         zoneRefId: Yup.string().required('Zone is required'),
         salesPersonRefId: Yup.string().required('Sales Person is required'),
+        gstCertificateImg: Yup.string().when('gstType', {
+            is: (val) => val?.toLowerCase() !== 'un-registered' && val?.toLowerCase() !== 'unregistered',
+            then: (schema) => schema.required('GST Certificate is required'),
+            otherwise: (schema) => schema.notRequired()
+        }),
+        aadharCardImg: Yup.string().when('gstType', {
+            is: (val) => val?.toLowerCase() === 'un-registered' || val?.toLowerCase() === 'unregistered',
+            then: (schema) => schema.required('Aadhar Card Image is required'),
+            otherwise: (schema) => schema.notRequired()
+        }),
+        panCardImg: Yup.string().when('gstType', {
+            is: (val) => val?.toLowerCase() === 'un-registered' || val?.toLowerCase() === 'unregistered',
+            then: (schema) => schema.required('PAN Card Image is required'),
+            otherwise: (schema) => schema.notRequired()
+        }),
     }), []);
 
     const setStep = (step) => {
@@ -171,6 +187,37 @@ export default function RegisterCustomer() {
     const [isReadOnlyMode, setIsReadOnlyMode] = useState(false);
     const [configsLoaded, setConfigsLoaded] = useState(false);
     const [currentStage, setCurrentStage] = useState('');
+    const [isDigiOpticsModalOpen, setIsDigiOpticsModalOpen] = useState(false);
+    const [autofilledFields, setAutofilledFields] = useState([]);
+
+    const handleDigiOpticsData = (customerData) => {
+        const currentConfigs = configsRef.current;
+        const formValues = mapCustomerToFormValues(customerData, currentConfigs);
+
+        // Identify which fields are non-empty in formValues to highlight them as autofilled
+        const filledPaths = [];
+        const findFilled = (obj, prefix = '') => {
+            Object.keys(obj).forEach(key => {
+                const path = prefix ? `${prefix}.${key}` : key;
+                const value = obj[key];
+                
+                if (value && typeof value === 'object' && !Array.isArray(value)) {
+                    findFilled(value, path);
+                } else if (value !== '' && value !== null && value !== undefined) {
+                    if (Array.isArray(value)) {
+                        if (value.length > 0) filledPaths.push(path);
+                    } else {
+                        filledPaths.push(path);
+                    }
+                }
+            });
+        };
+        findFilled(formValues);
+        setAutofilledFields(filledPaths);
+
+        formik.setValues(formValues, false);
+    };
+
     const formik = useFormik({
         initialValues: INITIAL_FORM_VALUES,
         validationSchema,
@@ -560,6 +607,9 @@ export default function RegisterCustomer() {
                 setCorrectionRequest(null);
                 setCurrentStage('');
                 formik.resetForm();
+            } else if (!hasInitializedRef.current) {
+                setIsDigiOpticsModalOpen(true);
+                hasInitializedRef.current = true;
             }
         }
     }, [searchParams, configsLoaded, loadDraftDataById, fetchCorrectionData, fetchApprovalData]);
@@ -605,36 +655,92 @@ export default function RegisterCustomer() {
                 .trim();
         };
 
+        // Define fields for each step for focused validation
+        const STEP_FIELDS = [
+            ['gstType', 'firmName', 'shopName', 'gstNumber', 'aadharCard', 'panCard', 'gstCertificateImg', 'aadharCardImg', 'panCardImg'],
+            ['billToAddress', 'customerShipToDetails'],
+            ['businessTypeRefId', 'specificLabRefId', 'plantRefId', 'fittingCenterRefId', 'minSalesValue', 'creditDaysRefId'],
+            ['ownerName', 'mobileNo1', 'mobileNo2', 'businessEmail', 'zoneRefId', 'salesPersonRefId'],
+            [] // Overview has no input fields
+        ];
+
+        const currentStepFields = STEP_FIELDS[activeStep] || [];
+
+        // Validate the entire form but filter for current step errors
+        const errors = await formik.validateForm();
+        
+        // Mark current step fields as touched so they show error messages in the UI
+        const touched = { ...formik.touched };
+        currentStepFields.forEach(field => {
+            // Special handling for nested objects like billToAddress
+            if (field === 'billToAddress') {
+                touched.billToAddress = {
+                    branchName: true,
+                    contactPerson: true,
+                    contactNumber: true,
+                    address: true,
+                    city: true,
+                    state: true,
+                    zipCode: true,
+                    country: true,
+                    billingCurrency: true,
+                    billingMode: true
+                };
+            } else if (field === 'customerShipToDetails') {
+                touched.customerShipToDetails = (formik.values.customerShipToDetails || []).map(() => ({
+                    branchName: true,
+                    contactPerson: true,
+                    contactNumber: true,
+                    address: true,
+                    city: true,
+                    state: true,
+                    zipCode: true,
+                    country: true,
+                    billingCurrency: true,
+                    billingMode: true
+                }));
+            } else {
+                touched[field] = true;
+            }
+        });
+        formik.setTouched(touched);
+
+        // Check if there are any errors in the current step
+        const stepErrors = getFlatErrors(errors).filter(e => {
+            const topKey = e.path.split(/[.[\]]+/)[0];
+            return currentStepFields.includes(topKey);
+        });
+
+        // Also check our manual isStepValid for things like uploaded images which might not be in Yup
+        const stepIsValid = isStepValid(activeStep) && stepErrors.length === 0;
+
         if (activeStep < steps.length - 1) {
-            if (isStepValid(activeStep)) {
+            if (stepIsValid) {
                 setStep(activeStep + 1);
             } else {
-                const errors = await formik.validateForm();
-                const flatErrors = getFlatErrors(errors);
-                const labels = [...new Set(flatErrors.map(e => formatLabel(e.path)))];
-
-                if (labels.length > 0) {
-                    toast.warning(`Please fix the following fields in ${steps[activeStep]}: ${labels.join(', ')}`);
+                const labels = [...new Set(stepErrors.map(e => formatLabel(e.path)))];
+                
+                // If Yup didn't catch it but isStepValid did (e.g. missing images)
+                if (labels.length === 0 && !isStepValid(activeStep)) {
+                    // Manual check for missing images in Step 0
+                    if (activeStep === 0) {
+                        if (formik.values.gstType?.toLowerCase() !== 'un-registered' && formik.values.gstType?.toLowerCase() !== 'unregistered') {
+                            if (!formik.values.gstCertificateImg) labels.push('GST Certificate');
+                        } else {
+                            if (!formik.values.aadharCardImg) labels.push('Aadhar Card Image');
+                            if (!formik.values.panCardImg) labels.push('PAN Card Image');
+                        }
+                    }
                 }
 
-                // Mark all invalid fields as touched deeply
-                const touched = {};
-                flatErrors.forEach(e => {
-                    // Deep set touched for Formik
-                    const parts = e.path.split(/[.[\]]+/).filter(Boolean);
-                    let current = touched;
-                    parts.forEach((part, i) => {
-                        if (i === parts.length - 1) {
-                            current[part] = true;
-                        } else {
-                            current[part] = current[part] || {};
-                            current = current[part];
-                        }
-                    });
-                });
-                formik.setTouched(touched);
+                if (labels.length > 0) {
+                    toast.warning(`Please complete the following in ${steps[activeStep]}: ${labels.join(', ')}`);
+                } else {
+                    toast.warning(`Please fill all required fields in ${steps[activeStep]}`);
+                }
             }
         } else {
+
             if (isReadOnlyMode) {
                 navigate(PATHS.APPROVALS);
                 return;
@@ -830,7 +936,7 @@ export default function RegisterCustomer() {
         try {
             const response = await uploadImage(file);
             const url = response.data?.url || response.url || response;
-            formik.setFieldValue(fieldName, url);
+            formik.setFieldValue(fieldName, url, true);
             toast.success("Document uploaded successfully!");
         } catch (error) {
             toast.error('Upload failed');
@@ -874,9 +980,13 @@ export default function RegisterCustomer() {
         const fieldError = getIn(formik.errors, props.name);
         const fieldTouched = getIn(formik.touched, props.name);
         const fieldValue = getIn(formik.values, props.name);
+        const isAutofilled = autofilledFields.includes(props.name);
 
         return (
-            <div className={`relative ${isCorrectionField ? 'p-1 rounded-2xl bg-red-50/50 border border-red-100 ring-2 ring-red-500/20' : ''}`}>
+            <div className={`relative transition-all duration-500 
+                ${isCorrectionField ? 'p-1 rounded-2xl bg-red-50/50 border border-red-100 ring-2 ring-red-500/20' : ''} 
+                ${isAutofilled ? 'ring-2 ring-[#ff6300]/30 bg-[#ff6300]/5 rounded-xl' : ''}
+            `}>
                 <Component
                     {...rest}
                     disabled={isFieldDisabled}
@@ -885,6 +995,9 @@ export default function RegisterCustomer() {
                     onToggleRejection={(fieldName) => dispatch(toggleFieldRejection({ fieldName }))}
                     error={fieldTouched && fieldError ? { message: fieldError } : null}
                     onChange={(e) => {
+                        if (isAutofilled) {
+                            setAutofilledFields(prev => prev.filter(f => f !== props.name));
+                        }
                         if (customOnChange) customOnChange(e);
                         else formik.handleChange(e);
                     }}
@@ -1234,6 +1347,12 @@ export default function RegisterCustomer() {
                 initialFields={correctionRequest?.fields || correctionRequest?.fieldsToCorrect || []}
                 loading={saving}
                 showTargetRole={isSalesHead}
+            />
+
+            <DigiOpticsModal
+                isOpen={isDigiOpticsModalOpen}
+                onClose={() => setIsDigiOpticsModalOpen(false)}
+                onDataReceived={handleDigiOpticsData}
             />
         </div>
     );

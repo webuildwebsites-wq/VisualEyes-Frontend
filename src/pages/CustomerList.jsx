@@ -123,7 +123,7 @@ const CustomerList = () => {
                 setPagination(response.data.pagination || { currentPage: 1, totalPages: 1 });
             }
         } catch (error) {
-            toast.error(error.message || 'Failed to load customers');
+            toast.error(error.message || error?.error?.message || 'Failed to load customers');
         } finally {
             setLoading(false);
         }
@@ -137,7 +137,7 @@ const CustomerList = () => {
                 setSelectedCustomer(response.data.customer);
             }
         } catch (error) {
-            toast.error(error.message || 'Failed to fetch customer details');
+            toast.error(error.message || error?.error?.message || 'Failed to fetch customer details');
         } finally {
             setViewLoading(false);
         }
@@ -156,7 +156,7 @@ const CustomerList = () => {
             toast.success('Customer deactivated successfully');
             await fetchCustomers(pagination.currentPage);
         } catch (error) {
-            toast.error(error.message || 'Failed to deactivate customer');
+            toast.error(error.message || error?.error?.message || 'Failed to deactivate customer');
         } finally {
             setDeactivateLoading(false);
             setSelectedCustomerForDeactivate(null);
@@ -176,7 +176,7 @@ const CustomerList = () => {
             toast.success('Correction request sent successfully');
             await fetchCustomers(pagination.currentPage);
         } catch (error) {
-            toast.error(error.message || 'Failed to send correction request');
+            toast.error(error.message || error?.error?.message || 'Failed to send correction request');
         } finally {
             setCorrectionLoading(false);
             setSelectedCustomerForCorrection(null);

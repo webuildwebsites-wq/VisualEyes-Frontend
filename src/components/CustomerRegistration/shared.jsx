@@ -89,6 +89,14 @@ export const FileUploadField = ({ label, name, placeholder, fileRef: externalFil
                         </div>
                     </div>
                 )}
+                {formik.touched[imgFieldName] && formik.errors[imgFieldName] && (
+                    <div className="flex items-center gap-1.5 px-3 py-2 bg-red-50 border border-red-100 rounded-xl animate-in fade-in slide-in-from-top-1 duration-200">
+                        <Icon icon="mdi:alert-circle" className="text-red-500 text-sm" />
+                        <span className="text-red-600 text-[10px] font-black uppercase tracking-widest">
+                            {formik.errors[imgFieldName]}
+                        </span>
+                    </div>
+                )}
             </div>
         </div>
     );

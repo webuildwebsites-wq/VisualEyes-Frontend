@@ -42,7 +42,10 @@ export const PATHS = {
 
     STORES: '/stores',
     NEW_ORDER: '/new-order',
-    DRAFTS: '/drafts',
+    DRAFTS: {
+        CUSTOMER: '/drafts/customer',
+        STAFF: '/drafts/staff',
+    },
     APPROVALS: '/approvals',
     CORRECTIONS: '/corrections',
 

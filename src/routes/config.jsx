@@ -87,7 +87,7 @@ const OPERATIONS_MODULE = [
     { path: 'dms', element: PlaceholderPage, props: { title: 'DMS' } },
     { path: 'finance', element: PlaceholderPage, props: { title: 'F&A' }, requiredPermission: 'CanViewFinancials' },
     { path: 'reports', element: PlaceholderPage, props: { title: 'Reports' }, requiredPermission: 'CanViewReports' },
-    { path: 'stores', element: DashboardWizard, requiredPermission: 'CanManageProducts' },
+    { path: 'stores', element: PlaceholderPage, requiredPermission: 'CanManageProducts' },
     { path: 'new-order', element: OrderWizard },
 ];
 
@@ -146,8 +146,14 @@ export const routesConfig = [
                         props: { title: 'Dashboard' }
                     },
                     {
-                        path: PATHS.DRAFTS,
-                        element: DraftsList
+                        path: PATHS.DRAFTS.CUSTOMER,
+                        element: DraftsList,
+                        props: { type: 'customers' }
+                    },
+                    {
+                        path: PATHS.DRAFTS.STAFF,
+                        element: DraftsList,
+                        props: { type: 'employees' }
                     },
                     {
                         path: PATHS.APPROVALS,

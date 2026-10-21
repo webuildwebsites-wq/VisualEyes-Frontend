@@ -8,9 +8,9 @@ import { getMyDraftEmployees, deactivateDraftEmployee } from '../services/employ
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { PATHS } from '../routes/paths';
 
-const DraftsList = () => {
+const DraftsList = ({ type }) => {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('customers');
+    const [activeTab, setActiveTab] = useState(type || 'customers');
     const [drafts, setDrafts] = useState([]);
 
     const [loading, setLoading] = useState(false);
@@ -87,31 +87,33 @@ const DraftsList = () => {
                 <div>
                     <h1 className="text-3xl font-black text-gray-800 flex items-center gap-3 uppercase tracking-tighter">
                         <Icon icon="mdi:file-edit-outline" className="text-amber-500" />
-                        Saved Drafts
+                        {activeTab === 'customers' ? 'Customer Drafts' : 'Staff Drafts'}
                     </h1>
                     <p className="text-gray-500 font-medium">Manage and continue your pending registrations</p>
                 </div>
 
-                <div className="flex bg-gray-100 p-1 rounded-2xl w-fit">
-                    <button
-                        onClick={() => setActiveTab('customers')}
-                        className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'customers'
-                            ? 'bg-white text-amber-600 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                    >
-                        Customers
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('employees')}
-                        className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'employees'
-                            ? 'bg-white text-amber-600 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                    >
-                        Staff
-                    </button>
-                </div>
+                {!type && (
+                    <div className="flex bg-gray-100 p-1 rounded-2xl w-fit">
+                        <button
+                            onClick={() => setActiveTab('customers')}
+                            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'customers'
+                                ? 'bg-white text-amber-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            Customers
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('employees')}
+                            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'employees'
+                                ? 'bg-white text-amber-600 shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            Staff
+                        </button>
+                    </div>
+                )}
             </div>
 
             {loading ? (

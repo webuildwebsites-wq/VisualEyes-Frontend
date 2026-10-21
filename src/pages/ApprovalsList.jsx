@@ -48,7 +48,7 @@ const ApprovalsList = () => {
                 setPagination(response.data.pagination || { currentPage: 1, totalPages: 1 });
             }
         } catch (error) {
-            toast.error(error.message || 'Failed to load pending approvals');
+            toast.error(error.message || error?.error?.message || 'Failed to load pending approvals');
         } finally {
             setLoading(false);
         }

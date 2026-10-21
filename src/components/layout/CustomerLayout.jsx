@@ -38,7 +38,7 @@ const CustomerLayout = () => {
                 dispatch(setCredentials({ user: { ...user, termsAndConditionsAccepted: true }, token }));
                 setShowTermsModal(false);
             } else {
-                toast.error(res?.message || 'Failed to accept terms');
+                toast.error(res?.message || res?.error?.message || 'Failed to accept terms');
             }
         } catch (err) {
             toast.error(err?.message || err?.error?.message || 'Something went wrong');
